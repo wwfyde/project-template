@@ -1,0 +1,56 @@
+# Accordion
+
+<Subtitle>带标题的可折叠内容面板。</Subtitle>
+<Meta
+  name="description"
+  content="Accordion 示例用于演示交互预览、样式版本切换、源码导出和自动生成的 API 表。"
+/>
+
+import { DemoAccordionHero } from './demos/hero';
+
+<DemoAccordionHero />
+
+## Anatomy
+
+组件直接从 `@base-ui/react` package 导入。下面保留组件结构和完整 API，作为维护自己组件文档的参考：
+
+```jsx title="Anatomy"
+import { Accordion } from '@base-ui/react/accordion';
+
+<Accordion.Root>
+  <Accordion.Item>
+    <Accordion.Header>
+      <Accordion.Trigger />
+    </Accordion.Header>
+    <Accordion.Panel />
+  </Accordion.Item>
+</Accordion.Root>;
+```
+
+## API reference
+
+import { TypesAccordion } from './types';
+
+### Root
+
+<TypesAccordion.Root />
+
+### Item
+
+<TypesAccordion.Item />
+
+### Header
+
+<TypesAccordion.Header />
+
+### Trigger
+
+<TypesAccordion.Trigger />
+
+### Panel
+
+<TypesAccordion.Panel />
+
+export const metadata = {
+  keywords: ['Accordion', 'React', '交互示例', 'API 文档'],
+};

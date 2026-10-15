@@ -1,0 +1,13 @@
+*.local
+
+.env
+.env.*
+.env.prod
+!.env.example
+.venv/
+
+config.toml
+*.prod.toml
+*.local.toml
+!config,examole.toml
+

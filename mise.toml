@@ -1,0 +1,15 @@
+[env]
+
+# Use the project name derived from the current directory
+PROJECT_NAME = "{{ config_root | basename }}"
+PROJECT_DIR = "{{ cwd }}"
+PROJECT_ROOT = "{{ config_root }}"
+WORKSPACE_ROOT = "{{ cwd }}"
+
+
+
+
+[settings]
+python.uv_venv_auto = "source"
+# or, to create if missing
+# python.uv_venv_auto = "create|source"

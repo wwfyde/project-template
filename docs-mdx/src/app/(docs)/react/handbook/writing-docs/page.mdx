@@ -1,0 +1,146 @@
+# 编写文档
+
+<Subtitle>用一篇示例保留日常写作、代码演示和 API 文档能力。</Subtitle>
+<Meta
+  name="description"
+  content="如何在 docs-mdx 中编写 MDX 页面，使用表格、代码高亮、键盘提示、交互示例和自动 API 参数表。"
+/>
+
+## 新建页面
+
+在 `src/app/(docs)/react/` 下创建目录和 `page.mdx`，目录即路由。例如 `handbook/writing-docs/page.mdx` 对应当前页面。
+
+```mdx title="page.mdx"
+# 页面标题
+
+<Subtitle>一句话说明这篇文档的用途。</Subtitle>
+<Meta name="description" content="用于搜索与页面元数据的简短描述。" />
+
+## 第一个章节
+
+在这里编写正文。
+```
+
+标题用于生成页面名称，二级和三级标题会显示在页内目录中，并自动获得可分享的锚点。`Meta` 描述不超过 170 个字符。
+
+新增页面后，在所属分组的 `page.mdx` 中添加条目，并保留 `Outline` 与 `Contents` 两个链接，让搜索能够索引页面章节，例如 `- 新页面 - ([Outline](#新页面), [Contents](./my-page/page.mdx))`。导航与站内搜索由分组索引和 `src/app/sitemap/index.ts` 共同生成；删除页面时也要移除对应索引项。
+
+## Markdown 排版
+
+正文支持 **粗体**、*斜体*、`行内代码`、[站内链接](/react/overview/quick-start)和列表。
+
+- 用简短段落说明目的和使用方式。
+- 用列表呈现并列的信息。
+- 用标题组织内容，方便搜索和定位。
+
+> 示例、指南与 API 可以写在同一页；先解释读者要完成的任务，再补充参数细节。
+
+### 表格
+
+| 内容 | 写法 | 用途 |
+| --- | --- | --- |
+| 指南 | `page.mdx` | 说明概念和操作步骤 |
+| 交互示例 | `demos/` | 展示行为与实现代码 |
+| API 表 | `types.ts` | 展示属性、类型和默认值 |
+
+### 键盘提示
+
+使用 `<kbd>` 标记按键。例如用 <kbd>Tab</kbd> 移动焦点，用 <kbd>Enter</kbd> 激活按钮，用 <kbd>Esc</kbd> 关闭弹层。
+
+```mdx title="键盘提示"
+按 <kbd>Tab</kbd> 移动焦点，按 <kbd>Enter</kbd> 激活按钮。
+```
+
+## 代码块
+
+为代码围栏指定语言和 `title`，可以显示语法高亮、文件名和复制按钮。使用 `// @highlight` 标记下一行，使用 `// @highlight-text "文本"` 标记行内重点。
+
+```tsx title="example.tsx"
+import { Accordion } from '@base-ui/react/accordion';
+
+// @highlight
+export function Example() {
+  return (
+    <Accordion.Root multiple> {/* @highlight-text "multiple" */}
+      <Accordion.Item value="overview">
+        <Accordion.Header>
+          <Accordion.Trigger>如何开始？</Accordion.Trigger>
+        </Accordion.Header>
+        <Accordion.Panel>先创建一篇 MDX 文档。</Accordion.Panel>
+      </Accordion.Item>
+    </Accordion.Root>
+  );
+}
+```
+
+连续多行可用 `// @highlight-start` 和 `// @highlight-end` 包围。标记只用于文档渲染，不会成为读者复制的示例内容。
+
+## 嵌入交互示例
+
+MDX 可以直接导入 React 组件。复用文档引擎的 `createDemoWithVariants` 工厂，可以同时获得实时预览、源码面板、CSS Modules / Tailwind 切换和代码导出。
+
+```text title="示例目录"
+demos/
+  _index.module.css
+  hero/
+    index.ts
+    css-modules/index.tsx
+    tailwind/index.tsx
+```
+
+```ts title="demos/hero/index.ts"
+import { createDemoWithVariants } from 'docs-mdx/src/utils/createDemo';
+import CssModules from './css-modules';
+import Tailwind from './tailwind';
+
+export const DemoExample = createDemoWithVariants(
+  import.meta.url,
+  { CssModules, Tailwind },
+  { highlightAfter: 'init', enhanceAfter: 'init' },
+);
+```
+
+在页面里导入并使用生成的示例组件：
+
+```mdx title="page.mdx"
+import { DemoExample } from './demos/hero';
+
+<DemoExample />
+```
+
+完整实现可以参考 [Accordion](/react/components/accordion) 和 [Popover](/react/components/popover)。每个样式版本默认导出一个 React 组件；包含状态或事件处理的自定义客户端组件按 Next.js 约定声明 `'use client'`。
+
+## 生成 API 表
+
+API 表由 `createMultipleTypes` 和构建加载器从 TypeScript 声明提取。已有示例直接导入安装的 Base UI package，不需要复制组件源码。
+
+```ts title="types.ts"
+import { Accordion } from '@base-ui/react/accordion';
+import { createMultipleTypes } from 'docs-mdx/src/utils/createTypes';
+
+const { types } = createMultipleTypes(import.meta.url, Accordion);
+
+export const TypesAccordion = types;
+```
+
+```mdx title="page.mdx"
+import { TypesAccordion } from './types';
+
+## API reference
+
+### Root
+
+<TypesAccordion.Root />
+```
+
+构建时会提取属性、默认值、数据属性等信息，生成的 `types.md` 用于 Markdown 导出。新增自己的组件时，替换导入和命名，并保持组件的 TypeScript 类型与注释完整；不要手工维护生成的参数表。
+
+## 发布与导出
+
+运行 `pnpm docs-mdx:build` 生成静态站点及 Markdown。页面顶部的 Markdown 操作适合分享单页内容，[llms.txt](/llms.txt) 提供文档索引。
+
+内容维护完成后，依次运行类型检查、测试、构建和 `pnpm docs-mdx:link-check`，检查类型、渲染与本地链接。
+
+export const metadata = {
+  keywords: ['MDX', '编写文档', '代码高亮', '交互示例', 'API 表'],
+};

@@ -1,0 +1,4 @@
+[arg("port", long, short="p")]
+api port=env_var_or_default("API_PORT", "8000"):
+    @echo "当前api后端端口: {{ port }}"
+    uv run uvicorn api.main:app  --reload --port {{ port }}

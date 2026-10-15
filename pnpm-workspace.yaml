@@ -1,0 +1,13 @@
+packages:
+  - "web"
+  - "docs"
+  - "docs-mdx"
+  - "ts-examples/*"
+nodeLinker: hoisted
+allowBuilds:
+  esbuild: true
+  msw: true
+  node-pty: true
+overrides:
+  # The API extractor recognizes built-in types under typescript/lib, not the TS6 alias.
+  '@mui/internal-docs-infra>typescript': '6.0.3'

@@ -1,0 +1,56 @@
+### Macos
+.DS_Store
+Thumbs.db
+
+
+### Project
+.idea/
+.vscode/
+.cache/
+*.log
+*.tmp
+*.bak
+temp/
+tmp/
+
+### Configurations & Secrets
+# env file
+*.local
+.env
+.env.*
+!.env.example
+
+# toml
+*.local.toml
+config.toml
+config.*.toml
+!config.example.toml
+!*.example.toml
+
+# yaml
+*.local.yml
+config.yml
+config.*.yml
+!config.example.yml
+
+
+
+### Python
+__pycache__/
+*.py[codz]
+*.so
+*$py.class
+build/
+*.egg-info
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+
+
+### Rust
+target/
+
+### JavaScript
+node_modules/
+dist/

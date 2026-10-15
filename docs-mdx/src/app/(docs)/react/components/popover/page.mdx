@@ -1,0 +1,100 @@
+# Popover
+
+<Subtitle>定位在触发按钮附近的浮层。</Subtitle>
+<Meta
+  name="description"
+  content="Popover 示例用于演示弹层交互、CSS Modules 与 Tailwind 切换，以及完整 API 文档。"
+/>
+
+import { DemoPopoverHero } from './demos/hero';
+
+<DemoPopoverHero />
+
+## Anatomy
+
+组件直接从 `@base-ui/react` package 导入。下面保留组件结构和完整 API，作为维护自己组件文档的参考：
+
+```jsx title="Anatomy"
+import { Popover } from '@base-ui/react/popover';
+
+<Popover.Root>
+  <Popover.Trigger />
+  <Popover.Portal>
+    <Popover.Backdrop />
+    <Popover.Positioner>
+      <Popover.Popup>
+        <Popover.Arrow />
+        <Popover.Viewport>
+          <Popover.Title />
+          <Popover.Description />
+          <Popover.Close />
+        </Popover.Viewport>
+      </Popover.Popup>
+    </Popover.Positioner>
+  </Popover.Portal>
+</Popover.Root>;
+```
+
+## API reference
+
+import { TypesPopover } from './types';
+
+### Root
+
+<TypesPopover.Root />
+
+### Trigger
+
+<TypesPopover.Trigger />
+
+### Backdrop
+
+<TypesPopover.Backdrop />
+
+### Portal
+
+<TypesPopover.Portal />
+
+### Positioner
+
+<TypesPopover.Positioner />
+
+### Popup
+
+<TypesPopover.Popup />
+
+### Arrow
+
+<TypesPopover.Arrow />
+
+### Title
+
+<TypesPopover.Title />
+
+### Description
+
+<TypesPopover.Description />
+
+### Close
+
+<TypesPopover.Close />
+
+### Viewport
+
+<TypesPopover.Viewport />
+
+`Viewport` 是可选的，适用于多个触发器打开同一个浮层、内容随触发器变化且需要切换动画的场景。使用时，为 `Positioner` 设置 `width: var(--positioner-width)` 和 `height: var(--positioner-height)`，在过渡期间保持测量后的尺寸，避免内容变化造成浮层抖动或切换定位方向。
+
+## createHandle
+
+<TypesPopover.createHandle />
+
+[//]: # '@exclude-table-of-contents'
+
+### Handle
+
+<TypesPopover.Handle />
+
+export const metadata = {
+  keywords: ['Popover', 'React', '交互示例', 'API 文档'],
+};

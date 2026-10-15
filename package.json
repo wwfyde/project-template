@@ -1,0 +1,40 @@
+{
+  "name": "project-template",
+  "version": "1.0.0",
+  "private": true,
+  "description": "",
+  "keywords": [],
+  "license": "ISC",
+  "author": "",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "dev": " pnpm --filter web run dev",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "docs:dev": "pnpm --filter docs dev",
+    "dev-all": "pnpm -r --parallel dev",
+    "build-all": "pnpm -r build",
+    "docs:build": "pnpm --filter docs build",
+    "docs:preview": "pnpm --filter docs preview",
+    "docs:start": "pnpm --filter docs preview",
+    "docs-mdx:dev": "pnpm --filter docs-mdx dev",
+    "docs-mdx:build": "pnpm --filter docs-mdx build",
+    "docs-mdx:start": "pnpm --filter docs-mdx start",
+    "docs-mdx:check-types": "pnpm --filter docs-mdx check-types",
+    "docs-mdx:test": "pnpm --filter docs-mdx test",
+    "docs-mdx:link-check": "pnpm --filter docs-mdx link-check"
+  },
+  "devDependencies": {},
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "^12.11.2",
+      "onFail": "download"
+    },
+    "runtime": {
+      "name": "node",
+      "version": "24.18.0",
+      "onFail": "download"
+    }
+  }
+}

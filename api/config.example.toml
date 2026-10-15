@@ -1,0 +1,99 @@
+# toml config
+proxy_url = "http://127.0.0.1:7890"
+httpx_timeout = 180
+cloud_provider = "volcengine" # ark
+object_storage_provider = "oss" # s3 r2 oss
+model_providers = ["dashscope", "openai", "gemini", "anthropic", "volcengine", "google", "deepseek"]
+[app]
+name = "Kayn API"
+port = 8000
+env = "dev"
+debug = true
+
+# 由 FastAPI Redis SDK 0.9.0+ 的 RedisSettings 校验，SDK lifespan 管理连接。
+[redis]
+host = "localhost"
+port = 6379
+db = 0
+password = ""
+cluster = false
+sentinel = false
+
+# Sentinel：启用后忽略 host/port，保持 cluster=false，并删除 url。
+# 将上面的 sentinel 改为 true，并按需填写以下字段。
+# sentinel_nodes = ["redis-a:26379", "redis-b:26379", "redis-c:26379"]
+# sentinel_master_name = "mymaster"
+# sentinel_username = "default"
+# sentinel_password = "sentinel-password"
+# username/password 用于 Redis 数据节点；sentinel_username/password 用于哨兵。
+# .env 中用逗号分隔：REDIS_SENTINEL_NODES=redis-a:26379,redis-b:26379,redis-c:26379
+# Cluster：设置 cluster=true、sentinel=false、db=0，host/port 指向入口节点。
+
+[postgres]
+host = "127.0.0.1"
+port = "5432"
+username = "postgres"
+password = "pg123456"
+database = ""
+pool_size = "30"
+
+[oss]
+# 配置参考 https://github.com/aliyun/alibabacloud-oss-python-sdk-v2/blob/master/DEVGUIDE-CN.md#配置
+bucket_name = "bucket-name-here"
+region = "cn-hangzhou"
+access_key_id = "****"
+access_key_secret = "****"
+endpoint = "****" # 自定义域名CDN加上, 如果不使用则填写None 有OSS SDK自行推断
+prefix = "agent/creative"
+imageStyle = "" # x-oss-process=style/webp x-oss-process=style/png
+thumbnail_image_style = "x-oss-process=image/resize,w_320"
+role_arn = "****" # 角色ARN
+
+[providers.dashscope]
+api_key = "****"
+base_url = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+model = "model-id-here"
+
+[providers.ark] # 火山引擎
+api_key = "****"
+base_url = "https://ark.cn-beijing.volces.com/api/v3"
+model = "model-id-here"
+
+[providers.gemini] # Google AI Studio
+api_key = "****"
+vertex_api_key = "****"
+base_url = "https://generativelanguage.googleapis.com/v1beta/openai"
+model = "gemini-3.5-flash"
+image_model = "gemini-3-flash-image"
+models = [
+  "gemini-3-pro",
+  'gemini-3-flash',
+  "gemini-flash",
+  "gemini-3-pro-image",
+  "gemini-2.5-flash-image",
+]
+temperature = 1
+
+[providers.openai] # OpenAI
+api_key = "****"
+base_url = "https://api.openai.com/v1"
+model = "gpt-5.5-nano"
+max_tokens = 40960
+temperature = 0.5
+
+[providers.openrouter]
+base_url = "https://openrouter.ai/api/v1"
+api_key = "****"
+
+[providers.evolink]
+api_key = "****"
+base_url = "https://api.evolink.ai/v1"
+model = "gpt-image-2"
+
+[providers.vertex]
+region = "us-east5"
+project_id = "****"
+api_key = "****"
+base_url = "https://us-east5-aiplatform.googleapis.com"
+model = ""
+

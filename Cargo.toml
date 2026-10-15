@@ -1,0 +1,6 @@
+[workspace]
+resolver = "3"
+members = [
+    "api-rs",
+    "python-extension-with-rust",
+]

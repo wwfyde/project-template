@@ -1,0 +1,77 @@
+# 快速开始
+
+<Subtitle>从这里开始维护你自己的文档。</Subtitle>
+<Meta
+  name="description"
+  content="docs-mdx 文档引擎的启动方式、目录结构和常用能力，包含 MDX、交互示例、API 表与 Markdown 导出。"
+/>
+
+`docs-mdx` 是独立的 pnpm workspace package。它保留了 Base UI 文档引擎的页面布局、搜索、主题、示例和 API 表，内容已精简为四篇可直接修改的文档。
+
+## 启动文档
+
+在仓库根目录运行：
+
+```sh title="开发"
+pnpm install
+pnpm docs-mdx:dev
+```
+
+打开 [快速开始](/react/overview/quick-start)。开发服务器使用 `3005` 端口，修改 MDX 和示例后会自动更新。
+
+```sh title="构建与预览"
+pnpm docs-mdx:build
+pnpm docs-mdx:start
+```
+
+构建结果位于 `docs-mdx/out/`，可以部署到静态托管服务。开发和预览使用相同端口，运行预览前请先停止开发服务器。
+
+## 保留的能力
+
+| 能力 | 在哪里体验 |
+| --- | --- |
+| Markdown、MDX、标题锚点、页内目录 | 当前页面与[编写文档](/react/handbook/writing-docs) |
+| 站内搜索、侧边导航、移动端导航 | 页面顶部与侧边栏 |
+| 明暗主题 | 跟随系统的明暗外观设置 |
+| 语法高亮、代码复制、重点行标注 | [编写文档](/react/handbook/writing-docs#代码块) |
+| 实时示例、样式版本切换、源码与沙盒导出 | 下方示例与[Accordion](/react/components/accordion) |
+| 从 TypeScript 声明生成 API 表 | [Popover](/react/components/popover#api-reference) |
+| Markdown 与 AI 索引导出 | 页面顶部的 Markdown 操作与 [llms.txt](/llms.txt) |
+
+## 交互示例
+
+下面的 Popover 直接导入 `@base-ui/react/popover`。切换 CSS Modules 和 Tailwind，可以查看同一个示例的不同实现；打开源码面板可以复制代码或导出到在线沙盒。
+
+import { DemoPopoverHero } from '../../components/popover/demos/hero';
+
+<DemoPopoverHero />
+
+## 内容放在哪里
+
+```text title="docs-mdx/"
+src/
+  app/(docs)/react/
+    overview/quick-start/page.mdx
+    handbook/writing-docs/page.mdx
+    components/
+      accordion/
+      popover/
+  components/          文档界面组件
+  css/                 主题与全局样式
+  mdx-components.tsx   MDX 标签映射
+  utils/               示例、API 表与导出工具
+```
+
+每篇正文对应一个 `page.mdx`。导航顺序由所属分组的 `page.mdx` 索引维护，页面布局位于 `src/app/(docs)/layout.tsx`。
+
+## 开始维护
+
+1. 先修改本页的标题、简介和内容，替换为项目说明。
+2. 按[编写文档](/react/handbook/writing-docs)添加页面，并在分组索引注册导航。
+3. 需要交互演示时，参考 [Accordion](/react/components/accordion) 的示例目录。
+4. 需要组件参数文档时，参考 [Popover](/react/components/popover) 的 `types.ts` 与 API 表。
+5. 运行 `pnpm docs-mdx:check-types`、`pnpm docs-mdx:test` 和 `pnpm docs-mdx:build` 验证修改。
+
+export const metadata = {
+  keywords: ['文档引擎', 'MDX', '快速开始', 'docs-mdx'],
+};
