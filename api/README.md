@@ -135,3 +135,7 @@ curl http://localhost:8000/api/examples/otel/propagation \
 ```
 
 响应的 `trace.trace_id` 可用于 Tempo 查询，`trace.span_id` 对应业务 span；业务日志由现有过滤器附加相同标识。`sampled` / `recording` 不代表导出已成功。未开启 SDK 时示例仍可执行，没有有效上下文的 ID 返回 `null`；未采样的上下文仍可携带有效 ID。完整配置和查询步骤见 [OTel 接入与验证](../deploy/observability/README.md)，手动埋点 API 见 [OpenTelemetry Python 文档](https://opentelemetry.io/docs/languages/python/instrumentation/)。
+
+## Agents API
+
+`/api/agents` 提供会话、turn、执行历史和 SSE 输出，首个执行后端使用 `openai-agents`。应用自有 `AgentBackend` / `SessionStore` 协议隔离 SDK、存储和 HTTP，可注册其他 agent backend。配置、调用示例、扩展方式及执行边界见 [Agents 层](agents.md)。

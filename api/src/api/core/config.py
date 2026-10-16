@@ -22,6 +22,7 @@ from pydantic_settings import (
 from redis_fastapi import RedisSettings
 from sqlalchemy.engine import URL
 
+from api.agents.config import AgentsConfig
 from api.core.telemetry_config import OtelConfig
 
 
@@ -172,6 +173,7 @@ class Settings(BaseSettings):
     api_key_header: str = "fastapi"
     admin_users: list[str] = []
     app: AppConfig = Field(default_factory=AppConfig)
+    agents: AgentsConfig = Field(default_factory=AgentsConfig)
     otel: OtelConfig = Field(default_factory=OtelConfig)
     httpx_timeout: int = 60
     wait_max_seconds: int = 60 * 2

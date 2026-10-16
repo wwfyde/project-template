@@ -19,5 +19,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
         async with redis_lifespan(app):
             yield
     finally:
-        await engine.dispose()
-        logger.info("shutdown")
+        try:
+            agent_service = getattr(app.state, "agent_service", None)
+            if agent_service is not None:
+                await agent_service.aclose()
+        finally:
+            await engine.dispose()
+            logger.info("shutdown")

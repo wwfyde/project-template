@@ -10,6 +10,13 @@ port = 8000
 env = "dev"
 debug = true
 
+[agents]
+default_backend = "openai-agents"
+run_timeout_seconds = 120
+# SDK tracing 与应用 OTel 是两条独立链路；按需开启 OpenAI 平台 trace 导出。
+tracing_enabled = false
+# 模型和凭据复用 [providers.openai]；存储复用顶层 repo_type。
+
 # 由 FastAPI Redis SDK 0.9.0+ 的 RedisSettings 校验，SDK lifespan 管理连接。
 [redis]
 otel_enabled = true
