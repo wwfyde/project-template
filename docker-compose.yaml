@@ -65,6 +65,9 @@ services:
   api:
     <<: *api
     restart: unless-stopped
+    labels:
+      # Switch only after OTLP logs are enabled and the collector excludes this label.
+      observability.logs.source: ${API_LOGS_SOURCE:-docker}
     volumes:
       - api-data:/app/data
     depends_on:

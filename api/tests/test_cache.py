@@ -1,4 +1,6 @@
 import os
+import subprocess
+import sys
 from collections.abc import Iterator
 from pathlib import Path
 from unittest.mock import AsyncMock
@@ -70,6 +72,8 @@ async def test_application_lifespan_uses_sdk_clients_and_closes_resources(
             port=6380,
             username="data-user",
             password=SecretStr("test-data-password"),
+            socket_connect_timeout=5,
+            socket_timeout=5,
             cluster=mode == "cluster",
             sentinel=mode == "sentinel",
             sentinel_nodes=["sentinel-a:26379", "sentinel-b:26379", "sentinel-c:26379"]
@@ -219,6 +223,97 @@ def test_configuration_bridge_combines_sentinel_environment_and_toml(
     assert configured.sentinel_nodes == ["sentinel.example:26379"]
     assert configured.sentinel_master_name == "orders"
     assert os.environ["REDIS_SENTINEL"] == "true"
+
+
+@pytest.mark.parametrize("enabled", [False, True])
+@pytest.mark.parametrize(
+    "cache_enabled,native_enabled", [(False, True), (True, False), (True, True)]
+)
+def test_redis_telemetry_respects_master_and_sdk_switches_without_mutating_settings(
+    monkeypatch: MonkeyPatch,
+    enabled: bool,
+    cache_enabled: bool,
+    native_enabled: bool,
+) -> None:
+    declared = RedisConfig(
+        otel_enabled=cache_enabled, otel_redis_enabled=native_enabled
+    )
+    monkeypatch.setattr(cache.settings, "redis", declared)
+
+    configured = cache.configure_redis_sdk(telemetry_enabled=enabled)
+
+    assert configured.otel_enabled is (enabled and cache_enabled)
+    assert configured.otel_redis_enabled is (enabled and native_enabled)
+    assert declared.otel_enabled is cache_enabled
+    assert declared.otel_redis_enabled is native_enabled
+    assert configured is not declared
+    assert "REDIS_OTEL_ENABLED" not in os.environ
+    assert "REDIS_OTEL_REDIS_ENABLED" not in os.environ
+
+
+def test_redis_telemetry_can_be_disabled_after_an_enabled_app() -> None:
+    from redis_fastapi.telemetry import enable_telemetry, is_enabled
+
+    enable_telemetry()
+    assert is_enabled()
+
+    cache.configure_redis_sdk(telemetry_enabled=False)
+
+    assert not is_enabled()
+
+
+def test_configuration_bridge_restores_sdk_constructor() -> None:
+    import redis_fastapi.config as sdk_config
+    from redis_fastapi import RedisSettings
+
+    cache.configure_redis_sdk(telemetry_enabled=False)
+
+    assert sdk_config.RedisSettings is RedisSettings
+
+
+def test_cold_app_import_merges_sentinel_environment_and_toml(tmp_path: Path) -> None:
+    (tmp_path / "config.toml").write_text(
+        '[redis]\nsentinel_nodes = ["sentinel.example:26379"]\n'
+        'sentinel_master_name = "orders"\n',
+        encoding="utf-8",
+    )
+    environment = {
+        "APP_ENV": "prod",
+        "APP_DEBUG": "false",
+        "POSTGRES_HOST": "postgres.example",
+        "POSTGRES_PORT": "5432",
+        "POSTGRES_USERNAME": "test-user",
+        "POSTGRES_PASSWORD": "test-only-password",
+        "POSTGRES_DATABASE": "test-db",
+        "REDIS_SENTINEL": "true",
+        "OTEL_ENABLED": "false",
+        "OTEL_SDK_DISABLED": "true",
+        "PROVIDERS": "{}",
+    }
+    # Import route dependency factories in a genuinely fresh interpreter. They
+    # read SDK settings before ASGI startup; no database or Redis is contacted.
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "from api.main import app\n"
+            "from redis_fastapi import get_settings\n"
+            "configured = get_settings()\n"
+            "assert configured.sentinel is True\n"
+            "assert configured.sentinel_nodes == ['sentinel.example:26379']\n"
+            "assert configured.sentinel_master_name == 'orders'\n"
+            "assert configured.otel_enabled is False\n"
+            "assert configured.otel_redis_enabled is False\n"
+            "assert app is not None\n",
+        ],
+        cwd=tmp_path,
+        env=environment,
+        capture_output=True,
+        text=True,
+        timeout=15,
+    )
+
+    assert result.returncode == 0, result.stderr
 
 
 @pytest.mark.parametrize("mode", ["standalone", "cluster", "sentinel"])

@@ -32,6 +32,12 @@ cleanup() {
 trap cleanup EXIT
 
 bash deploy/init-env.sh test "$smoke_dir"
+if [[ -n "${SMOKE_OTEL_ENDPOINT:-}" ]]; then
+  [[ "$SMOKE_OTEL_ENDPOINT" != *$'\n'* ]] || { echo 'Invalid smoke OTLP endpoint' >&2; exit 1; }
+  # This opt-in only affects the disposable stack. Normal CI has no collector.
+  printf '\nOTEL_ENABLED=true\nOTEL_EXPORTER_OTLP_ENDPOINT=%s\nOTEL_SERVICE_NAME=%s\nOTEL_DEPLOYMENT_ENVIRONMENT=smoke\nOTEL_METRIC_EXPORT_INTERVAL=1000\nREDIS_OTEL_ENABLED=true\nREDIS_OTEL_REDIS_ENABLED=true\n' \
+    "$SMOKE_OTEL_ENDPOINT" "$COMPOSE_PROJECT_NAME" >> "$DEPLOY_ENV_FILE"
+fi
 "${compose[@]}" config --quiet
 "${compose[@]}" up --detach --no-build --wait --wait-timeout 240 web
 
@@ -69,4 +75,7 @@ curl --fail --silent --show-error --max-time 15 \
 curl --fail --silent --show-error --max-time 15 --retry 10 --retry-all-errors --retry-delay 2 \
   "http://$http_address/api/conversations" > "$smoke_dir/conversations.json"
 grep -q 'Compose deployment smoke' "$smoke_dir/conversations.json"
+if [[ -n "${SMOKE_OTEL_ENDPOINT:-}" ]]; then
+  "${compose[@]}" exec -T api python - < deploy/observability/smoke.py
+fi
 echo 'Compose smoke test passed: migrations, Postgres persistence, Redis, API replacement, and web.'

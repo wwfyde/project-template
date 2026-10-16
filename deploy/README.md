@@ -1,5 +1,7 @@
 # Docker Compose 与 GitHub Actions 部署
 
+现有 Grafana / Prometheus 生态的接入与环境变量见 [OpenTelemetry 配置](observability/README.md)。Compose 的 API 已通过 `env_file` 接收部署 `.env`，不需要增加公开采集端口或构建时写入 collector 地址。
+
 部署包含 Nginx 前端、FastAPI、PostgreSQL、Redis 和一次性 Alembic 迁移服务。GitHub Actions 构建 `linux/amd64`、`linux/arm64` 镜像，发布至 `ghcr.io/<owner>/<repository>/{api,web}`，通过 SSH 在服务器拉取镜像并更新 Compose。镜像路径由当前 GitHub 仓库自动生成并转换为小写。
 
 首次启用需要完成下文的服务器初始化、GitHub 环境、部署密钥和 runner 配置，并将工作流推送到仓库。

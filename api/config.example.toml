@@ -12,6 +12,8 @@ debug = true
 
 # 由 FastAPI Redis SDK 0.9.0+ 的 RedisSettings 校验，SDK lifespan 管理连接。
 [redis]
+otel_enabled = true
+otel_redis_enabled = true
 host = "localhost"
 port = 6379
 db = 0
@@ -28,6 +30,22 @@ sentinel = false
 # username/password 用于 Redis 数据节点；sentinel_username/password 用于哨兵。
 # .env 中用逗号分隔：REDIS_SENTINEL_NODES=redis-a:26379,redis-b:26379,redis-c:26379
 # Cluster：设置 cluster=true、sentinel=false、db=0，host/port 指向入口节点。
+
+[otel]
+enabled = false
+service_name = "project-template-api"
+service_namespace = "project-template"
+deployment_environment = "local"
+exporter_otlp_protocol = "http/protobuf"
+exporter_otlp_endpoint = "http://collector.internal.example.com:4318"
+logs_enabled = true
+logs_level = "INFO"
+# exporter_otlp_logs_endpoint = "http://collector.internal.example.com:4318/v1/logs"
+traces_sampler = "parentbased_traceidratio"
+traces_sampler_arg = 1.0
+metric_export_interval = 60000
+fastapi_enabled = true
+postgres_enabled = true
 
 [postgres]
 host = "127.0.0.1"

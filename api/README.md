@@ -86,3 +86,52 @@ docker compose --env-file deploy/.env up -d --no-deps --force-recreate api
 `docker compose restart api` 不会重新载入容器环境变量。当前根 Compose 仍会运行内置单机 Redis，并在 `environment` 中固定部分 Redis 字段；这些值会覆盖 `env_file` 的同名字段。连接外部 Redis 时还需检查最终 Compose 配置，相关部署约定见 [部署文档](../deploy/README.md)。
 
 模式切换只改变 API 的连接方式，不会创建 Redis 集群或迁移数据；已有键、会话及 TTL 需要在切换目标之前单独处理。Sentinel 的“3+3”通常指 1 主 2 从加 3 个哨兵，Cluster 的“3 主 3 从”则是六个数据节点。
+
+## 业务日志
+
+统一配置由 `setup_logging()` 和 `setup_telemetry()` 管理。Endpoint/service 只声明模块 logger，无需从 `__init__.py` 导入全局对象，也不要重复添加 handler：
+
+```python
+import logging
+
+logger = logging.getLogger(__name__)
+
+logger.info(
+    "订单创建成功 order_id=%s",
+    order_id,
+    extra={"otel.event.name": "order.created", "order.id": order_id},
+)
+```
+
+消息供人工阅读，`extra` 保留可检索业务字段和数值类型。控制台输出时间、级别、模块位置、trace/span ID 与业务字段；OTLP 使用原生日志结构，Loki 中无需再对消息执行 `| json`。异常在负责处理的一层使用 `logger.exception("订单创建失败", extra={"otel.event.name": "order.create_failed"})`，保留完整堆栈；避免各层重复记录，也不要加入请求体、令牌或完整配置。
+
+开启 `OTEL_ENABLED=true` 后默认导出 `INFO` 及以上日志，`OTEL_LOGS_ENABLED=false` 只关闭日志导出，`OTEL_LOGS_LEVEL` 设置远端最低级别；源 logger 自身的级别仍会先过滤日志。终端和 `docker logs` 的文本输出继续保留。本机与 Docker 都向 Alloy 主动推送，采集端配置、Docker 去重和 Grafana 查询见 [日志接入与验证](../deploy/observability/README.md#alloy-与-loki-日志接入)。
+
+## OTel 追踪与日志示例
+
+[routes/examples/otel.py](src/api/routes/examples/otel.py) 演示业务父子 span、属性与事件、异常记录、日志关联和追踪头传播，接口仅在 `APP_ENV=dev/local` 可用。复用应用已有的 SDK 和 HTTP 自动埋点；路由不创建 provider 或 exporter，也不访问数据库或 Redis。
+
+在 API 配置中启用以下选项，将 collector 地址替换为实际可达地址，再重启 API（应用启动仍需原有数据库和 Redis 配置）：
+
+```dotenv
+OTEL_ENABLED=true
+OTEL_TRACES_ENABLED=true
+OTEL_LOGS_ENABLED=true
+OTEL_LOGS_LEVEL=INFO
+OTEL_FASTAPI_ENABLED=true
+OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
+OTEL_TRACES_SAMPLER=parentbased_traceidratio
+OTEL_TRACES_SAMPLER_ARG=1.0
+```
+
+```bash
+# 成功链路：HTTP SERVER span → examples.otel.trace → examples.otel.work。
+curl http://localhost:8000/api/examples/otel/trace
+# 返回 503，业务父子 span 均记录异常并标记 ERROR。
+curl -i 'http://localhost:8000/api/examples/otel/trace?fail=true'
+# 继承上游 trace，并展示由当前 span 生成的出站追踪头；不实际发起请求。
+curl http://localhost:8000/api/examples/otel/propagation \
+  -H 'traceparent: 00-12345678901234567890123456789012-1234567890123456-01'
+```
+
+响应的 `trace.trace_id` 可用于 Tempo 查询，`trace.span_id` 对应业务 span；业务日志由现有过滤器附加相同标识。`sampled` / `recording` 不代表导出已成功。未开启 SDK 时示例仍可执行，没有有效上下文的 ID 返回 `null`；未采样的上下文仍可携带有效 ID。完整配置和查询步骤见 [OTel 接入与验证](../deploy/observability/README.md)，手动埋点 API 见 [OpenTelemetry Python 文档](https://opentelemetry.io/docs/languages/python/instrumentation/)。

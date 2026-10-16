@@ -208,3 +208,32 @@ def test_redis_config_does_not_reload_environment(
 
     assert RedisConfig().host == "localhost"
     assert RedisConfig(host="resolved-host").host == "resolved-host"
+
+
+@pytest.mark.parametrize("source", ["environment", "dotenv", "toml"])
+def test_redis_telemetry_configuration_sources(
+    monkeypatch: MonkeyPatch, tmp_path: Path, source: str
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    configure_database(monkeypatch)
+    for name in list(os.environ):
+        if name.startswith("REDIS_") or name == "REDIS":
+            monkeypatch.delenv(name)
+    if source == "environment":
+        monkeypatch.setenv("REDIS_OTEL_ENABLED", "true")
+        monkeypatch.setenv("REDIS_OTEL_REDIS_ENABLED", "true")
+    elif source == "dotenv":
+        (tmp_path / ".env").write_text(
+            "REDIS_OTEL_ENABLED=true\nREDIS_OTEL_REDIS_ENABLED=true\n",
+            encoding="utf-8",
+        )
+    else:
+        (tmp_path / "config.toml").write_text(
+            "[redis]\notel_enabled = true\notel_redis_enabled = true\n",
+            encoding="utf-8",
+        )
+
+    configured = Settings()
+
+    assert configured.redis.otel_enabled is True
+    assert configured.redis.otel_redis_enabled is True

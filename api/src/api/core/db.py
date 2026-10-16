@@ -25,4 +25,4 @@ AsyncSessionLocal = async_sessionmaker(
     # autocommit=False,
     expire_on_commit=False,
 )
-logger.debug("Postgres engine created with DSN: %s", settings.postgres_dsn)
+logger.debug("Postgres engine created")

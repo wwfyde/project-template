@@ -1,5 +1,24 @@
 # Project Template
 
+## 可观测性（OpenTelemetry）
+
+FastAPI 请求和 PostgreSQL 调用通过官方 OTel instrumentation 采集；Redis 使用 `fastapi-redis-sdk` 自带的观测能力。Traces、metrics、logs 共用服务标识，通过 OTLP/HTTP 发给 Alloy，分别转发至 Tempo、Prometheus、Loki。本机和 Docker 使用同一日志推送通路，终端和 `docker logs` 仍保留可读文本；Docker 的重复采集需按[接入说明](deploy/observability/README.md#docker-避免重复采集)排除。
+
+默认关闭 OTel。启用时在本地 `api/.env.local` 或服务器部署 `.env` 中配置以下变量；地址为占位值：
+
+```dotenv
+OTEL_ENABLED=true
+OTEL_SERVICE_NAME=project-template-api
+OTEL_DEPLOYMENT_ENVIRONMENT=test
+OTEL_EXPORTER_OTLP_ENDPOINT=http://collector.internal.example.com:4318
+OTEL_LOGS_ENABLED=true
+OTEL_LOGS_LEVEL=INFO
+REDIS_OTEL_ENABLED=true
+REDIS_OTEL_REDIS_ENABLED=true
+```
+
+同样支持 `Settings.otel` / TOML `[otel]`，环境变量优先于配置文件。`OTEL_SDK_DISABLED=true` 可总关闭，`OTEL_FASTAPI_ENABLED`、`OTEL_POSTGRES_ENABLED` 和两个 Redis SDK 开关可分别控制。配置修改后重启 API；生产须配置自身可达的 collector。完整配置、采样、信号范围和查询步骤见 [OTel 接入与验证](deploy/observability/README.md)。
+
 ## 运行与部署总览
 
 项目支持本地开发、测试服务器、生产服务器三种使用方式。完成各自的首次准备后，可使用下表入口启动或发布；部署文件已经提供，不代表新服务器和 GitHub 已自动配置完成。

@@ -1,7 +1,7 @@
-import logging
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Literal, Tuple, Type
+from urllib.parse import quote
 
 import httpx2
 from pydantic import (
@@ -20,17 +20,26 @@ from pydantic_settings import (
     TomlConfigSettingsSource,
 )
 from redis_fastapi import RedisSettings
+from sqlalchemy.engine import URL
 
-# class RedisConfig(BaseModel):
-#     # https://redis.github.io/fastapi-redis-sdk/latest/api/configuration/#fields
-#     url: str | None = None
-#     host: str
-#     port: int
-#     db: int | None = 0
-#     password: SecretStr | None = SecretStr("")
-#     prefix: str | None | MISSING = MISSING
-#     cluster: bool = False
-#     max_connections: int | None = None
+from api.core.telemetry_config import OtelConfig
+
+
+class RedisConfig(RedisSettings):
+    """SDK fields and validation, resolved once by the application's Settings."""
+
+    model_config = SettingsConfigDict(env_file=None)
+
+    @classmethod
+    def settings_customise_sources(
+        cls,
+        settings_cls: Type[BaseSettings],
+        init_settings: PydanticBaseSettingsSource,
+        env_settings: PydanticBaseSettingsSource,
+        dotenv_settings: PydanticBaseSettingsSource,
+        file_secret_settings: PydanticBaseSettingsSource,
+    ) -> Tuple[PydanticBaseSettingsSource, ...]:
+        return (init_settings,)
 
 
 class PostgresConfig(BaseModel):
@@ -124,6 +133,7 @@ class AppConfig(BaseModel):
     env: Literal["dev", "prod", "local"] = "dev"
     debug: bool = True
     port: int = 8000
+    log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
 
 
 class ExtraSettings(BaseSettings):
@@ -162,6 +172,7 @@ class Settings(BaseSettings):
     api_key_header: str = "fastapi"
     admin_users: list[str] = []
     app: AppConfig = Field(default_factory=AppConfig)
+    otel: OtelConfig = Field(default_factory=OtelConfig)
     httpx_timeout: int = 60
     wait_max_seconds: int = 60 * 2
     project_dir: Path = Path(__file__).parent.parent.parent.parent
@@ -173,7 +184,7 @@ class Settings(BaseSettings):
     nacos: NacosConfig | None = None
     api_prefix: str | None = None
     proxy_url: str | None = None
-    redis: RedisSettings | None = None
+    redis: RedisConfig | None = Field(default_factory=RedisConfig)
     postgres: PostgresConfig = Field(default_factory=PostgresConfig)
 
     providers: LLMProvider = Field(default_factory=LLMProvider, title="LLM提供商配置")
@@ -187,14 +198,22 @@ class Settings(BaseSettings):
     @computed_field
     @property
     def redis_dsn(self) -> str:
-        if self.redis is None:
+        if self.redis is None or self.redis.sentinel:
             return ""
         if self.redis.url:
             return self.redis.url
-        return (
-            f"redis://:{self.redis.password.get_secret_value() if self.redis.password else ''}@{self.redis.host}:{self.redis.port}/"
-            f"{self.redis.db}?health_check_interval=2"
+        scheme = "rediss" if self.redis.ssl else "redis"
+        username = quote(self.redis.username or "", safe="")
+        password = (
+            quote(self.redis.password.get_secret_value(), safe="")
+            if self.redis.password is not None
+            else ""
         )
+        auth = f"{username}:{password}@" if username or password else ""
+        host = self.redis.host
+        if ":" in host and not host.startswith("["):
+            host = f"[{host}]"
+        return f"{scheme}://{auth}{host}:{self.redis.port}/{self.redis.db}"
 
     model_config = SettingsConfigDict(
         extra="ignore",
@@ -266,16 +285,19 @@ class Settings(BaseSettings):
     @computed_field
     @property
     def postgres_dsn(self) -> str:
-        # return f"postgresql+psycopg://{self.postgres.username}:{self.postgres.password.get_secret_value()}@{self.postgres.host}:{self.postgres.port}/{self.postgres.database}"
-        return f"postgresql+psycopg://{self.postgres.username}:{self.postgres.password.get_secret_value()}@{self.postgres.host}:{self.postgres.port}/{self.postgres.database}"
+        return URL.create(
+            "postgresql+psycopg",
+            username=self.postgres.username,
+            password=self.postgres.password.get_secret_value(),
+            host=self.postgres.host,
+            port=self.postgres.port,
+            database=self.postgres.database,
+        ).render_as_string(hide_password=False)
 
 
 @lru_cache
 def get_settings() -> Settings:
-    logging.warning("Redis Config MUST in .env file or environment variables")
-    from redis_fastapi import get_settings
-
-    return Settings(redis=get_settings(), extra=ExtraSettings())
+    return Settings(extra=ExtraSettings())
 
 
 settings: Settings = get_settings()

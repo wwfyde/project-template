@@ -1,0 +1,56 @@
+// Merge into the existing Alloy configuration; do not start a second receiver
+// on the occupied 4318 port or replace the existing traces/metrics outputs.
+//
+// Add this entry to the existing OTLP receiver's output block:
+//   logs = [otelcol.processor.memory_limiter.logs.input]
+// If the receiver already feeds a shared memory_limiter and batch, instead add
+// logs forwarding to those existing components and add only the exporter below.
+
+otelcol.processor.memory_limiter "logs" {
+  check_interval = "1s"
+  limit = "256MiB"
+  spike_limit = "64MiB"
+
+  output {
+    logs = [otelcol.processor.batch.logs.input]
+  }
+}
+
+otelcol.processor.batch "logs" {
+  timeout = "1s"
+  send_batch_size = 512
+  send_batch_max_size = 1024
+
+  output {
+    logs = [otelcol.exporter.otlphttp.loki.input]
+  }
+}
+
+otelcol.exporter.otlphttp "loki" {
+  client {
+    // Loki's native OTLP base URL; the exporter appends /v1/logs.
+    endpoint = "http://loki.internal.example.com:3100/otlp"
+    timeout = "10s"
+    // Configure auth/TLS/tenant headers here if required by your Loki deployment.
+  }
+}
+
+// Docker duplicate prevention: filter discovered targets before reading logs.
+// The project's API container opts in with observability.logs.source=otlp.
+// Keep existing source.relabel_rules for label mapping and wire the filtered
+// OUTPUT to loki.source.docker.targets. Do not put this drop rule only in the
+// source's relabel_rules: Alloy 1.19.2 can still emit entries with empty labels.
+//
+// discovery.relabel "application_log_sources" {
+//   targets = discovery.docker.containers.targets
+//   rule {
+//     source_labels = ["__meta_docker_container_label_observability_logs_source"]
+//     regex = "otlp"
+//     action = "drop"
+//   }
+// }
+//
+// In the existing loki.source.docker block:
+//   targets = discovery.relabel.application_log_sources.output
+// Preserve the existing relabel_rules and forward_to assignments.
+// Do not add an extra Docker source. Other containers keep their existing path.

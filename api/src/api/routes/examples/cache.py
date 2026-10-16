@@ -17,7 +17,7 @@
 ==============
 - 使用 ``fastapi-redis-sdk`` 的 ``redis_fastapi.AsyncRedisDep`` 和项目的
   ``api.deps.PostgresDep``；Redis 连接池由 SDK lifespan 管理，应用已通过
-  ``FastAPIRedis(app).lifespan()`` 注册。路由里不要创建/关闭共享客户端，不要使用
+  项目 lifespan 中的 ``redis_lifespan(app)`` 注册。路由里不要创建/关闭共享客户端，不要使用
   ``async with redis``。pipeline 是请求私有的，可以用 async with。
 - SDK 使用自身的 REDIS_* 环境变量/.env 配置，不会自动使用项目自定义的
   ``api.core.cache.get_redis_client()`` 或其 ``settings.redis_dsn``。
@@ -105,7 +105,7 @@ SDK 原生用法：/api/examples/cache/sdk
 - 下半部分基于已安装的 fastapi-redis-sdk 0.9.0。cache / cache_put / cache_evict /
   rate_limit / valid_session 都是 Depends 工厂，不是 @cache 函数装饰器；当前包
   的限流函数名是 rate_limit，不是 rate_limiter。Session 通过 SessionDep 注入。
-- main.py 在已有 .lifespan().caching() 后调用 configure_sdk_examples(app)，
+- main.py 在已有 .caching() 后调用 configure_sdk_examples(app)，
   仅 dev/local 注册 .rate_limiting().sessions()。注册顺序让会话先加载，限流头在
   HTTP 缓存捕获层之外生成。全局自动限流在这份教学配置中跳过，仅显式路由依赖
   消耗额度；Session middleware 只处理 /sdk/session 及其子路径。
@@ -802,7 +802,7 @@ def _sdk_session_cookie(spec: CookieSpec) -> str:
 
 
 def configure_sdk_examples(app: FastAPI) -> None:
-    """由 main.create_app 在 .lifespan().caching() 后、开始服务前调用。
+    """由 main.create_app 在 .caching() 后、开始服务前调用。
 
     只配置教学所需 middleware，不创建客户端。若将路由挂到不同前缀，需同步修改
     SDK_SESSION_PATH，否则 Cookie 路径和 skip 判断不会匹配。
