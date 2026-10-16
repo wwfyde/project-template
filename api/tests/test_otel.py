@@ -7,9 +7,13 @@ from unittest.mock import Mock
 
 import psycopg
 import pytest
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import RedirectResponse
 from fastapi.testclient import TestClient
 from opentelemetry import trace
+from opentelemetry.instrumentation._semconv import (
+    _OpenTelemetrySemanticConventionStability,
+)
 from opentelemetry.sdk._logs.export import InMemoryLogRecordExporter
 from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics.export import (
@@ -288,6 +292,105 @@ def test_fastapi_exports_request_metrics_and_propagates_traceparent(
     ]
     assert durations
     assert sum(point.count for point in durations) == 1
+
+
+@pytest.mark.parametrize("semconv", ["", "http", "http/dup"])
+@pytest.mark.parametrize(
+    "method, reject", [("GET", False), ("GET", True), ("POST", False)]
+)
+def test_http_spans_never_capture_callback_queries_or_request_secrets(
+    memory_telemetry: tuple[InMemorySpanExporter, InMemoryMetricReader, Mock],
+    monkeypatch: MonkeyPatch,
+    semconv: str,
+    method: str,
+    reject: bool,
+) -> None:
+    spans, _, _ = memory_telemetry
+    # Exercise the actual instrumentor under each supported HTTP schema, while
+    # restoring the process-wide semantic convention cache after this test.
+    stability = _OpenTelemetrySemanticConventionStability
+    monkeypatch.setenv("OTEL_SEMCONV_STABILITY_OPT_IN", semconv)
+    monkeypatch.setattr(stability, "_initialized", False)
+    monkeypatch.setattr(stability, "_OTEL_SEMCONV_STABILITY_SIGNAL_MAPPING", {})
+    app = new_app()
+    seen: dict[str, object] = {}
+
+    @app.api_route("/api/auth/{provider}/callback", methods=["GET", "POST"])
+    async def callback(provider: str, request: Request) -> RedirectResponse:
+        seen["code"] = request.query_params["code"]
+        seen["state"] = request.query_params["state"]
+        seen["body"] = await request.body()
+        if reject:
+            raise HTTPException(400, "Invalid OAuth callback")
+        return RedirectResponse("/", status_code=303)
+
+    otel.setup_telemetry(
+        app, OtelConfig(enabled=True, postgres_enabled=False), environment="test"
+    )
+    trace_id, parent_id = "12345678901234567890123456789012", "1234567890123456"
+    with TestClient(app) as client:
+        response = client.request(
+            method,
+            "/api/auth/google/callback?code=SECRET_OAUTH_CODE&state=SECRET_OAUTH_STATE&custom=SECRET_CUSTOM_QUERY",
+            content=b"access_token=SECRET_REQUEST_BODY" if method == "POST" else None,
+            headers={
+                "Authorization": "Bearer SECRET_AUTH_HEADER",
+                "Cookie": "session=SECRET_SESSION_COOKIE",
+                "traceparent": f"00-{trace_id}-{parent_id}-01",
+            },
+            follow_redirects=False,
+        )
+    assert response.status_code == (400 if reject else 303)
+    assert seen["code"] == "SECRET_OAUTH_CODE"
+    assert seen["state"] == "SECRET_OAUTH_STATE"
+    if method == "POST":
+        assert seen["body"] == b"access_token=SECRET_REQUEST_BODY"
+    exported = spans.get_finished_spans()
+    assert len(exported) == 1
+    span = exported[0]
+    assert span.context is not None
+    assert span.parent is not None
+    assert span.attributes is not None
+    assert span.context.trace_id == int(trace_id, 16)
+    assert span.parent.span_id == int(parent_id, 16)
+    assert span.attributes["http.route"] == "/api/auth/{provider}/callback"
+    status_attribute = (
+        "http.status_code" if not semconv else "http.response.status_code"
+    )
+    assert span.attributes[status_attribute] == response.status_code
+    # Includes event attributes, status descriptions and span names, beyond the
+    # URL attributes that triggered the original OAuth-code disclosure.
+    assert "SECRET_" not in span.to_json()
+    for key in ("http.url", "url.full", "http.target", "url.path", "url.query"):
+        assert "?" not in str(span.attributes.get(key, ""))
+    assert span.attributes.get("url.query", "") == ""
+
+
+def test_query_hook_also_redacts_url_full_and_is_safe_for_nonrecording_spans() -> None:
+    exporter = InMemorySpanExporter()
+    provider = TracerProvider()
+    provider.add_span_processor(SimpleSpanProcessor(exporter))
+    try:
+        with provider.get_tracer(__name__).start_as_current_span("request") as span:
+            span.set_attribute(
+                "url.full", "https://example.test/callback?code=SECRET#fragment"
+            )
+            span.set_attribute(
+                "http.url", "https://example.test/callback?custom=SECRET"
+            )
+            span.set_attribute("http.target", "/callback?code=SECRET")
+            span.set_attribute("url.query", "code=SECRET")
+            otel._redact_http_query(span, {})
+        otel._redact_http_query(trace.INVALID_SPAN, {})
+        exported = exporter.get_finished_spans()[0]
+        assert exported.attributes is not None
+        assert exported.attributes["url.full"] == "https://example.test/callback"
+        assert exported.attributes["http.url"] == "https://example.test/callback"
+        assert exported.attributes["http.target"] == "/callback"
+        assert exported.attributes["url.query"] == ""
+        assert "SECRET" not in exported.to_json()
+    finally:
+        provider.shutdown()
 
 
 @pytest.mark.asyncio

@@ -23,6 +23,42 @@ def configure_database(monkeypatch: MonkeyPatch) -> None:
         monkeypatch.setenv(name, value)
 
 
+def test_password_and_header_nested_environment_config(
+    monkeypatch: MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    configure_database(monkeypatch)
+    monkeypatch.setenv("APP_ENV", "prod")
+    monkeypatch.setenv("AUTH_FRONTEND_URL", "https://app.example.test")
+    monkeypatch.setenv("AUTH_PASSWORD", '{"enabled":true,"rate_limit_attempts":7}')
+    monkeypatch.setenv(
+        "AUTH_HEADER",
+        json.dumps({"enabled": True, "name": "X-Service-Key", "keys": ["a" * 40]}),
+    )
+    config = Settings(_env_file=None)
+    assert config.auth.password.enabled
+    assert config.auth.password.rate_limit_attempts == 7
+    assert config.auth.header.name == "X-Service-Key"
+    assert config.auth.header.keys[0].get_secret_value() == "a" * 40
+    assert "a" * 40 not in config.model_dump_json()
+
+
+def test_header_key_cannot_be_reflected_as_request_identity(
+    monkeypatch: MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    configure_database(monkeypatch)
+    secret = "never-reflect-this-service-credential-12345"
+    with pytest.raises(ValidationError) as error:
+        Settings(
+            _env_file=None,
+            auth={"header": {"name": "X-Service-Key", "keys": [secret]}},
+            request_context={"request_id_header": "x-service-key"},
+        )
+    assert "must not be a correlation header" in str(error.value)
+    assert secret not in str(error.value)
+
+
 def test_environment_only_settings(monkeypatch: MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.chdir(tmp_path)
     configure_database(monkeypatch)

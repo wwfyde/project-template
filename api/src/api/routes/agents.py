@@ -16,9 +16,10 @@ from api.agents.contracts import (
 )
 from api.agents.runtime import create_agent_service
 from api.agents.service import AgentService, PreparedTurn
+from api.auth.dependencies import CurrentUserDep, UsersDep, authorize_resource
 from api.core.config import get_settings
 
-agents_router = APIRouter()
+agents_router = APIRouter(dependencies=[Depends(authorize_resource)])
 
 
 def _http_error(exc: AgentFailure) -> HTTPException:
@@ -59,9 +60,18 @@ async def list_backends(service: AgentServiceDep) -> dict[str, object]:
 
 @agents_router.post("/sessions", response_model=AgentSession, status_code=201)
 async def create_session(
-    payload: SessionCreate, service: AgentServiceDep
+    payload: SessionCreate,
+    service: AgentServiceDep,
+    request: Request,
+    user: CurrentUserDep,
+    users: UsersDep,
 ) -> AgentSession:
-    return await _call(service.create_session(payload))
+    claimed = request.headers.getlist("User-Code")
+    if claimed and claimed != [user.id]:
+        raise HTTPException(403, "User-Code does not match the authenticated user")
+    session = await _call(service.create_session(payload))
+    await users.own("agent_session", session.id, user)
+    return session
 
 
 @agents_router.get("/sessions/{session_id}", response_model=AgentSession)

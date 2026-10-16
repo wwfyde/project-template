@@ -1,6 +1,7 @@
 import { Theme as RadixTheme } from '@radix-ui/themes'
 import type { ReactNode } from 'react'
 
+import { AuthProvider } from '../features/auth'
 import { I18nProvider } from '../i18n'
 import { ThemeProvider, useTheme } from '../theme'
 
@@ -24,7 +25,9 @@ export function AppProviders({ children }: { children: ReactNode }) {
   return (
     <I18nProvider>
       <ThemeProvider>
-        <ComponentTheme>{children}</ComponentTheme>
+        <ComponentTheme>
+          <AuthProvider>{children}</AuthProvider>
+        </ComponentTheme>
       </ThemeProvider>
     </I18nProvider>
   )

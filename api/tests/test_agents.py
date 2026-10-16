@@ -31,7 +31,39 @@ from api.agents.contracts import (
 )
 from api.agents.service import AgentService
 from api.agents.store import InMemorySessionStore
+from api.auth.dependencies import (
+    get_optional_auth_user,
+    get_user_repository,
+    require_auth_user,
+)
+from api.auth.schemas import AuthUser
 from api.routes.agents import agents_router, get_agent_service
+
+
+TEST_USER = AuthUser(
+    id="00000000-0000-0000-0000-000000000001",
+    tenant_id="tenant-test",
+    provider="google",
+    display_name="Test User",
+)
+
+
+class MemoryOwnershipRepository:
+    def __init__(self) -> None:
+        self.owners: dict[tuple[str, str], tuple[str, str]] = {}
+
+    async def own(self, kind: str, resource_id: str, user: AuthUser) -> None:
+        self.owners[(kind, resource_id)] = (user.id, user.tenant_id)
+
+    async def owns(self, kind: str, resource_id: str, user: AuthUser) -> bool:
+        return self.owners.get((kind, resource_id)) == (user.id, user.tenant_id)
+
+    async def owned_ids(self, kind: str, user: AuthUser) -> set[str]:
+        return {
+            resource_id
+            for (resource_kind, resource_id), owner in self.owners.items()
+            if resource_kind == kind and owner == (user.id, user.tenant_id)
+        }
 
 
 class FakeBackend:
@@ -118,6 +150,11 @@ def new_app(service: AgentService, *, override: bool = False) -> FastAPI:
             "auto_configure": False,
         }
     )
+    users = MemoryOwnershipRepository()
+    app.state.ownership_repository = users
+    app.dependency_overrides[require_auth_user] = lambda: TEST_USER
+    app.dependency_overrides[get_optional_auth_user] = lambda: TEST_USER
+    app.dependency_overrides[get_user_repository] = lambda: users
     app.include_router(agents_router, prefix="/api/agents")
     if override:
         app.dependency_overrides[get_agent_service] = lambda: service
@@ -453,7 +490,7 @@ def test_initial_errors_are_json_before_stream_headers(
     )
     assert missing.status_code == 404
     assert missing.headers["content-type"] == "application/json"
-    assert missing.json()["detail"]["code"] == "session_not_found"
+    assert missing.json()["detail"] == "Resource not found"
     assert (
         client.post(
             "/api/agents/sessions", json={"backend": "unregistered"}
@@ -527,6 +564,7 @@ async def test_http_stream_disconnect_cancels_the_backend(
 ) -> None:
     session = await service.create_session(SessionCreate())
     app = new_app(service)
+    await app.state.ownership_repository.own("agent_session", session.id, TEST_USER)
     body = json.dumps({"input": "wait", "stream": True}).encode()
     disconnected = asyncio.Event()
     sent_request = False

@@ -25,7 +25,7 @@ REDIS_OTEL_REDIS_ENABLED=true
 
 | 场景 | 日常入口 | 首次准备 | 默认访问方式 |
 | --- | --- | --- | --- |
-| [本地开发](#本地开发) | `just run`，前后端热更新 | pnpm、uv、just、项目依赖、可用的 Postgres/Redis 与 API 配置 | 前端 `http://127.0.0.1:5173`，API `http://127.0.0.1:8000` |
+| [本地开发](#本地开发) | `just run`，前后端热更新 | pnpm、uv、just、项目依赖、可用的 Postgres/Redis 与 API 配置 | 前端 `http://localhost:5173`，API `http://localhost:8000` |
 | [测试服务器](#测试服务器) | 推送 `main`，或 Actions 手动选择 `test` | Docker Compose、部署配置、SSH 密钥、可达测试机的 runner | 服务器 `127.0.0.1:18080`，通过 SSH 隧道访问 |
 | [生产服务器](#生产服务器) | 推送 `v*` 标签，或 Actions 手动选择 `production` | Docker Compose、部署配置、SSH 密钥、GitHub Environment | 服务器 `127.0.0.1:18080`，通过 SSH 隧道访问 |
 
@@ -87,6 +87,8 @@ WEB_PORT=6173 API_PORT=9036 just run       # 通过环境变量设置端口
 共享端口写在根目录 `.env`，格式见 [.env.example](.env.example)。优先级为 recipe flags、终端环境变量、`.env`、内置默认值（前端 `5173`、后端 `8000`）。端口被占用会直接报错。`just run` 使用 macOS/Linux 进程组管理：按 Ctrl+C 会关闭本次启动的两个服务；任一服务进程退出时也会清理另一个服务。
 
 浏览器打开前端地址。可通过 `curl --fail http://127.0.0.1:8000/api/health` 检查 API、Postgres 和 Redis；修改端口后同步替换检查地址。前端使用 `/api/...` 相对路径，Vite 将其转发至对应 API 端口；部署环境由 Nginx 代理同一路径，详见 [web 开发与部署](web/README.md#api-代理与部署)。
+
+业务页面现需登录。先执行数据库迁移，再配置 Google OAuth 客户端或启用密码渠道并通过 `api.auth.manage create-user` 创建账号；手机号仅预留扩展，钉钉按需启用。指定服务接口另支持 Header API Key，详见 [用户、认证与请求追踪](api/README.md#api-用户与认证)。本地浏览器入口、`auth.frontend_url` 和 OAuth 回调统一使用 `localhost`，不要与 `127.0.0.1` 混用；自定义端口时同步调整这三处。HTTP 开发需设置 `REDIS_SESSION_COOKIE_HTTPS_ONLY=false`，生产使用 HTTPS。
 
 ### 本地整套 Compose 验证（可选）
 

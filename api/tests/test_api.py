@@ -6,7 +6,8 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from pytest import MonkeyPatch
-from redis_fastapi import get_async_redis
+from redis_fastapi import get_async_redis, get_session_store
+from test_redis_sdk_sessions import MemorySessionStore
 
 from api import __version__
 from api.main import create_app
@@ -61,6 +62,8 @@ def test_health_checks_both_dependencies(
 
 def test_production_disables_configuration_and_docs() -> None:
     app = create_app(lifespan=no_services_lifespan)
+    store = MemorySessionStore()
+    app.dependency_overrides[get_session_store] = lambda request: store
     with TestClient(app) as client:
         assert client.get("/api/config").status_code == 404
         assert client.get("/docs").status_code == 404

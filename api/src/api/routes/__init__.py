@@ -1,19 +1,36 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+
+from api.auth.dependencies import require_auth_user
+from api.auth.example_access import authorize_examples
+from api.auth.routes import auth_router
+from api.auth.password_routes import password_router
 
 from api.core import settings
 from api.routes.examples import example_router
+from api.routes.examples.auth_header import header_auth_router
 
 from .config import config_router
 from .agents import agents_router
 from .conversations import conversations_router
 
 router = APIRouter()
+router.include_router(auth_router)
+router.include_router(password_router)
+# These service-call examples intentionally use only Header API Key auth.
+router.include_router(header_auth_router, prefix="/examples", tags=["Header 认证教学"])
 router.include_router(agents_router, prefix="/agents", tags=["agents"])
 
 if settings.app.env != "prod":
-    router.include_router(config_router, prefix="/config")
+    router.include_router(
+        config_router, prefix="/config", dependencies=[Depends(require_auth_user)]
+    )
 router.include_router(
     conversations_router, prefix="/conversations", tags=["conversations"]
 )
 
-router.include_router(example_router, prefix="/examples", tags=["examples"])
+router.include_router(
+    example_router,
+    prefix="/examples",
+    tags=["examples"],
+    dependencies=[Depends(authorize_examples)],
+)

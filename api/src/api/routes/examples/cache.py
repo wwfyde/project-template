@@ -801,7 +801,7 @@ def _sdk_session_cookie(spec: CookieSpec) -> str:
     )
 
 
-def configure_sdk_examples(app: FastAPI) -> None:
+def configure_sdk_examples(app: FastAPI, *, sessions: bool = True) -> None:
     """由 main.create_app 在 .caching() 后、开始服务前调用。
 
     只配置教学所需 middleware，不创建客户端。若将路由挂到不同前缀，需同步修改
@@ -809,19 +809,22 @@ def configure_sdk_examples(app: FastAPI) -> None:
     """
     if settings.app.env == "prod":
         return
-    (
+    sdk = (
         FastAPIRedis(app)
         # 此 skip_when 仅控制自动全局限流，路由 Depends(rate_limit(...)) 仍执行。
         # 避免环境中 REDIS_RATE_LIMIT_DEFAULT_LIMIT 意外限制所有现有业务接口。
         .rate_limiting(skip_when=lambda _request: True)
-        .sessions(
+    )
+    # The main app owns one authentication session middleware. Standalone
+    # teaching/test apps may opt into the isolated preference session example.
+    if sessions:
+        sdk.sessions(
             skip=_skip_sdk_session,
             cookie_builder=_sdk_session_cookie,
             key_prefix=f"{_prefix()}:sdk:sessions",
             idle_ttl=300,
             absolute_ttl=1800,
         )
-    )
 
 
 class SDKCachedResponse(BaseModel):

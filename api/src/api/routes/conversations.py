@@ -1,10 +1,12 @@
 from collections import defaultdict
 from typing import Annotated, cast
+from uuid import UUID
 
 import uuid_utils as uuid
-from fastapi import APIRouter, Header, HTTPException, Query, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from sqlalchemy import CursorResult, delete, desc, select
 
+from api.auth.dependencies import CurrentUserDep, UsersDep, authorize_resource
 from api.core.config import settings
 from api.models.conversation import Conversation as ConversationModel
 from api.models.conversation import Message as MessageModel
@@ -17,7 +19,7 @@ from api.schemas.conversation import (
     MessageRead,
 )
 
-conversations_router = APIRouter()
+conversations_router = APIRouter(dependencies=[Depends(authorize_resource)])
 
 _memory_conversations: dict[str, ConversationRead] = {}
 _memory_messages: dict[str, list[MessageRead]] = defaultdict(list)
@@ -45,12 +47,12 @@ def _read_conversation(
 
 
 async def _list_conversations_from_db(
-    limit: int, include_archived: bool
+    limit: int, include_archived: bool, owned_ids: set[str]
 ) -> list[ConversationRead]:
     from api.core.db import AsyncSessionLocal
 
     async with AsyncSessionLocal() as session:
-        stmt = select(ConversationModel)
+        stmt = select(ConversationModel).where(ConversationModel.id.in_(owned_ids))
         if not include_archived:
             stmt = stmt.where(ConversationModel.is_archived.is_(False))
         stmt = stmt.order_by(desc(ConversationModel.updated_at)).limit(limit)
@@ -95,16 +97,21 @@ async def _get_conversation_from_db(conversation_id: str) -> ConversationDetail:
 
 @conversations_router.get("", response_model=list[ConversationRead])
 async def list_conversations(
+    user: CurrentUserDep,
+    users: UsersDep,
     limit: Annotated[int, Query(ge=1, le=100)] = 50,
     include_archived: bool = False,
 ) -> list[ConversationRead]:
+    owned_ids = await users.owned_ids("conversation", user)
+    if not owned_ids:
+        return []
     if settings.repo_type == "postgres":
-        return await _list_conversations_from_db(limit, include_archived)
+        return await _list_conversations_from_db(limit, include_archived, owned_ids)
 
     items = [
         item
         for item in _memory_conversations.values()
-        if include_archived or not item.is_archived
+        if item.id in owned_ids and (include_archived or not item.is_archived)
     ]
     return sorted(items, key=lambda item: item.updated_at, reverse=True)[:limit]
 
@@ -114,11 +121,17 @@ async def list_conversations(
 )
 async def create_conversation(
     payload: ConversationCreate,
-    user_id: Annotated[str | None, Header(alias="User-Code")] = None,
+    request: Request,
+    user: CurrentUserDep,
+    users: UsersDep,
 ) -> ConversationRead:
+    claimed = request.headers.getlist("User-Code")
+    if (payload.user_id is not None and payload.user_id != user.id) or (
+        claimed and claimed != [user.id]
+    ):
+        raise HTTPException(403, "Owner does not match the authenticated user")
     conversation_id = str(uuid.uuid7())
     title = payload.title or "新对话"
-    owner = payload.user_id or user_id
 
     if settings.repo_type == "postgres":
         from api.core.db import AsyncSessionLocal
@@ -130,13 +143,14 @@ async def create_conversation(
                 endpoint=payload.endpoint,
                 model=payload.model,
                 mode=payload.mode,
-                user_id=owner,
+                user_id=user.id,
                 is_pinned=payload.is_pinned,
                 meta=payload.meta,
             )
             session.add(conversation)
             await session.commit()
             await session.refresh(conversation)
+            await users.own("conversation", conversation_id, user)
             return _read_conversation(conversation)
 
     conversation = ConversationRead(
@@ -145,7 +159,7 @@ async def create_conversation(
         endpoint=payload.endpoint,
         model=payload.model,
         mode=payload.mode,
-        user_id=owner,
+        user_id=user.id,
         is_archived=False,
         is_pinned=payload.is_pinned,
         meta=payload.meta,
@@ -153,6 +167,7 @@ async def create_conversation(
         updated_at="",
     )
     _memory_conversations[conversation_id] = conversation
+    await users.own("conversation", conversation_id, user)
     return conversation
 
 
@@ -251,7 +266,9 @@ async def list_messages(conversation_id: str) -> list[MessageRead]:
     response_model=MessageRead,
     status_code=status.HTTP_201_CREATED,
 )
-async def create_message(conversation_id: str, payload: MessageCreate) -> MessageRead:
+async def create_message(
+    conversation_id: str, payload: MessageCreate, user: CurrentUserDep
+) -> MessageRead:
     message_id = payload.id or str(uuid.uuid7())
     text = (
         payload.text or payload.content
@@ -271,6 +288,7 @@ async def create_message(conversation_id: str, payload: MessageCreate) -> Messag
                 )
             message = MessageModel(
                 id=message_id,
+                user_id=UUID(user.id),
                 conversation_id=conversation_id,
                 parent_message_id=payload.parent_message_id,
                 role=payload.role,

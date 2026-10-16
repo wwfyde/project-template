@@ -27,6 +27,14 @@ db = 0
 password = ""
 cluster = false
 sentinel = false
+session_cookie_name = "project_template_session"
+# 本地 HTTP 开发使用 false；生产必须为 true，并通过 HTTPS 访问。
+session_cookie_https_only = false
+session_cookie_same_site = "lax"
+session_cookie_path = "/"
+session_idle_ttl = 1800
+session_absolute_ttl = 28800
+session_fail_closed = true
 
 # Sentinel：启用后忽略 host/port，保持 cluster=false，并删除 url。
 # 将上面的 sentinel 改为 true，并按需填写以下字段。
@@ -37,6 +45,55 @@ sentinel = false
 # username/password 用于 Redis 数据节点；sentinel_username/password 用于哨兵。
 # .env 中用逗号分隔：REDIS_SENTINEL_NODES=redis-a:26379,redis-b:26379,redis-c:26379
 # Cluster：设置 cluster=true、sentinel=false、db=0，host/port 指向入口节点。
+
+[auth]
+# 控制展示顺序和可用来源；必须保留 google。移除来源后旧登录也不再有效。
+providers = ["google", "password", "dingtalk", "phone"]
+frontend_url = "http://localhost:5173"
+default_tenant_id = "default"
+allow_signup = true
+session_key_prefix = "project-template:auth"
+oauth_state_ttl_seconds = 600
+
+[auth.google]
+enabled = true
+client_id = ""
+client_secret = ""
+redirect_uri = "http://localhost:8000/api/auth/oauth/google/callback"
+scope = "openid email profile"
+
+[auth.dingtalk]
+enabled = true
+client_id = ""
+client_secret = ""
+redirect_uri = "http://localhost:8000/api/auth/oauth/dingtalk/callback"
+
+[auth.phone]
+# 仅预留；尚无短信发送/验证实现，设为 true 会拒绝启动。
+enabled = false
+
+[auth.password]
+# 先通过 python -m api.auth.manage create-user 创建账号；无公开注册/默认账号。
+enabled = true
+rate_limit_attempts = 10
+ip_rate_limit_attempts = 50
+rate_limit_window_seconds = 300
+
+[auth.header]
+# 只作用于显式声明 HeaderAuthDep / verify_header_token 的接口。
+enabled = false
+name = "X-Api-Key"
+# 至少32个可见ASCII字符；可同时配置新旧key完成轮换；不要将实际key提交到Git。
+keys = []
+
+[request_context]
+enabled = true
+request_id_header = "Request-ID"
+user_id_header = "User-ID"
+tenant_id_header = "Tenant-ID"
+accept_request_id = true
+expose_identity_headers = true
+log_requests = true
 
 [otel]
 enabled = false

@@ -9,115 +9,138 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as AboutRouteImport } from './routes/about'
-import { Route as AdminRouteRouteImport } from './routes/admin/route'
-import { Route as AssetsRouteRouteImport } from './routes/assets/route'
-import { Route as ExamplesRouteRouteImport } from './routes/examples/route'
-import { Route as AdminIndexRouteImport } from './routes/admin/index'
-import { Route as AdminDashboardRouteImport } from './routes/admin/dashboard'
-import { Route as AssetsIndexRouteImport } from './routes/assets/index'
-import { Route as ExamplesIndexRouteImport } from './routes/examples/index'
-import { Route as ExamplesRadixIndexRouteImport } from './routes/examples/radix/index'
-import { Route as ExamplesRadixThemeRouteImport } from './routes/examples/radix/theme'
+import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
+import { Route as AuthenticatedAboutRouteImport } from './routes/_authenticated/about'
+import { Route as AuthenticatedAdminRouteRouteImport } from './routes/_authenticated/admin/route'
+import { Route as AuthenticatedAssetsRouteRouteImport } from './routes/_authenticated/assets/route'
+import { Route as AuthenticatedExamplesRouteRouteImport } from './routes/_authenticated/examples/route'
+import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
+import { Route as AuthenticatedAdminDashboardRouteImport } from './routes/_authenticated/admin/dashboard'
+import { Route as AuthenticatedAssetsIndexRouteImport } from './routes/_authenticated/assets/index'
+import { Route as AuthenticatedExamplesIndexRouteImport } from './routes/_authenticated/examples/index'
+import { Route as AuthenticatedExamplesRadixIndexRouteImport } from './routes/_authenticated/examples/radix/index'
+import { Route as AuthenticatedExamplesRadixThemeRouteImport } from './routes/_authenticated/examples/radix/theme'
 
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const AuthenticatedRoute = AuthenticatedRouteImport.update({
+  id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AboutRoute = AboutRouteImport.update({
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedAboutRoute = AuthenticatedAboutRouteImport.update({
   id: '/about',
   path: '/about',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AuthenticatedRoute,
 } as any)
-const AdminRouteRoute = AdminRouteRouteImport.update({
+const AuthenticatedAdminRouteRoute = AuthenticatedAdminRouteRouteImport.update({
   id: '/admin',
   path: '/admin',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AuthenticatedRoute,
 } as any)
-const AssetsRouteRoute = AssetsRouteRouteImport.update({
-  id: '/assets',
-  path: '/assets',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ExamplesRouteRoute = ExamplesRouteRouteImport.update({
-  id: '/examples',
-  path: '/examples',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AdminIndexRoute = AdminIndexRouteImport.update({
+const AuthenticatedAssetsRouteRoute =
+  AuthenticatedAssetsRouteRouteImport.update({
+    id: '/assets',
+    path: '/assets',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedExamplesRouteRoute =
+  AuthenticatedExamplesRouteRouteImport.update({
+    id: '/examples',
+    path: '/examples',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => AdminRouteRoute,
+  getParentRoute: () => AuthenticatedAdminRouteRoute,
 } as any)
-const AdminDashboardRoute = AdminDashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
-  getParentRoute: () => AdminRouteRoute,
-} as any)
-const AssetsIndexRoute = AssetsIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => AssetsRouteRoute,
-} as any)
-const ExamplesIndexRoute = ExamplesIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => ExamplesRouteRoute,
-} as any)
-const ExamplesRadixIndexRoute = ExamplesRadixIndexRouteImport.update({
-  id: '/radix/',
-  path: '/radix/',
-  getParentRoute: () => ExamplesRouteRoute,
-} as any)
-const ExamplesRadixThemeRoute = ExamplesRadixThemeRouteImport.update({
-  id: '/radix/theme',
-  path: '/radix/theme',
-  getParentRoute: () => ExamplesRouteRoute,
-} as any)
+const AuthenticatedAdminDashboardRoute =
+  AuthenticatedAdminDashboardRouteImport.update({
+    id: '/dashboard',
+    path: '/dashboard',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
+const AuthenticatedAssetsIndexRoute =
+  AuthenticatedAssetsIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedAssetsRouteRoute,
+  } as any)
+const AuthenticatedExamplesIndexRoute =
+  AuthenticatedExamplesIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedExamplesRouteRoute,
+  } as any)
+const AuthenticatedExamplesRadixIndexRoute =
+  AuthenticatedExamplesRadixIndexRouteImport.update({
+    id: '/radix/',
+    path: '/radix/',
+    getParentRoute: () => AuthenticatedExamplesRouteRoute,
+  } as any)
+const AuthenticatedExamplesRadixThemeRoute =
+  AuthenticatedExamplesRadixThemeRouteImport.update({
+    id: '/radix/theme',
+    path: '/radix/theme',
+    getParentRoute: () => AuthenticatedExamplesRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
-  '/admin': typeof AdminRouteRouteWithChildren
-  '/assets': typeof AssetsRouteRouteWithChildren
-  '/examples': typeof ExamplesRouteRouteWithChildren
-  '/about': typeof AboutRoute
-  '/admin/dashboard': typeof AdminDashboardRoute
-  '/admin/': typeof AdminIndexRoute
-  '/assets/': typeof AssetsIndexRoute
-  '/examples/': typeof ExamplesIndexRoute
-  '/examples/radix/theme': typeof ExamplesRadixThemeRoute
-  '/examples/radix/': typeof ExamplesRadixIndexRoute
+  '/': typeof AuthenticatedIndexRoute
+  '/login': typeof LoginRoute
+  '/admin': typeof AuthenticatedAdminRouteRouteWithChildren
+  '/assets': typeof AuthenticatedAssetsRouteRouteWithChildren
+  '/examples': typeof AuthenticatedExamplesRouteRouteWithChildren
+  '/about': typeof AuthenticatedAboutRoute
+  '/admin/dashboard': typeof AuthenticatedAdminDashboardRoute
+  '/admin/': typeof AuthenticatedAdminIndexRoute
+  '/assets/': typeof AuthenticatedAssetsIndexRoute
+  '/examples/': typeof AuthenticatedExamplesIndexRoute
+  '/examples/radix/theme': typeof AuthenticatedExamplesRadixThemeRoute
+  '/examples/radix/': typeof AuthenticatedExamplesRadixIndexRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
-  '/about': typeof AboutRoute
-  '/admin/dashboard': typeof AdminDashboardRoute
-  '/admin': typeof AdminIndexRoute
-  '/assets': typeof AssetsIndexRoute
-  '/examples': typeof ExamplesIndexRoute
-  '/examples/radix/theme': typeof ExamplesRadixThemeRoute
-  '/examples/radix': typeof ExamplesRadixIndexRoute
+  '/login': typeof LoginRoute
+  '/about': typeof AuthenticatedAboutRoute
+  '/': typeof AuthenticatedIndexRoute
+  '/admin/dashboard': typeof AuthenticatedAdminDashboardRoute
+  '/admin': typeof AuthenticatedAdminIndexRoute
+  '/assets': typeof AuthenticatedAssetsIndexRoute
+  '/examples': typeof AuthenticatedExamplesIndexRoute
+  '/examples/radix/theme': typeof AuthenticatedExamplesRadixThemeRoute
+  '/examples/radix': typeof AuthenticatedExamplesRadixIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
-  '/admin': typeof AdminRouteRouteWithChildren
-  '/assets': typeof AssetsRouteRouteWithChildren
-  '/examples': typeof ExamplesRouteRouteWithChildren
-  '/about': typeof AboutRoute
-  '/admin/dashboard': typeof AdminDashboardRoute
-  '/admin/': typeof AdminIndexRoute
-  '/assets/': typeof AssetsIndexRoute
-  '/examples/': typeof ExamplesIndexRoute
-  '/examples/radix/theme': typeof ExamplesRadixThemeRoute
-  '/examples/radix/': typeof ExamplesRadixIndexRoute
+  '/_authenticated': typeof AuthenticatedRouteWithChildren
+  '/login': typeof LoginRoute
+  '/_authenticated/admin': typeof AuthenticatedAdminRouteRouteWithChildren
+  '/_authenticated/assets': typeof AuthenticatedAssetsRouteRouteWithChildren
+  '/_authenticated/examples': typeof AuthenticatedExamplesRouteRouteWithChildren
+  '/_authenticated/about': typeof AuthenticatedAboutRoute
+  '/_authenticated/': typeof AuthenticatedIndexRoute
+  '/_authenticated/admin/dashboard': typeof AuthenticatedAdminDashboardRoute
+  '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
+  '/_authenticated/assets/': typeof AuthenticatedAssetsIndexRoute
+  '/_authenticated/examples/': typeof AuthenticatedExamplesIndexRoute
+  '/_authenticated/examples/radix/theme': typeof AuthenticatedExamplesRadixThemeRoute
+  '/_authenticated/examples/radix/': typeof AuthenticatedExamplesRadixIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/login'
     | '/admin'
     | '/assets'
     | '/examples'
@@ -130,8 +153,9 @@ export interface FileRouteTypes {
     | '/examples/radix/'
   fileRoutesByTo: FileRoutesByTo
   to:
-    | '/'
+    | '/login'
     | '/about'
+    | '/'
     | '/admin/dashboard'
     | '/admin'
     | '/assets'
@@ -140,157 +164,193 @@ export interface FileRouteTypes {
     | '/examples/radix'
   id:
     | '__root__'
-    | '/'
-    | '/admin'
-    | '/assets'
-    | '/examples'
-    | '/about'
-    | '/admin/dashboard'
-    | '/admin/'
-    | '/assets/'
-    | '/examples/'
-    | '/examples/radix/theme'
-    | '/examples/radix/'
+    | '/_authenticated'
+    | '/login'
+    | '/_authenticated/admin'
+    | '/_authenticated/assets'
+    | '/_authenticated/examples'
+    | '/_authenticated/about'
+    | '/_authenticated/'
+    | '/_authenticated/admin/dashboard'
+    | '/_authenticated/admin/'
+    | '/_authenticated/assets/'
+    | '/_authenticated/examples/'
+    | '/_authenticated/examples/radix/theme'
+    | '/_authenticated/examples/radix/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
-  AdminRouteRoute: typeof AdminRouteRouteWithChildren
-  AssetsRouteRoute: typeof AssetsRouteRouteWithChildren
-  ExamplesRouteRoute: typeof ExamplesRouteRouteWithChildren
-  AboutRoute: typeof AboutRoute
+  AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
+  LoginRoute: typeof LoginRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/': {
+      id: '/_authenticated/'
       path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthenticatedIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
     }
-    '/about': {
-      id: '/about'
+    '/_authenticated/about': {
+      id: '/_authenticated/about'
       path: '/about'
       fullPath: '/about'
-      preLoaderRoute: typeof AboutRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthenticatedAboutRouteImport
+      parentRoute: typeof AuthenticatedRoute
     }
-    '/admin': {
-      id: '/admin'
+    '/_authenticated/admin': {
+      id: '/_authenticated/admin'
       path: '/admin'
       fullPath: '/admin'
-      preLoaderRoute: typeof AdminRouteRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthenticatedAdminRouteRouteImport
+      parentRoute: typeof AuthenticatedRoute
     }
-    '/assets': {
-      id: '/assets'
+    '/_authenticated/assets': {
+      id: '/_authenticated/assets'
       path: '/assets'
       fullPath: '/assets'
-      preLoaderRoute: typeof AssetsRouteRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthenticatedAssetsRouteRouteImport
+      parentRoute: typeof AuthenticatedRoute
     }
-    '/examples': {
-      id: '/examples'
+    '/_authenticated/examples': {
+      id: '/_authenticated/examples'
       path: '/examples'
       fullPath: '/examples'
-      preLoaderRoute: typeof ExamplesRouteRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthenticatedExamplesRouteRouteImport
+      parentRoute: typeof AuthenticatedRoute
     }
-    '/admin/': {
-      id: '/admin/'
+    '/_authenticated/admin/': {
+      id: '/_authenticated/admin/'
       path: '/'
       fullPath: '/admin/'
-      preLoaderRoute: typeof AdminIndexRouteImport
-      parentRoute: typeof AdminRouteRoute
+      preLoaderRoute: typeof AuthenticatedAdminIndexRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
     }
-    '/admin/dashboard': {
-      id: '/admin/dashboard'
+    '/_authenticated/admin/dashboard': {
+      id: '/_authenticated/admin/dashboard'
       path: '/dashboard'
       fullPath: '/admin/dashboard'
-      preLoaderRoute: typeof AdminDashboardRouteImport
-      parentRoute: typeof AdminRouteRoute
+      preLoaderRoute: typeof AuthenticatedAdminDashboardRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
     }
-    '/assets/': {
-      id: '/assets/'
+    '/_authenticated/assets/': {
+      id: '/_authenticated/assets/'
       path: '/'
       fullPath: '/assets/'
-      preLoaderRoute: typeof AssetsIndexRouteImport
-      parentRoute: typeof AssetsRouteRoute
+      preLoaderRoute: typeof AuthenticatedAssetsIndexRouteImport
+      parentRoute: typeof AuthenticatedAssetsRouteRoute
     }
-    '/examples/': {
-      id: '/examples/'
+    '/_authenticated/examples/': {
+      id: '/_authenticated/examples/'
       path: '/'
       fullPath: '/examples/'
-      preLoaderRoute: typeof ExamplesIndexRouteImport
-      parentRoute: typeof ExamplesRouteRoute
+      preLoaderRoute: typeof AuthenticatedExamplesIndexRouteImport
+      parentRoute: typeof AuthenticatedExamplesRouteRoute
     }
-    '/examples/radix/': {
-      id: '/examples/radix/'
+    '/_authenticated/examples/radix/': {
+      id: '/_authenticated/examples/radix/'
       path: '/radix'
       fullPath: '/examples/radix/'
-      preLoaderRoute: typeof ExamplesRadixIndexRouteImport
-      parentRoute: typeof ExamplesRouteRoute
+      preLoaderRoute: typeof AuthenticatedExamplesRadixIndexRouteImport
+      parentRoute: typeof AuthenticatedExamplesRouteRoute
     }
-    '/examples/radix/theme': {
-      id: '/examples/radix/theme'
+    '/_authenticated/examples/radix/theme': {
+      id: '/_authenticated/examples/radix/theme'
       path: '/radix/theme'
       fullPath: '/examples/radix/theme'
-      preLoaderRoute: typeof ExamplesRadixThemeRouteImport
-      parentRoute: typeof ExamplesRouteRoute
+      preLoaderRoute: typeof AuthenticatedExamplesRadixThemeRouteImport
+      parentRoute: typeof AuthenticatedExamplesRouteRoute
     }
   }
 }
 
-interface AdminRouteRouteChildren {
-  AdminDashboardRoute: typeof AdminDashboardRoute
-  AdminIndexRoute: typeof AdminIndexRoute
+interface AuthenticatedAdminRouteRouteChildren {
+  AuthenticatedAdminDashboardRoute: typeof AuthenticatedAdminDashboardRoute
+  AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
 }
 
-const AdminRouteRouteChildren: AdminRouteRouteChildren = {
-  AdminDashboardRoute: AdminDashboardRoute,
-  AdminIndexRoute: AdminIndexRoute,
+const AuthenticatedAdminRouteRouteChildren: AuthenticatedAdminRouteRouteChildren =
+  {
+    AuthenticatedAdminDashboardRoute: AuthenticatedAdminDashboardRoute,
+    AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
+  }
+
+const AuthenticatedAdminRouteRouteWithChildren =
+  AuthenticatedAdminRouteRoute._addFileChildren(
+    AuthenticatedAdminRouteRouteChildren,
+  )
+
+interface AuthenticatedAssetsRouteRouteChildren {
+  AuthenticatedAssetsIndexRoute: typeof AuthenticatedAssetsIndexRoute
 }
 
-const AdminRouteRouteWithChildren = AdminRouteRoute._addFileChildren(
-  AdminRouteRouteChildren,
-)
+const AuthenticatedAssetsRouteRouteChildren: AuthenticatedAssetsRouteRouteChildren =
+  {
+    AuthenticatedAssetsIndexRoute: AuthenticatedAssetsIndexRoute,
+  }
 
-interface AssetsRouteRouteChildren {
-  AssetsIndexRoute: typeof AssetsIndexRoute
+const AuthenticatedAssetsRouteRouteWithChildren =
+  AuthenticatedAssetsRouteRoute._addFileChildren(
+    AuthenticatedAssetsRouteRouteChildren,
+  )
+
+interface AuthenticatedExamplesRouteRouteChildren {
+  AuthenticatedExamplesIndexRoute: typeof AuthenticatedExamplesIndexRoute
+  AuthenticatedExamplesRadixThemeRoute: typeof AuthenticatedExamplesRadixThemeRoute
+  AuthenticatedExamplesRadixIndexRoute: typeof AuthenticatedExamplesRadixIndexRoute
 }
 
-const AssetsRouteRouteChildren: AssetsRouteRouteChildren = {
-  AssetsIndexRoute: AssetsIndexRoute,
+const AuthenticatedExamplesRouteRouteChildren: AuthenticatedExamplesRouteRouteChildren =
+  {
+    AuthenticatedExamplesIndexRoute: AuthenticatedExamplesIndexRoute,
+    AuthenticatedExamplesRadixThemeRoute: AuthenticatedExamplesRadixThemeRoute,
+    AuthenticatedExamplesRadixIndexRoute: AuthenticatedExamplesRadixIndexRoute,
+  }
+
+const AuthenticatedExamplesRouteRouteWithChildren =
+  AuthenticatedExamplesRouteRoute._addFileChildren(
+    AuthenticatedExamplesRouteRouteChildren,
+  )
+
+interface AuthenticatedRouteChildren {
+  AuthenticatedAdminRouteRoute: typeof AuthenticatedAdminRouteRouteWithChildren
+  AuthenticatedAssetsRouteRoute: typeof AuthenticatedAssetsRouteRouteWithChildren
+  AuthenticatedExamplesRouteRoute: typeof AuthenticatedExamplesRouteRouteWithChildren
+  AuthenticatedAboutRoute: typeof AuthenticatedAboutRoute
+  AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
 }
 
-const AssetsRouteRouteWithChildren = AssetsRouteRoute._addFileChildren(
-  AssetsRouteRouteChildren,
-)
-
-interface ExamplesRouteRouteChildren {
-  ExamplesIndexRoute: typeof ExamplesIndexRoute
-  ExamplesRadixThemeRoute: typeof ExamplesRadixThemeRoute
-  ExamplesRadixIndexRoute: typeof ExamplesRadixIndexRoute
+const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
+  AuthenticatedAdminRouteRoute: AuthenticatedAdminRouteRouteWithChildren,
+  AuthenticatedAssetsRouteRoute: AuthenticatedAssetsRouteRouteWithChildren,
+  AuthenticatedExamplesRouteRoute: AuthenticatedExamplesRouteRouteWithChildren,
+  AuthenticatedAboutRoute: AuthenticatedAboutRoute,
+  AuthenticatedIndexRoute: AuthenticatedIndexRoute,
 }
 
-const ExamplesRouteRouteChildren: ExamplesRouteRouteChildren = {
-  ExamplesIndexRoute: ExamplesIndexRoute,
-  ExamplesRadixThemeRoute: ExamplesRadixThemeRoute,
-  ExamplesRadixIndexRoute: ExamplesRadixIndexRoute,
-}
-
-const ExamplesRouteRouteWithChildren = ExamplesRouteRoute._addFileChildren(
-  ExamplesRouteRouteChildren,
+const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
+  AuthenticatedRouteChildren,
 )
 
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
-  AdminRouteRoute: AdminRouteRouteWithChildren,
-  AssetsRouteRoute: AssetsRouteRouteWithChildren,
-  ExamplesRouteRoute: ExamplesRouteRouteWithChildren,
-  AboutRoute: AboutRoute,
+  AuthenticatedRoute: AuthenticatedRouteWithChildren,
+  LoginRoute: LoginRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

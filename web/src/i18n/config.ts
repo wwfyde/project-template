@@ -37,7 +37,7 @@ export function initializeI18n(): Promise<TFunction> {
       supportedLngs: [...APP_LANGUAGES],
       fallbackLng: DEFAULT_APP_LANGUAGE,
       defaultNS: 'common',
-      ns: ['common', 'navigation', 'theme', 'pages'],
+      ns: ['common', 'navigation', 'theme', 'pages', 'auth'],
       load: 'currentOnly',
       returnNull: false,
       interpolation: {

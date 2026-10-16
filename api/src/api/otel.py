@@ -205,6 +205,25 @@ def _get_runtime(config: OtelConfig, environment: str) -> TelemetryRuntime:
         return _runtime
 
 
+def _redact_http_query(span: trace.Span, _scope: Mapping[str, Any]) -> None:
+    """Remove all URL query data before request handlers or span export.
+
+    The ASGI instrumentor has already collected URL attributes when this hook
+    runs. Header sanitization does not cover them, and parameter-name denylists
+    miss OAuth providers' custom credentials. Handle both OTel HTTP schemas;
+    neither request bodies nor raw query parameters are copied into telemetry.
+    """
+    if not span.is_recording():
+        return
+    attributes = getattr(span, "attributes", None) or {}
+    for name in ("http.url", "url.full", "http.target", "url.path"):
+        value = attributes.get(name)
+        if isinstance(value, str):
+            span.set_attribute(name, value.partition("?")[0].partition("#")[0])
+    if "url.query" in attributes:
+        span.set_attribute("url.query", "")
+
+
 def setup_telemetry(
     app: FastAPI,
     config: OtelConfig,
@@ -228,6 +247,7 @@ def setup_telemetry(
             meter_provider=runtime.meter_provider,
             excluded_urls=config.excluded_urls,
             exclude_spans=["send", "receive"],
+            server_request_hook=_redact_http_query,
             http_capture_headers_server_request=[],
             http_capture_headers_server_response=[],
             http_capture_headers_sanitize_fields=[".*"],

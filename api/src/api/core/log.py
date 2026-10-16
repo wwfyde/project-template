@@ -2,10 +2,12 @@ import json
 import logging.config
 from copy import copy
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal, cast
 
 from opentelemetry import trace
 from opentelemetry.sdk._logs import LoggerProvider
+
+from api.core.request_context import correlation_attributes, get_request_context
 
 
 _RECORD_FIELDS = frozenset(logging.makeLogRecord({}).__dict__) | {
@@ -23,8 +25,20 @@ _RECORD_FIELDS = frozenset(logging.makeLogRecord({}).__dict__) | {
 class TraceContextFilter(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
         context = trace.get_current_span().get_span_context()
-        record.trace_id = f"{context.trace_id:032x}" if context.is_valid else "-"
+        incoming = correlation_attributes().get("incoming_trace_id", "-")
+        record.trace_id = f"{context.trace_id:032x}" if context.is_valid else incoming
         record.span_id = f"{context.span_id:016x}" if context.is_valid else "-"
+        return True
+
+
+class RequestContextFilter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        if get_request_context() is not None:
+            # Transport input and caller-supplied extras cannot impersonate a
+            # verified identity. Only the authentication binding owns these IDs.
+            for name in ("request_id", "user_id", "tenant_id", "incoming_trace_id"):
+                record.__dict__.pop(name, None)
+            record.__dict__.update(correlation_attributes())
         return True
 
 
@@ -113,12 +127,13 @@ def setup_logging(
         handlers.append("otel")
         access_handlers.append("otel")
 
-    logging_config = {
+    logging_config: dict[str, Any] = {
         "version": 1,
         "disable_existing_loggers": False,
         "filters": {
             "access": {"()": AccessLogFilter},
             "export": {"()": ExportLogFilter},
+            "request_context": {"()": RequestContextFilter},
         },
         "formatters": {
             "default": {
@@ -131,13 +146,13 @@ def setup_logging(
                 "class": "logging.StreamHandler",
                 "level": level,
                 "formatter": "default",
-                "filters": ["access"],
+                "filters": ["access", "request_context"],
             },
             "access_console": {
                 "class": "logging.StreamHandler",
                 "level": level,
                 "formatter": "default",
-                "filters": ["access"],
+                "filters": ["access", "request_context"],
                 "stream": "ext://sys.stdout",
             },
         },
@@ -183,11 +198,11 @@ def setup_logging(
         },
     }
     if logger_provider is not None:
-        logging_config["handlers"]["otel"] = {
+        cast(dict[str, Any], logging_config["handlers"])["otel"] = {
             "class": "opentelemetry.instrumentation.logging.handler.LoggingHandler",
             "level": otel_level,
             "logger_provider": logger_provider,
             "log_code_attributes": True,
-            "filters": ["access", "export"],
+            "filters": ["access", "request_context", "export"],
         }
     logging.config.dictConfig(logging_config)

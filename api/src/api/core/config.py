@@ -12,6 +12,7 @@ from pydantic import (
     Field,
     SecretStr,
     computed_field,
+    model_validator,
 )
 from pydantic_settings import (
     BaseSettings,
@@ -23,6 +24,8 @@ from redis_fastapi import RedisSettings
 from sqlalchemy.engine import URL
 
 from api.agents.config import AgentsConfig
+from api.auth.config import AuthConfig
+from api.core.request_context import RequestContextConfig
 from api.core.telemetry_config import OtelConfig
 
 
@@ -30,6 +33,8 @@ class RedisConfig(RedisSettings):
     """SDK fields and validation, resolved once by the application's Settings."""
 
     model_config = SettingsConfigDict(env_file=None)
+    session_cookie_name: str = "project_template_session"
+    session_fail_closed: bool = True
 
     @classmethod
     def settings_customise_sources(
@@ -170,10 +175,11 @@ class Settings(BaseSettings):
     profile: Literal["web", "cli", "desktop", "app"] = Field(
         default="web", title="执行环境"
     )
-    api_key_header: str = "fastapi"
     admin_users: list[str] = []
     app: AppConfig = Field(default_factory=AppConfig)
     agents: AgentsConfig = Field(default_factory=AgentsConfig)
+    auth: AuthConfig = Field(default_factory=AuthConfig)
+    request_context: RequestContextConfig = Field(default_factory=RequestContextConfig)
     otel: OtelConfig = Field(default_factory=OtelConfig)
     httpx_timeout: int = 60
     wait_max_seconds: int = 60 * 2
@@ -194,6 +200,41 @@ class Settings(BaseSettings):
     # apps: Any | None = Field(None, title="多应用配置")
     tools: Any | None = Field(None, title="私有化部署工具")
     extra: ExtraSettings = Field(default_factory=ExtraSettings)
+
+    @model_validator(mode="after")
+    def validate_auth(self) -> "Settings":
+        from api.auth.providers import (
+            get_auth_providers,
+            validate_provider_configuration,
+        )
+
+        validate_provider_configuration(self.auth)
+        correlation_headers = {
+            self.request_context.request_id_header.lower(),
+            self.request_context.user_id_header.lower(),
+            self.request_context.tenant_id_header.lower(),
+        }
+        if self.auth.header.name.lower() in correlation_headers:
+            raise ValueError("Authentication Header must not be a correlation header")
+        if self.app.env == "prod" and any(
+            item.enabled for item in get_auth_providers(self.auth)
+        ):
+            if not self.auth.frontend_url.startswith("https://"):
+                raise ValueError(
+                    "Production authentication requires an HTTPS frontend_url"
+                )
+            for provider in get_auth_providers(self.auth):
+                config = getattr(self.auth, provider.id, None)
+                if (
+                    provider.enabled
+                    and provider.method == "oauth"
+                    and config is not None
+                    and not config.redirect_uri.startswith("https://")
+                ):
+                    raise ValueError(
+                        "Production authentication requires HTTPS callback URLs"
+                    )
+        return self
 
     # ark: ArkConfig = None
 
@@ -219,6 +260,7 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(
         extra="ignore",
+        hide_input_in_errors=True,
         env_file=[
             ".env",
             ".env.dev",

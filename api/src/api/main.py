@@ -14,6 +14,8 @@ from api.core.cache import configure_redis_sdk
 from api.core.db import engine
 from api.core.lifespan import lifespan
 from api.core.log import setup_logging
+from api.auth.session import configure_auth_sessions
+from api.core.request_context import RequestContextMiddleware
 from api.otel import setup_telemetry
 
 logger = logging.getLogger(__name__)
@@ -43,7 +45,9 @@ def create_app(lifespan: Callable = lifespan) -> FastAPI:
 
     # The project lifespan passes Settings to the SDK and owns its pools.
     FastAPIRedis(app).caching()
-    configure_sdk_examples(app)
+    configure_sdk_examples(app, sessions=False)
+    configure_auth_sessions(app, settings)
+    app.add_middleware(RequestContextMiddleware, config=settings.request_context)
 
     app.include_router(router, prefix="/api")
     settings.data_dir.mkdir(parents=True, exist_ok=True)
