@@ -1,14 +1,14 @@
 import pytest
 from pydantic import ValidationError
 
-from api.auth.config import AuthConfig
-from api.auth.providers import (
+from api.core.auth_config import AuthConfig
+from api.services.auth_providers import (
     AuthProviderUnavailable,
     get_auth_providers,
     get_oauth_provider,
     validate_provider_configuration,
 )
-from api.auth.security import sanitize_return_to
+from api.core.oauth import sanitize_return_to
 
 
 def test_provider_catalog_is_configured_and_phone_is_reserved() -> None:

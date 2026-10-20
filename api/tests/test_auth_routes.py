@@ -23,15 +23,19 @@ from redis.exceptions import ConnectionError as RedisConnectionError
 from redis_fastapi import SessionStore, get_async_redis, get_session_store
 from redis_fastapi import get_settings as get_sdk_settings
 
-from api.auth import routes
-from api.auth.config import AuthConfig
-from api.auth.dependencies import CurrentUserDep, get_user_repository
-from api.auth.providers import AuthProviderError, OAuthProvider, get_oauth_provider
-from api.auth.schemas import AuthUser, ProviderIdentity
-from api.auth.session import configure_auth_sessions
+from api.routes import auth as routes
+from api.core.auth_config import AuthConfig
+from api.dependencies.auth import CurrentUserDep, get_user_repository
+from api.services.auth_providers import (
+    AuthProviderError,
+    OAuthProvider,
+    get_oauth_provider,
+)
+from api.schemas.auth import AuthUser, ProviderIdentity
+from api.core.auth_session import configure_auth_sessions
 from api.core.config import Settings, get_settings, settings
 from api.core.request_context import RequestContextMiddleware
-from api.models.user import User
+from api.models import Account, User
 from test_redis_sdk_sessions import MemorySessionStore
 
 COOKIE_NAME = "auth_integration_test"
@@ -63,7 +67,12 @@ class FakeUsers:
     def __init__(self) -> None:
         self.user = User(
             id=USER_ID,
-            tenant_id=TENANT_ID,
+            personal_account=Account(
+                id=TENANT_ID,
+                personal_user_id=USER_ID,
+                structure="personal",
+                is_active=True,
+            ),
             display_name="Test User",
             email="user@example.com",
             avatar_url=None,
@@ -74,10 +83,7 @@ class FakeUsers:
         self.deleted = False
         self.resolutions = 0
 
-    async def resolve(
-        self, identity: ProviderIdentity, *, tenant_id: str, allow_signup: bool
-    ) -> User:
-        assert tenant_id == TENANT_ID
+    async def resolve(self, identity: ProviderIdentity, *, allow_signup: bool) -> User:
         if not self.user.is_active:
             raise HTTPException(403, "Account is disabled")
         self.resolutions += 1
@@ -85,6 +91,18 @@ class FakeUsers:
 
     async def get(self, user_id: str, provider: str) -> User | None:
         return self.user if user_id == USER_ID and not self.deleted else None
+
+    async def account(self, user_id: str, account_id: str) -> Account | None:
+        account = self.user.personal_account
+        if (
+            account is not None
+            and account.id == account_id
+            and account.personal_user_id == user_id
+            and account.is_active
+            and not self.deleted
+        ):
+            return account
+        return None
 
     async def own(self, kind: str, resource_id: str, user: AuthUser) -> None:
         pass
@@ -136,7 +154,6 @@ def auth_env(monkeypatch: MonkeyPatch, tmp_path: Path) -> AuthTestEnvironment:
     config.app.env = "local"
     config.auth = AuthConfig.model_validate(
         {
-            "default_tenant_id": TENANT_ID,
             "google": {"client_id": "test-google", "client_secret": "test-secret"},
             "dingtalk": {
                 "enabled": True,
@@ -160,7 +177,7 @@ def auth_env(monkeypatch: MonkeyPatch, tmp_path: Path) -> AuthTestEnvironment:
         "session_refresh_on_load": True,
         "session_always_save": False,
         "session_fail_closed": False,
-        "session_principal_keys": ["user_id", "tenant_id", "auth_version"],
+        "session_principal_keys": ["user_id", "account_id", "auth_version"],
         "rate_limit_default_limit": 0,
     }.items():
         monkeypatch.setattr(sdk_settings, name, value)
@@ -192,11 +209,11 @@ def auth_env(monkeypatch: MonkeyPatch, tmp_path: Path) -> AuthTestEnvironment:
 
     @app.get(PROTECTED_PATH)
     async def private_get(user: CurrentUserDep) -> dict[str, str]:
-        return {"id": user.id, "tenant_id": user.tenant_id}
+        return {"id": user.id, "account_id": user.account_id}
 
     @app.post(PROTECTED_PATH)
     async def private_post(user: CurrentUserDep) -> dict[str, str]:
-        return {"id": user.id, "tenant_id": user.tenant_id}
+        return {"id": user.id, "account_id": user.account_id}
 
     return AuthTestEnvironment(app, config, store, redis, users, providers)
 
@@ -328,10 +345,16 @@ def test_callback_rotates_session_and_returns_csrf_with_trusted_ids(
         ("test-code", attempt["nonce"], attempt["code_verifier"])
     ]
     session = auth_client.get(
-        SESSION_PATH, headers={"User-ID": USER_ID, "Tenant-ID": TENANT_ID}
+        SESSION_PATH,
+        headers={
+            "User-ID": USER_ID,
+            "Tenant-ID": TENANT_ID,
+            "Account-ID": TENANT_ID,
+        },
     )
     assert session.json()["authenticated"] is True
     assert session.json()["user"]["id"] == USER_ID
+    assert session.json()["user"]["account_id"] == TENANT_ID
     assert session.json()["user"]["tenant_id"] == TENANT_ID
     assert len(session.json()["csrf_token"]) >= 32
     assert session.headers["user-id"] == USER_ID
@@ -451,7 +474,10 @@ def test_provider_removal_or_disable_invalidates_existing_login(
     assert auth_client.get(PROTECTED_PATH).status_code == 401
 
 
-@pytest.mark.parametrize("change", ["disabled", "deleted", "version", "tenant"])
+@pytest.mark.parametrize(
+    "change",
+    ["disabled", "deleted", "version", "account", "account_disabled", "membership"],
+)
 def test_authoritative_user_changes_invalidate_session(
     auth_client: TestClient, auth_env: AuthTestEnvironment, change: str
 ) -> None:
@@ -462,8 +488,12 @@ def test_authoritative_user_changes_invalidate_session(
         auth_env.users.deleted = True
     elif change == "version":
         auth_env.users.user.auth_version += 1
+    elif change == "account_disabled":
+        auth_env.users.user.personal_account.is_active = False
+    elif change == "membership":
+        auth_env.users.user.personal_account.personal_user_id = "another-user"
     else:
-        auth_env.users.user.tenant_id = "another-tenant"
+        auth_env.users.user.personal_account.id = "another-account"
     response = auth_client.get(SESSION_PATH)
     assert response.json()["authenticated"] is False
     assert response.json()["user"] is None
@@ -473,8 +503,29 @@ def test_authoritative_user_changes_invalidate_session(
     assert auth_client.get(PROTECTED_PATH).status_code == 401
 
 
+def test_legacy_tenant_session_cannot_select_an_account(
+    auth_client: TestClient, auth_env: AuthTestEnvironment
+) -> None:
+    login(auth_client)
+    session_id = auth_client.cookies[COOKIE_NAME]
+    raw, ttl = auth_env.store.records[session_id]
+    record = auth_env.store.decode(raw)
+    record.data["tenant_id"] = record.data.pop("account_id")
+    auth_env.store.records[session_id] = (auth_env.store.encode(record), ttl)
+
+    response = auth_client.get(SESSION_PATH)
+    assert response.json()["authenticated"] is False
+    assert response.json()["user"] is None
+    assert auth_client.get(PROTECTED_PATH).status_code == 401
+
+
 @pytest.mark.parametrize(
-    "headers", [{"User-ID": "other-user"}, {"Tenant-ID": "other-tenant"}]
+    "headers",
+    [
+        {"User-ID": "other-user"},
+        {"Tenant-ID": "other-tenant"},
+        {"Account-ID": "other-account"},
+    ],
 )
 def test_authenticated_identity_header_mismatch_is_rejected(
     auth_client: TestClient, headers: dict[str, str]
@@ -688,10 +739,15 @@ def test_duplicate_identity_and_csrf_headers_are_rejected(
 ) -> None:
     session = login(auth_client)
     token = str(session["csrf_token"])
-    response = auth_client.get(
-        PROTECTED_PATH, headers=[("User-ID", USER_ID), ("User-ID", USER_ID)]
-    )
-    assert response.status_code == 403
+    for name, value in (
+        ("User-ID", USER_ID),
+        ("Tenant-ID", TENANT_ID),
+        ("Account-ID", TENANT_ID),
+    ):
+        response = auth_client.get(
+            PROTECTED_PATH, headers=[(name, value), (name.lower(), value)]
+        )
+        assert response.status_code == 403
     response = auth_client.post(
         "/api/auth/logout", headers=[("X-CSRF-Token", token), ("X-CSRF-Token", token)]
     )

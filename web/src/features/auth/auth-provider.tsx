@@ -30,6 +30,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       refreshSession: authClient.refreshSession,
       startOAuth: authClient.startOAuth,
       passwordLogin: authClient.passwordLogin,
+      authenticatedRequest: authClient.authenticatedRequest,
       logout: authClient.logout,
     }),
     [snapshot],

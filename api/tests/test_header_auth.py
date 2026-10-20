@@ -10,9 +10,9 @@ from fastapi.testclient import TestClient
 from pydantic import SecretStr, ValidationError
 from redis_fastapi import RedisSettings, SessionStore, get_session_store
 
-from api.auth.dependencies import get_user_repository
-from api.auth.header import HeaderAuthConfig
-from api.auth.session import configure_auth_sessions
+from api.dependencies.auth import get_user_repository
+from api.core.header_auth import HeaderAuthConfig
+from api.core.auth_session import configure_auth_sessions
 from api.core.config import Settings, get_settings, settings
 from api.core.deps import ConfiguredAPIKeyHeader, CurrentUserDep, HeaderAuthDep
 from api.core.request_context import RequestContextMiddleware
@@ -232,6 +232,8 @@ def test_openapi_advertises_header_security(header_env: HeaderEnvironment) -> No
         "Set-Cookie",
         "User-ID",
         "Tenant-ID",
+        "Account-ID",
+        "aCcOuNt-Id",
         "Request-ID",
         "traceparent",
         "tracestate",

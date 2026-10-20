@@ -1,4 +1,4 @@
-import { requestJson } from '../../../lib/api-client'
+import { ApiRequestError, requestJson } from '../../../lib/api-client'
 import type { AuthSnapshot, AuthUser, SessionResponse } from '../model/auth'
 import { normalizeReturnTo } from '../model/return-to'
 
@@ -11,6 +11,7 @@ export class AuthClient {
   private passwordLoginPromise: Promise<void> | undefined
   private passwordSessionPromise: Promise<SessionResponse> | undefined
   private logoutPromise: Promise<void> | undefined
+  private accountMutationPromise: Promise<unknown> | undefined
 
   subscribe = (listener: () => void) => {
     this.listeners.add(listener)
@@ -24,21 +25,26 @@ export class AuthClient {
   ensureSession = () => this.refreshSession()
 
   refreshSession = () => {
-    const mutation = this.logoutPromise ?? this.passwordLoginPromise
+    const mutation = this.logoutPromise ?? this.passwordLoginPromise ?? this.accountMutationPromise
     if (mutation) {
       return mutation.then(
         () => this.snapshot.user,
         () => this.snapshot.user,
       )
     }
-    this.refreshPromise ??= this.loadSession().finally(() => {
-      this.refreshPromise = undefined
-    })
+    if (!this.refreshPromise) {
+      const refresh = this.loadSession().finally(() => {
+        if (this.refreshPromise === refresh) {
+          this.refreshPromise = undefined
+        }
+      })
+      this.refreshPromise = refresh
+    }
     return this.refreshPromise
   }
 
   startOAuth = (providerId: string, returnTo = '/') => {
-    if (this.passwordLoginPromise || this.logoutPromise) {
+    if (this.passwordLoginPromise || this.logoutPromise || this.accountMutationPromise) {
       throw new Error('An authentication request is already in progress')
     }
     const provider = this.snapshot.providers.find((candidate) => candidate.id === providerId)
@@ -60,7 +66,7 @@ export class AuthClient {
     if (!provider?.enabled || !provider.implemented || provider.method !== 'password') {
       throw new Error('Authentication provider is unavailable')
     }
-    if (this.passwordLoginPromise || this.logoutPromise) {
+    if (this.passwordLoginPromise || this.logoutPromise || this.accountMutationPromise) {
       throw new Error('An authentication request is already in progress')
     }
 
@@ -93,21 +99,74 @@ export class AuthClient {
     return completion
   }
 
+  authenticatedRequest = <T>(path: string, init?: RequestInit): Promise<T> => {
+    const method = (init?.method ?? 'GET').toUpperCase()
+    if (method === 'GET' || method === 'HEAD') {
+      return requestJson<T>(path, { ...init, cache: 'no-store' }).catch(async (error: unknown) => {
+        if (error instanceof ApiRequestError && error.status === 401) {
+          await this.refreshSession()
+        }
+        throw error
+      })
+    }
+    if (this.accountMutationPromise || this.passwordLoginPromise || this.logoutPromise) {
+      return Promise.reject(new Error('An authentication request is already in progress'))
+    }
+    // Session mutations may rotate the cookie and CSRF token. Invalidate older
+    // reads, then refresh once before another mutation can use the new session.
+    const revision = ++this.revision
+    this.refreshPromise = undefined
+    const completion = this.mutateAccount<T>(path, init, revision).finally(() => {
+      this.accountMutationPromise = undefined
+    })
+    this.accountMutationPromise = completion
+    return completion
+  }
+
+  private async mutateAccount<T>(path: string, init: RequestInit | undefined, revision: number): Promise<T> {
+    if (!this.csrfToken) {
+      await this.loadSession()
+    }
+    if (!this.csrfToken || this.snapshot.status !== 'authenticated') {
+      throw new Error('Unable to verify the authentication session')
+    }
+    const headers = new Headers(init?.headers)
+    headers.set('X-CSRF-Token', this.csrfToken)
+    try {
+      return await requestJson<T>(path, { ...init, headers })
+    } finally {
+      // A server error can follow a committed credential change or a failed
+      // Redis rotation. Recheck the session without ever replaying the mutation.
+      if (revision === this.revision) {
+        this.revision += 1
+        await this.loadSession()
+      }
+    }
+  }
+
   logout = () => {
     if (this.logoutPromise) {
       return this.logoutPromise
     }
     this.revision += 1
-    this.logoutPromise = this.endSession(this.passwordSessionPromise).finally(() => {
+    this.logoutPromise = this.endSession(this.passwordSessionPromise, this.accountMutationPromise).finally(() => {
       this.logoutPromise = undefined
     })
     return this.logoutPromise
   }
 
-  private async endSession(pendingLogin: Promise<SessionResponse> | undefined) {
+  private async endSession(
+    pendingLogin: Promise<SessionResponse> | undefined,
+    pendingMutation: Promise<unknown> | undefined,
+  ) {
     // A sign-out initiated during login must also revoke the session being
     // created, without exposing that login as authenticated in the meantime.
     let csrfToken = this.csrfToken
+    if (pendingMutation) {
+      await pendingMutation.catch(() => undefined)
+      await this.loadSession()
+      csrfToken = this.csrfToken
+    }
     if (pendingLogin) {
       const data = await pendingLogin.catch(() => null)
       csrfToken = data?.csrf_token ?? csrfToken

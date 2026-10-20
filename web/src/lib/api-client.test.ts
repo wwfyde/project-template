@@ -60,4 +60,24 @@ describe('requestJson', () => {
       expect(fetch).not.toHaveBeenCalled()
     },
   )
+
+  it('preserves structured account error codes and messages', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        Response.json(
+          {
+            detail: { code: 'reauthentication_required', message: 'Verify your identity' },
+          },
+          { status: 403, headers: { 'Request-ID': 'account-request' } },
+        ),
+      ),
+    )
+    await expect(requestJson('/api/account/password')).rejects.toMatchObject({
+      status: 403,
+      code: 'reauthentication_required',
+      message: 'Verify your identity',
+      requestId: 'account-request',
+    })
+  })
 })

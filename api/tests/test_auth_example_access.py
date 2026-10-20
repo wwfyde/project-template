@@ -11,9 +11,9 @@ from fastapi.testclient import TestClient
 from pytest import MonkeyPatch
 from redis_fastapi import get_async_redis, get_cache_backend, get_session_store
 
-from api.auth.dependencies import get_user_repository, require_auth_user
-from api.auth.example_access import authorize_examples
-from api.auth.schemas import AuthUser
+from api.dependencies.auth import get_user_repository, require_auth_user
+from api.core.example_access import authorize_examples
+from api.schemas.auth import AuthUser
 from api.deps import get_db
 from api.routes.examples import cache, example_router
 
@@ -45,7 +45,7 @@ def example_env(monkeypatch: MonkeyPatch) -> ExampleEnvironment:
     monkeypatch.setattr(cache.settings, "repo_type", "postgres")
     user = AuthUser(
         id="local-user",
-        tenant_id="local-tenant",
+        account_id="local-tenant",
         provider="google",
         display_name="Test User",
     )

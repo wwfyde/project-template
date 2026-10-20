@@ -13,6 +13,7 @@ import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as AuthenticatedAboutRouteImport } from './routes/_authenticated/about'
+import { Route as AuthenticatedAccountRouteImport } from './routes/_authenticated/account'
 import { Route as AuthenticatedAdminRouteRouteImport } from './routes/_authenticated/admin/route'
 import { Route as AuthenticatedAssetsRouteRouteImport } from './routes/_authenticated/assets/route'
 import { Route as AuthenticatedExamplesRouteRouteImport } from './routes/_authenticated/examples/route'
@@ -40,6 +41,11 @@ const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
 const AuthenticatedAboutRoute = AuthenticatedAboutRouteImport.update({
   id: '/about',
   path: '/about',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedAccountRoute = AuthenticatedAccountRouteImport.update({
+  id: '/account',
+  path: '/account',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedAdminRouteRoute = AuthenticatedAdminRouteRouteImport.update({
@@ -102,6 +108,7 @@ export interface FileRoutesByFullPath {
   '/assets': typeof AuthenticatedAssetsRouteRouteWithChildren
   '/examples': typeof AuthenticatedExamplesRouteRouteWithChildren
   '/about': typeof AuthenticatedAboutRoute
+  '/account': typeof AuthenticatedAccountRoute
   '/admin/dashboard': typeof AuthenticatedAdminDashboardRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/assets/': typeof AuthenticatedAssetsIndexRoute
@@ -112,6 +119,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/about': typeof AuthenticatedAboutRoute
+  '/account': typeof AuthenticatedAccountRoute
   '/': typeof AuthenticatedIndexRoute
   '/admin/dashboard': typeof AuthenticatedAdminDashboardRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
@@ -128,6 +136,7 @@ export interface FileRoutesById {
   '/_authenticated/assets': typeof AuthenticatedAssetsRouteRouteWithChildren
   '/_authenticated/examples': typeof AuthenticatedExamplesRouteRouteWithChildren
   '/_authenticated/about': typeof AuthenticatedAboutRoute
+  '/_authenticated/account': typeof AuthenticatedAccountRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/admin/dashboard': typeof AuthenticatedAdminDashboardRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
@@ -145,6 +154,7 @@ export interface FileRouteTypes {
     | '/assets'
     | '/examples'
     | '/about'
+    | '/account'
     | '/admin/dashboard'
     | '/admin/'
     | '/assets/'
@@ -155,6 +165,7 @@ export interface FileRouteTypes {
   to:
     | '/login'
     | '/about'
+    | '/account'
     | '/'
     | '/admin/dashboard'
     | '/admin'
@@ -170,6 +181,7 @@ export interface FileRouteTypes {
     | '/_authenticated/assets'
     | '/_authenticated/examples'
     | '/_authenticated/about'
+    | '/_authenticated/account'
     | '/_authenticated/'
     | '/_authenticated/admin/dashboard'
     | '/_authenticated/admin/'
@@ -212,6 +224,13 @@ declare module '@tanstack/react-router' {
       path: '/about'
       fullPath: '/about'
       preLoaderRoute: typeof AuthenticatedAboutRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/account': {
+      id: '/_authenticated/account'
+      path: '/account'
+      fullPath: '/account'
+      preLoaderRoute: typeof AuthenticatedAccountRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/admin': {
@@ -333,6 +352,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedAssetsRouteRoute: typeof AuthenticatedAssetsRouteRouteWithChildren
   AuthenticatedExamplesRouteRoute: typeof AuthenticatedExamplesRouteRouteWithChildren
   AuthenticatedAboutRoute: typeof AuthenticatedAboutRoute
+  AuthenticatedAccountRoute: typeof AuthenticatedAccountRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
 }
 
@@ -341,6 +361,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedAssetsRouteRoute: AuthenticatedAssetsRouteRouteWithChildren,
   AuthenticatedExamplesRouteRoute: AuthenticatedExamplesRouteRouteWithChildren,
   AuthenticatedAboutRoute: AuthenticatedAboutRoute,
+  AuthenticatedAccountRoute: AuthenticatedAccountRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
 }
 

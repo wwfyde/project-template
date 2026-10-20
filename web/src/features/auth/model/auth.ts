@@ -8,6 +8,8 @@ export type AuthUser = {
   avatar_url: string | null
   email: string | null
   phone: string | null
+  account_id: string
+  /** @deprecated Use account_id; retained for compatibility with older API clients. */
   tenant_id: string | null
 }
 
@@ -38,6 +40,7 @@ export type Auth = AuthSnapshot & {
   refreshSession: () => Promise<AuthUser | null>
   startOAuth: (providerId: string, returnTo?: string) => void
   passwordLogin: (username: string, password: string) => Promise<void>
+  authenticatedRequest: <T>(path: string, init?: RequestInit) => Promise<T>
   logout: () => Promise<void>
 }
 

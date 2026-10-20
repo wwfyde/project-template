@@ -43,6 +43,17 @@ def include_name(name, type_, parent_names):
         return True
 
 
+def include_object(
+    obj: object,
+    name: str | None,
+    type_: str,
+    reflected: bool,
+    compare_to: object | None,
+) -> bool:
+    # Migration-only backup data must survive autogeneration for safe rollback.
+    return not (type_ == "table" and name == "_account_legacy_scope")
+
+
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode.
 
@@ -63,6 +74,7 @@ def run_migrations_offline() -> None:
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
         include_name=include_name,
+        include_object=include_object,
     )
 
     with context.begin_transaction():
@@ -70,7 +82,11 @@ def run_migrations_offline() -> None:
 
 
 def do_run_migrations(connection: Connection) -> None:
-    context.configure(connection=connection, target_metadata=target_metadata)
+    context.configure(
+        connection=connection,
+        target_metadata=target_metadata,
+        include_object=include_object,
+    )
 
     with context.begin_transaction():
         context.run_migrations()

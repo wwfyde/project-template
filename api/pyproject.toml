@@ -11,7 +11,7 @@ dependencies = [
   "anthropic>=0.119.0",
   "claude-agent-sdk>=0.2.126",
   "dashscope>=1.26.4",
-  "fastapi>=0.143.2",
+  "fastapi>=0.150.0",
   "fastapi-redis-sdk[otel]>=0.9.0", # https://redis.github.io/fastapi-redis-sdk/latest/
   "google-genai>=2.14.0",
   "httpx2[http2,socks]>=2.12.0",
@@ -31,15 +31,15 @@ dependencies = [
   "pydantic>=2.14.1",
   "pydantic-settings>=2.16.0",
   "pyjwt[crypto]>=2.15.1",
-  "python-dotenv>=1.2.2",
-  "python-multipart>=0.0.29",
+  "python-dotenv>=1.2.4",
+  "python-multipart>=0.0.32",
   "python-socks[asyncio]>=3.1.1",
   "redis[otel]>=8.1.0",
   "sqlalchemy[asyncio]>=2.1.4",
   "tenacity>=9.1.4",
   "uuid-utils>=0.17.1",
   "uvicorn>=0.54.0",
-  "volcengine-python-sdk[ark]>=5.0.43",
+  "volcengine-python-sdk[ark]>=5.0.53",
   "websockets>=16.0",
 ]
 

@@ -10,8 +10,8 @@ from typing import Annotated
 from fastapi import Depends, HTTPException, Request, Response, Security
 from fastapi.security import APIKeyHeader
 
-from api.auth.dependencies import CurrentUserDep, require_auth_user
-from api.auth.header import HeaderPrincipal
+from api.dependencies.auth import CurrentUserDep, require_auth_user
+from api.core.header_auth import HeaderPrincipal
 from api.core.config import Settings, get_settings
 from api.deps import SettingsDep
 

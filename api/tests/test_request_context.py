@@ -167,6 +167,8 @@ def test_headers_and_incoming_id_policy_are_configurable() -> None:
         {"user_id_header": "Set-Cookie"},
         {"tenant_id_header": "traceparent"},
         {"user_id_header": "request-id"},
+        {"request_id_header": "Account-ID"},
+        {"user_id_header": "account-id"},
     ],
 )
 def test_header_configuration_rejects_collisions_and_unsafe_names(

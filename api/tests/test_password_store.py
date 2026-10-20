@@ -16,15 +16,15 @@ from sqlalchemy import Engine, create_engine, inspect, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.orm import Session
 
-from api.auth import passwords
-from api.auth.passwords import (
+from api.models import Account, AccountMember, PasswordCredential, User, UserIdentity
+from api.repositories import password as passwords
+from api.repositories.password import (
     PasswordRepository,
     PasswordUserExists,
     PasswordUserNotFound,
     normalize_username,
     validate_new_password,
 )
-from api.models.user import PasswordCredential, User, UserIdentity
 
 PASSWORD = "my-test-password"
 NEW_PASSWORD = "my-new-password"
@@ -49,7 +49,7 @@ def database() -> Iterator[Engine]:
     engine = create_engine("sqlite://")
     with engine.begin() as connection:
         connection.exec_driver_sql("PRAGMA foreign_keys=ON")
-        for model in (User, UserIdentity, PasswordCredential):
+        for model in (User, Account, AccountMember, UserIdentity, PasswordCredential):
             model.__table__.create(connection)
     yield engine
     engine.dispose()
@@ -63,9 +63,7 @@ def repository(database: Engine) -> PasswordRepository:
 
 
 async def create_user(repository: PasswordRepository, username: str = "alice") -> User:
-    return await repository.create_user(
-        username, PASSWORD, display_name="Alice", tenant_id="tenant-a"
-    )
+    return await repository.create_user(username, PASSWORD, display_name="Alice")
 
 
 @pytest.mark.parametrize(
@@ -101,7 +99,9 @@ async def test_create_and_authenticate_stable_normalized_identity(
     authenticated = await repository.authenticate(" Alice ", PASSWORD)
     assert authenticated is not None
     assert authenticated.id == user.id
-    assert authenticated.tenant_id == "tenant-a"
+    assert authenticated.personal_account.id == user.personal_account.id
+    assert authenticated.personal_account.structure == "personal"
+    assert authenticated.personal_account.personal_user_id == user.id
     assert authenticated.auth_version == 1
     with Session(database) as db:
         credential = db.get(PasswordCredential, user.id)
@@ -114,19 +114,8 @@ async def test_create_and_authenticate_stable_normalized_identity(
             "password",
             "alice",
         )
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize("tenant_id", ["", "a" * 65, "tenant a", "租户", "tenant\n"])
-async def test_create_rejects_invalid_tenant_without_persisting_user(
-    repository: PasswordRepository, database: Engine, tenant_id: str
-) -> None:
-    with pytest.raises(ValueError, match="Tenant ID"):
-        await repository.create_user(
-            "alice", PASSWORD, display_name="Alice", tenant_id=tenant_id
-        )
-    with Session(database) as db:
-        assert not db.scalars(select(User)).all()
+        membership = db.get(AccountMember, (user.personal_account.id, user.id))
+        assert membership.role == "owner"
 
 
 @pytest.mark.asyncio
@@ -137,23 +126,21 @@ async def test_create_rejects_invalid_display_name_without_persisting_user(
     repository: PasswordRepository, database: Engine, name: str
 ) -> None:
     with pytest.raises(ValueError, match="Display name"):
-        await repository.create_user(
-            "alice", PASSWORD, display_name=name, tenant_id="tenant-a"
-        )
+        await repository.create_user("alice", PASSWORD, display_name=name)
     with Session(database) as db:
         assert not db.scalars(select(User)).all()
 
 
 @pytest.mark.asyncio
-async def test_create_trims_display_name_and_accepts_tenant_boundaries(
+async def test_create_trims_display_name_and_provisions_independent_accounts(
     repository: PasswordRepository,
 ) -> None:
-    tenant_id = "Acme_" + "1" * 58 + "-"
-    user = await repository.create_user(
-        "alice", PASSWORD, display_name="  测试用户  ", tenant_id=tenant_id
-    )
+    user = await repository.create_user("alice", PASSWORD, display_name="  测试用户  ")
     assert user.display_name == "测试用户"
-    assert user.tenant_id == tenant_id
+    other = await create_user(repository, "bob")
+    assert user.personal_account.id != other.personal_account.id
+    assert user.personal_account.id != user.id
+    assert user.personal_account.structure == "personal"
 
 
 @pytest.mark.asyncio
@@ -167,6 +154,10 @@ async def test_duplicate_username_rolls_back_all_new_rows(
         assert [item.id for item in db.scalars(select(User)).all()] == [user.id]
         assert len(db.scalars(select(UserIdentity)).all()) == 1
         assert len(db.scalars(select(PasswordCredential)).all()) == 1
+        assert [item.id for item in db.scalars(select(Account)).all()] == [
+            user.personal_account.id
+        ]
+        assert len(db.scalars(select(AccountMember)).all()) == 1
 
 
 @pytest.mark.asyncio
@@ -346,7 +337,10 @@ def test_password_migration_upgrade_and_downgrade() -> None:
     engine = create_engine("sqlite://")
     try:
         with engine.begin() as connection:
-            User.__table__.create(connection)
+            # The migration belongs to the historical auth_user schema.
+            connection.exec_driver_sql(
+                "CREATE TABLE auth_user (id VARCHAR(36) PRIMARY KEY)"
+            )
             module.op = Operations(MigrationContext.configure(connection))
             module.upgrade()
             inspector = inspect(connection)

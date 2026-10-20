@@ -1,12 +1,14 @@
 export class ApiRequestError extends Error {
   readonly status: number
   readonly requestId: string
+  readonly code?: string
 
-  constructor(message: string, status: number, requestId: string) {
+  constructor(message: string, status: number, requestId: string, code?: string) {
     super(message)
     this.name = 'ApiRequestError'
     this.status = status
     this.requestId = requestId
+    this.code = code
   }
 }
 
@@ -28,11 +30,16 @@ export async function requestJson<T>(path: string, init?: RequestInit): Promise<
   const response = await fetch(path, { ...init, credentials: 'include', headers })
   if (!response.ok) {
     const payload: unknown = await response.json().catch(() => null)
-    const detail =
-      payload && typeof payload === 'object' && 'detail' in payload && typeof payload.detail === 'string'
-        ? payload.detail
-        : `Request failed (${response.status})`
-    throw new ApiRequestError(detail, response.status, response.headers.get('Request-ID') ?? requestId)
+    const detail = payload && typeof payload === 'object' && 'detail' in payload ? payload.detail : null
+    const structured = detail && typeof detail === 'object' ? detail : null
+    const message =
+      typeof detail === 'string'
+        ? detail
+        : structured && 'message' in structured && typeof structured.message === 'string'
+          ? structured.message
+          : `Request failed (${response.status})`
+    const code = structured && 'code' in structured && typeof structured.code === 'string' ? structured.code : undefined
+    throw new ApiRequestError(message, response.status, response.headers.get('Request-ID') ?? requestId, code)
   }
 
   return response.status === 204 ? (undefined as T) : ((await response.json()) as T)

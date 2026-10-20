@@ -1,26 +1,21 @@
-"""Local users are stable; external provider subjects are separate identities."""
+"""A user is a global person, independent of the accounts they belong to."""
 
 from datetime import datetime
+from typing import TYPE_CHECKING
 
-from sqlalchemy import (
-    Boolean,
-    DateTime,
-    ForeignKey,
-    Integer,
-    String,
-    UniqueConstraint,
-    func,
-)
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import Boolean, DateTime, Integer, String, func
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base
 
+if TYPE_CHECKING:
+    from .account import Account
+
 
 class User(Base):
-    __tablename__ = "auth_user"
+    __tablename__ = "user"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
-    tenant_id: Mapped[str] = mapped_column(String(128), index=True)
     display_name: Mapped[str] = mapped_column(String(255))
     avatar_url: Mapped[str | None] = mapped_column(String(2048))
     email: Mapped[str | None] = mapped_column(String(320))
@@ -30,51 +25,9 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
-
-
-class UserIdentity(Base):
-    __tablename__ = "auth_identity"
-    __table_args__ = (
-        UniqueConstraint(
-            "provider", "subject", name="uq_auth_identity_provider_subject"
-        ),
+    personal_account: Mapped["Account | None"] = relationship(
+        foreign_keys="Account.personal_user_id",
+        lazy="selectin",
+        uselist=False,
+        passive_deletes="all",
     )
-
-    id: Mapped[str] = mapped_column(String(36), primary_key=True)
-    user_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("auth_user.id", ondelete="CASCADE"), index=True
-    )
-    provider: Mapped[str] = mapped_column(String(80))
-    subject: Mapped[str] = mapped_column(String(255))
-
-
-class PasswordCredential(Base):
-    """Local credentials belong to stable users, independently of OAuth."""
-
-    __tablename__ = "auth_password_credential"
-    __table_args__ = (UniqueConstraint("username", name="uq_auth_password_username"),)
-
-    user_id: Mapped[str] = mapped_column(
-        String(36),
-        ForeignKey("auth_user.id", ondelete="CASCADE"),
-        primary_key=True,
-    )
-    username: Mapped[str] = mapped_column(String(64))
-    hashed_password: Mapped[str] = mapped_column(String(255))
-
-
-class ResourceOwner(Base):
-    """Ownership for existing resources without rewriting their storage engines.
-
-    Legacy resources without a mapping are inaccessible. No automatic claiming
-    by a caller-supplied ID; mappings are written only during resource creation.
-    """
-
-    __tablename__ = "auth_resource_owner"
-
-    resource_type: Mapped[str] = mapped_column(String(32), primary_key=True)
-    resource_id: Mapped[str] = mapped_column(String, primary_key=True)
-    user_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("auth_user.id", ondelete="CASCADE"), index=True
-    )
-    tenant_id: Mapped[str] = mapped_column(String(128), index=True)

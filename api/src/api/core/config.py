@@ -24,7 +24,7 @@ from redis_fastapi import RedisSettings
 from sqlalchemy.engine import URL
 
 from api.agents.config import AgentsConfig
-from api.auth.config import AuthConfig
+from api.core.auth_config import AuthConfig
 from api.core.request_context import RequestContextConfig
 from api.core.telemetry_config import OtelConfig
 
@@ -203,7 +203,7 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_auth(self) -> "Settings":
-        from api.auth.providers import (
+        from api.services.auth_providers import (
             get_auth_providers,
             validate_provider_configuration,
         )

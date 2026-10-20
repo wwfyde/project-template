@@ -1,0 +1,23 @@
+demo = "99"
+
+[app]
+api_key = "admin"
+jwt_secret = "custom_jwt_here"
+
+[postgres]
+host = "postgres"
+port = 5432
+username = "postgres"
+password = "postgres"
+database = "postgres"
+
+[redis]
+host = "127.0.0.1"
+port = 6379
+password = ""
+db = 0
+
+[providers.ark]
+api_key = "****"
+base_url = "https://ark.cn-beijing.volces.com/api/v3"
+model = ""

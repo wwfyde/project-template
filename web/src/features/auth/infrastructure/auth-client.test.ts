@@ -12,7 +12,8 @@ const session: SessionResponse = {
     avatar_url: null,
     email: 'user@example.test',
     phone: null,
-    tenant_id: 'tenant-1',
+    account_id: 'account-1',
+    tenant_id: 'account-1',
   },
   providers: [
     { id: 'google', method: 'oauth', implemented: true, enabled: true, start_path: '/api/auth/oauth/google/start' },
@@ -45,6 +46,125 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals())
 
 describe('AuthClient', () => {
+  it('protects account mutations with CSRF and refreshes the rotated session before the next mutation', async () => {
+    const client = new AuthClient()
+    fetchMock.mockResolvedValueOnce(Response.json(session))
+    await client.refreshSession()
+    const rotated = { ...session, csrf_token: 'rotated-account-csrf' }
+    fetchMock.mockResolvedValueOnce(Response.json({ requires_login: false }))
+    fetchMock.mockResolvedValueOnce(Response.json(rotated))
+    await client.authenticatedRequest('/api/account/password', {
+      method: 'PUT',
+      headers: { 'X-CSRF-Token': 'do-not-trust-caller' },
+      body: JSON.stringify({ password: 'private-password' }),
+    })
+    const first = fetchMock.mock.calls[1][1]
+    expect(first?.credentials).toBe('include')
+    expect(new Headers(first?.headers).get('X-CSRF-Token')).toBe(session.csrf_token)
+    expect(new Headers(first?.headers).get('Request-ID')).toMatch(/^[\da-f-]{36}$/)
+    expect(fetchMock.mock.calls[2][0]).toBe('/api/auth/session')
+    expect(JSON.stringify(client.getSnapshot())).not.toContain('private-password')
+
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 204 }))
+    await client.logout()
+    expect(new Headers(fetchMock.mock.calls[3][1]?.headers).get('X-CSRF-Token')).toBe(rotated.csrf_token)
+  })
+
+  it('does not replay account mutations when recent authentication is required', async () => {
+    const client = new AuthClient()
+    fetchMock.mockResolvedValueOnce(Response.json(session))
+    await client.refreshSession()
+    fetchMock.mockResolvedValueOnce(
+      Response.json({ detail: { code: 'reauthentication_required', message: 'Verify first' } }, { status: 403 }),
+    )
+    fetchMock.mockResolvedValueOnce(Response.json(session))
+    await expect(
+      client.authenticatedRequest('/api/account/identities/google/start', { method: 'POST' }),
+    ).rejects.toMatchObject({ code: 'reauthentication_required', status: 403 })
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+    expect(client.getSnapshot().status).toBe('authenticated')
+  })
+
+  it('refreshes after a failed credential change and discards a revoked session without replaying it', async () => {
+    const client = new AuthClient()
+    fetchMock.mockResolvedValueOnce(Response.json(session))
+    await client.refreshSession()
+    fetchMock.mockResolvedValueOnce(Response.json({ detail: 'Session rotation unavailable' }, { status: 503 }))
+    fetchMock.mockResolvedValueOnce(Response.json(anonymousSession))
+    await expect(client.authenticatedRequest('/api/account/password', { method: 'PUT' })).rejects.toMatchObject({
+      status: 503,
+    })
+    expect(client.getSnapshot()).toMatchObject({ status: 'anonymous', user: null })
+    expect(fetchMock.mock.calls.map(([path]) => path)).toEqual([
+      '/api/auth/session',
+      '/api/account/password',
+      '/api/auth/session',
+    ])
+    fetchMock.mockResolvedValueOnce(Response.json(anonymousSession))
+    await expect(client.authenticatedRequest('/api/account/password', { method: 'PUT' })).rejects.toThrow(
+      'Unable to verify',
+    )
+    expect(fetchMock.mock.calls.filter(([path]) => path === '/api/account/password')).toHaveLength(1)
+  })
+
+  it('revalidates the user session after an unauthorized account read', async () => {
+    const client = new AuthClient()
+    fetchMock.mockResolvedValueOnce(Response.json(session))
+    await client.refreshSession()
+    fetchMock.mockResolvedValueOnce(Response.json({ detail: 'Not authenticated' }, { status: 401 }))
+    fetchMock.mockResolvedValueOnce(Response.json(anonymousSession))
+    await expect(client.authenticatedRequest('/api/account')).rejects.toMatchObject({ status: 401 })
+    expect(client.getSnapshot().status).toBe('anonymous')
+  })
+
+  it('invalidates stale reads, serializes account changes, and waits for their session refresh', async () => {
+    const client = new AuthClient()
+    fetchMock.mockResolvedValueOnce(Response.json(session))
+    await client.refreshSession()
+    const oldRefresh = pendingResponse()
+    fetchMock.mockReturnValueOnce(oldRefresh.promise)
+    const oldRead = client.refreshSession()
+    const mutation = pendingResponse()
+    fetchMock.mockReturnValueOnce(mutation.promise)
+    const pendingMutation = client.authenticatedRequest('/api/account/reauth/password', { method: 'POST' })
+    const pendingRefresh = client.refreshSession()
+    await expect(client.authenticatedRequest('/api/account/password', { method: 'PUT' })).rejects.toThrow(
+      'already in progress',
+    )
+    const rotated = {
+      ...session,
+      csrf_token: 'reauthenticated-csrf',
+      user: { ...session.user!, display_name: 'Updated name' },
+    }
+    fetchMock.mockResolvedValueOnce(Response.json(rotated))
+    mutation.resolve(Response.json(rotated))
+    await pendingMutation
+    expect(await pendingRefresh).toEqual(rotated.user)
+    oldRefresh.resolve(Response.json(session))
+    await oldRead
+    expect(client.getSnapshot().user?.display_name).toBe('Updated name')
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 204 }))
+    await client.logout()
+    expect(new Headers(fetchMock.mock.calls[4][1]?.headers).get('X-CSRF-Token')).toBe('reauthenticated-csrf')
+  })
+
+  it('waits for an account mutation before logging out with the rotated token', async () => {
+    const client = new AuthClient()
+    fetchMock.mockResolvedValueOnce(Response.json(session))
+    await client.refreshSession()
+    const mutation = pendingResponse()
+    fetchMock.mockReturnValueOnce(mutation.promise)
+    const pendingMutation = client.authenticatedRequest('/api/account/password', { method: 'PUT' })
+    const pendingLogout = client.logout()
+    fetchMock.mockResolvedValueOnce(Response.json({ ...session, csrf_token: 'post-mutation-csrf' }))
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 204 }))
+    mutation.resolve(Response.json({ requires_login: false }))
+    await Promise.all([pendingMutation, pendingLogout])
+    expect(fetchMock.mock.calls[3][0]).toBe('/api/auth/logout')
+    expect(new Headers(fetchMock.mock.calls[3][1]?.headers).get('X-CSRF-Token')).toBe('post-mutation-csrf')
+    expect(client.getSnapshot().status).toBe('anonymous')
+  })
+
   it('deduplicates concurrent session checks and revalidates on the next navigation', async () => {
     fetchMock.mockImplementation(async () => Response.json(session))
     const client = new AuthClient()

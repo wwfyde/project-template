@@ -5,16 +5,17 @@ from typing import Any
 
 from fastapi import FastAPI, Response
 from fastapi.staticfiles import StaticFiles
+from fastapi.telemetry import TelemetryConfig
 from redis_fastapi import AsyncRedisDep, FastAPIRedis
 from sqlalchemy import text
 
 from api import __version__
 from api.core import settings
+from api.core.auth_session import configure_auth_sessions
 from api.core.cache import configure_redis_sdk
 from api.core.db import engine
 from api.core.lifespan import lifespan
 from api.core.log import setup_logging
-from api.auth.session import configure_auth_sessions
 from api.core.request_context import RequestContextMiddleware
 from api.otel import setup_telemetry
 
@@ -32,13 +33,13 @@ def create_app(lifespan: Callable = lifespan) -> FastAPI:
         lifespan=lifespan,
         # One Settings-controlled instrumentation path; FastAPI 0.139 also has
         # native telemetry which must not bypass the per-component switches.
-        telemetry={
-            "tracing": False,
-            "metrics": False,
-            "logs": False,
-            "operation_spans": False,
-            "auto_configure": False,
-        },
+        telemetry=TelemetryConfig(
+            tracing=False,
+            metrics=False,
+            logs=False,
+            operation_spans=False,
+            auto_configure=False,
+        ),
         docs_url="/docs" if settings.app.env != "prod" else None,
         redoc_url="/redoc" if settings.app.env != "prod" else None,
     )

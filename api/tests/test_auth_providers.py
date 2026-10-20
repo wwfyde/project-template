@@ -8,10 +8,10 @@ import pytest
 from cryptography.hazmat.primitives.asymmetric import rsa
 from pytest import MonkeyPatch
 
-from api.auth.config import DingTalkAuthConfig, GoogleAuthConfig
-from api.auth.providers import AuthProviderError
-from api.auth.providers.dingtalk import DingTalkProvider
-from api.auth.providers.google import GoogleProvider, JWKS_URL, TOKEN_URL
+from api.core.auth_config import DingTalkAuthConfig, GoogleAuthConfig
+from api.services.auth_providers import AuthProviderError
+from api.services.auth_providers.dingtalk import DingTalkProvider
+from api.services.auth_providers.google import GoogleProvider, JWKS_URL, TOKEN_URL
 
 CLIENT_ID = "test-client.apps.googleusercontent.com"
 NONCE = "test-browser-bound-nonce"
@@ -91,6 +91,28 @@ def test_google_authorization_uses_state_nonce_and_s256_pkce() -> None:
     assert query["code_challenge"] != [VERIFIER]
     assert "client_secret" not in query
     assert "code_verifier" not in query
+
+
+def test_account_operations_request_interactive_google_account_selection() -> None:
+    provider = GoogleProvider(google_config())
+    ordinary = parse_qs(
+        urlsplit(
+            provider.build_authorize_url(
+                state="state", nonce=NONCE, code_verifier=VERIFIER
+            )
+        ).query
+    )
+    account = parse_qs(
+        urlsplit(
+            provider.build_authorize_url(
+                state="state", nonce=NONCE, code_verifier=VERIFIER, interactive=True
+            )
+        ).query
+    )
+    assert "prompt" not in ordinary
+    assert set(account["prompt"][0].split()) == {"select_account", "consent"}
+    assert account["code_challenge"] == ordinary["code_challenge"]
+    assert "max_age" not in account
 
 
 @pytest.mark.asyncio

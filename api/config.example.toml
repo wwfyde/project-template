@@ -50,10 +50,12 @@ session_fail_closed = true
 # 控制展示顺序和可用来源；必须保留 google。移除来源后旧登录也不再有效。
 providers = ["google", "password", "dingtalk", "phone"]
 frontend_url = "http://localhost:5173"
-default_tenant_id = "default"
+# 注册时自动创建独立的 account，structure 默认为 personal。
 allow_signup = true
 session_key_prefix = "project-template:auth"
 oauth_state_ttl_seconds = 600
+# 绑定、解绑和密码设置要求最近5分钟内验证过已有登录方式。
+reauth_max_age_seconds = 300
 
 [auth.google]
 enabled = true
@@ -73,7 +75,7 @@ redirect_uri = "http://localhost:8000/api/auth/oauth/dingtalk/callback"
 enabled = false
 
 [auth.password]
-# 先通过 python -m api.auth.manage create-user 创建账号；无公开注册/默认账号。
+# 先通过 python -m api.cli.auth create-user 创建账号；无公开注册/默认账号。
 enabled = true
 rate_limit_attempts = 10
 ip_rate_limit_attempts = 50

@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from sqlalchemy.exc import SQLAlchemyError
 
-from api.auth import manage
+from api.cli import auth as manage
 
 
 def test_password_prompt_checks_confirmation_and_policy(
@@ -36,12 +36,11 @@ async def test_create_and_reset_dispatch_without_printing_password(
         action="create-user",
         username="alice",
         display_name="Alice",
-        tenant_id="tenant-test",
     )
     password = "keep-password-out-of-stdout"
     await manage.execute(args, password)
     repository.create_user.assert_awaited_once_with(
-        "alice", password, display_name="Alice", tenant_id="tenant-test"
+        "alice", password, display_name="Alice"
     )
     args.action = "set-password"
     await manage.execute(args, password)

@@ -88,7 +88,7 @@ WEB_PORT=6173 API_PORT=9036 just run       # 通过环境变量设置端口
 
 浏览器打开前端地址。可通过 `curl --fail http://127.0.0.1:8000/api/health` 检查 API、Postgres 和 Redis；修改端口后同步替换检查地址。前端使用 `/api/...` 相对路径，Vite 将其转发至对应 API 端口；部署环境由 Nginx 代理同一路径，详见 [web 开发与部署](web/README.md#api-代理与部署)。
 
-业务页面现需登录。先执行数据库迁移，再配置 Google OAuth 客户端或启用密码渠道并通过 `api.auth.manage create-user` 创建账号；手机号仅预留扩展，钉钉按需启用。指定服务接口另支持 Header API Key，详见 [用户、认证与请求追踪](api/README.md#api-用户与认证)。本地浏览器入口、`auth.frontend_url` 和 OAuth 回调统一使用 `localhost`，不要与 `127.0.0.1` 混用；自定义端口时同步调整这三处。HTTP 开发需设置 `REDIS_SESSION_COOKIE_HTTPS_ONLY=false`，生产使用 HTTPS。
+业务页面现需登录。先执行数据库迁移，再配置 Google OAuth 客户端或启用密码渠道并通过 `api.cli.auth create-user` 创建账号；手机号仅预留扩展，钉钉按需启用。指定服务接口另支持 Header API Key，详见 [用户、认证与请求追踪](api/README.md#api-用户与认证)。本地浏览器入口、`auth.frontend_url` 和 OAuth 回调统一使用 `localhost`，不要与 `127.0.0.1` 混用；自定义端口时同步调整这三处。HTTP 开发需设置 `REDIS_SESSION_COOKIE_HTTPS_ONLY=false`，生产使用 HTTPS。
 
 ### 本地整套 Compose 验证（可选）
 

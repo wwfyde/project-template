@@ -6,7 +6,7 @@ import uuid_utils as uuid
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from sqlalchemy import CursorResult, delete, desc, select
 
-from api.auth.dependencies import CurrentUserDep, UsersDep, authorize_resource
+from api.dependencies.auth import CurrentUserDep, UsersDep, authorize_resource
 from api.core.config import settings
 from api.models.conversation import Conversation as ConversationModel
 from api.models.conversation import Message as MessageModel

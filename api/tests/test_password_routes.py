@@ -21,15 +21,16 @@ from redis_fastapi import (
     get_session_store,
 )
 
-from api.auth.config import AuthConfig
-from api.auth.dependencies import CurrentUserDep, get_user_repository
-from api.auth.password_routes import get_password_repository, password_router
-from api.auth.passwords import normalize_username
-from api.auth.routes import auth_router
-from api.auth.session import configure_auth_sessions
+from api.core.auth_config import AuthConfig
+from api.dependencies.auth import CurrentUserDep, get_user_repository
+from api.dependencies.password import get_password_repository
+from api.routes.password import password_router
+from api.repositories.password import normalize_username
+from api.routes.auth import auth_router
+from api.core.auth_session import configure_auth_sessions
 from api.core.config import Settings, get_settings, settings
 from api.core.request_context import RequestContextMiddleware
-from api.models.user import User
+from api.models import Account, User
 from test_redis_sdk_sessions import MemorySessionStore
 from test_redis_sdk_sessions import sdk_settings as sdk_settings
 
@@ -84,14 +85,15 @@ def password_env(sdk_settings: RedisSettings) -> PasswordEnvironment:
     config.auth = AuthConfig(
         providers=["google", "password"],
         password={"enabled": True},
-        default_tenant_id=TENANT_ID,
     )
     assert config.redis is not None
     config.redis.session_cookie_name = sdk_settings.session_cookie_name
     config.redis.session_cookie_https_only = True
     user = User(
         id=USER_ID,
-        tenant_id=TENANT_ID,
+        personal_account=Account(
+            id=TENANT_ID, personal_user_id=USER_ID, structure="personal", is_active=True
+        ),
         display_name="Alice",
         email=USERNAME,
         avatar_url=None,
@@ -113,7 +115,21 @@ def password_env(sdk_settings: RedisSettings) -> PasswordEnvironment:
         return user if user_id == USER_ID and provider == "password" else None
 
     repository = MagicMock(authenticate=AsyncMock(side_effect=authenticate))
-    users = MagicMock(get=AsyncMock(side_effect=get_user))
+
+    async def get_account(user_id: str, account_id: str) -> Account | None:
+        account = user.personal_account
+        if (
+            account is not None
+            and account.id == account_id
+            and account.personal_user_id == user_id
+            and account.is_active
+        ):
+            return account
+        return None
+
+    users = MagicMock(
+        get=AsyncMock(side_effect=get_user), account=AsyncMock(side_effect=get_account)
+    )
     store = MemorySessionStore()
     redis = MemoryAttemptRedis()
     app = FastAPI()
@@ -133,7 +149,7 @@ def password_env(sdk_settings: RedisSettings) -> PasswordEnvironment:
 
     @app.get(PRIVATE_PATH)
     async def private_get(user: CurrentUserDep) -> dict[str, str]:
-        return {"id": user.id, "tenant_id": user.tenant_id, "provider": user.provider}
+        return {"id": user.id, "account_id": user.account_id, "provider": user.provider}
 
     @app.post(PRIVATE_PATH)
     async def private_post(user: CurrentUserDep) -> dict[str, str]:
@@ -178,6 +194,7 @@ def test_password_login_rotates_session_and_binds_trusted_identity(
     data = response.json()
     assert data["authenticated"] is True
     assert data["user"]["id"] == USER_ID
+    assert data["user"]["account_id"] == TENANT_ID
     assert data["user"]["tenant_id"] == TENANT_ID
     assert data["user"]["provider"] == "password"
     assert len(data["csrf_token"]) >= 32
@@ -197,7 +214,7 @@ def test_password_login_rotates_session_and_binds_trusted_identity(
     assert password_client.get(SESSION_PATH).json()["user"] == data["user"]
     assert password_client.get(PRIVATE_PATH).json() == {
         "id": USER_ID,
-        "tenant_id": TENANT_ID,
+        "account_id": TENANT_ID,
         "provider": "password",
     }
     with TestClient(password_env.app, base_url="https://testserver") as stale:

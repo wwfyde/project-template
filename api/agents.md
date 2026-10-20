@@ -1,5 +1,7 @@
 # Agents 层
 
+统一阅读入口见 [API 文档索引](docs/README.md)。当前接口均要求有效用户会话；本文的 HTTP 示例用于展示协议，实际调用还需携带登录 Cookie，并为写操作提供 CSRF token，详见 [接口参考](docs/api-reference.md)。
+
 本项目把 agent 配置、会话、一次执行、对外事件和存储放在应用自己的协议中，由 `openai-agents` 实现第一个执行后端。前端和业务 service 不需要导入 OpenAI SDK 的类型；接入另一个 agent backend 时，HTTP 协议和会话存储接口保持不变。
 
 设计借鉴 OpenAI Agents API 的 Agent、Session、Turn、Item/Event 分层。官方 Agents API 由 OpenAI 托管 Codex harness，并承担会话、编排、上下文压缩和恢复；这里的 harness 运行在 API 进程中，由 Agents SDK 的 runner 执行模型与工具循环。这是架构思想的应用，并非官方 Agents API 的兼容实现。[Agents API overview](https://developers.openai.com/api/docs/guides/agents-api/overview)、[Architecture](https://developers.openai.com/api/docs/guides/agents-api/architecture)

@@ -1,3 +1,13 @@
+# API 文档入口
+
+完整设计与使用文档见 [docs/README.md](docs/README.md)：包含推荐的文档组织、阅读路线、各专题应回答的问题，以及后续设计议题。
+
+- [架构与技术分层](docs/architecture.md) · [数据模型与迁移](docs/data-schema.md) · [业务流程](docs/business-flows.md)
+- [接口参考](docs/api-reference.md) · [配置参考](docs/configuration.md) · [操作手册](docs/operations.md)
+- [开发指南](docs/development.md) · [设计决策](docs/decisions/README.md)
+
+以下保留既有认证、Redis 与可观测性接入说明，专项内容也可从上述索引进入。
+
 # API 用户与认证
 
 认证从 `fs-agent` 的 provider / session / 登录门禁结构移植，保留钉钉，新增 Google OIDC，并从 `fastapi-template-production` 接入用户名密码和 Header API Key 的依赖组织。所有用户登录统一使用 Redis session；Header API Key 仅用于指定服务接口。手机号只保留注册表与配置扩展位，不提供短信或验证码接口。Google 必须出现在 `auth.providers` 中；是否可登录还取决于 `enabled` 和客户端凭据。渠道列表及排序由后端控制。
@@ -6,7 +16,7 @@ Google、钉钉默认 `enabled=true`，配置 `client_id`、`client_secret` 和�
 
 ## 启用登录
 
-1. 准备 PostgreSQL 和 Redis ≥ 7.4（Compose 使用 Redis 8.2）。在 `api/` 运行 `uv run alembic upgrade head`，认证迁移依次为 `c36f109ab672`、`da72e4b18c09`（密码凭据）；应用启动不自动改表。
+1. 准备 PostgreSQL 和 Redis ≥ 7.4（Compose 使用 Redis 8.2）。在 `api/` 运行 `uv run alembic upgrade head`，应用启动不自动改表。账户迁移会重命名认证表、为现有用户回填独立个人账户与成员关系，并使旧登录会话失效。
 2. 参考 `config.example.toml` 的 `[auth]`、`[auth.google]`、`[redis]` 和 `[request_context]`。在 Google Cloud 创建 Web OAuth 客户端，并将准确的回调地址加入授权重定向 URI，例如 `https://app.example.com/api/auth/oauth/google/callback`。
 3. 设置 Google `client_id` / `client_secret`、`redirect_uri` 和 `auth.frontend_url`。本地 HTTP 开发需要 `redis.session_cookie_https_only=false`；生产必须使用 HTTPS 和 Secure Cookie。Cookie 固定要求 `SameSite=lax`，路径为 `/` 或 `/api`，覆盖 OAuth 回调及业务接口。
 4. Web 使用同源 `/api`；本地 Vite 和部署反向代理均转发 API。`frontend_url` 必须是浏览器访问的准确 origin，含端口，不含子路径。浏览器须能把同一 Cookie 发给回调和 API，请勿混用 `localhost` / `127.0.0.1`。当前采用同源部署，不提供跨站 Cookie/CORS 登录模式。
@@ -17,7 +27,6 @@ Google、钉钉默认 `enabled=true`，配置 `client_id`、`client_secret` 和�
 AUTH_PROVIDERS='["google","password","dingtalk","phone"]'
 AUTH_FRONTEND_URL=https://app.example.com
 AUTH_GOOGLE='{"enabled":true,"client_id":"your-client-id","client_secret":"your-secret","redirect_uri":"https://app.example.com/api/auth/oauth/google/callback"}'
-AUTH_DEFAULT_TENANT_ID=default
 AUTH_ALLOW_SIGNUP=true
 AUTH_SESSION_KEY_PREFIX=project-template:auth
 REDIS_SESSION_COOKIE_NAME=project_template_session
@@ -36,12 +45,12 @@ REDIS_SESSION_ABSOLUTE_TTL=28800
 
 ```bash
 uv run alembic upgrade head
-uv run python -m api.auth.manage create-user alice --display-name Alice
-# 可用 --tenant-id 指定服务端分配的租户，否则使用 auth.default_tenant_id。
-uv run python -m api.auth.manage set-password alice
+uv run python -m api.cli.auth create-user alice --display-name Alice
+# 同一事务内自动创建独立的 personal 账户及 owner 成员关系。
+uv run python -m api.cli.auth set-password alice
 ```
 
-用户名不区分大小写，去除首尾空白后须为 3–64 个 ASCII 字母、数字或 `_.@-`，数据库唯一约束防止重复。新密码为 12–1024 个字符，最多 4096 UTF-8 字节。没有默认账号、公开注册或自动超级用户。`auth_password_credential` 关联本地用户，并与 `auth_identity(provider=password)` 同事务建立；不会按同邮箱自动合并已有 OAuth 用户。
+用户名不区分大小写，去除首尾空白后须为 3–64 个 ASCII 字母、数字或 `_.@-`，数据库唯一约束防止重复。新密码为 12–1024 个字符，最多 4096 UTF-8 字节。没有默认账号、公开注册或自动超级用户。`password_credential` 关联本地用户，并与 `user_identity(provider=password)` 同事务建立；不会按同邮箱自动合并已有 OAuth 用户。
 
 新密码使用 Argon2；兼容来源项目的 bcrypt 哈希，校验成功后升级为 Argon2。bcrypt 输入超过 72 UTF-8 字节会拒绝，避免旧版本的截断行为。密码计算在线程池执行；登录验证后复核密码哈希与认证版本，防止并发重设密码时用旧凭据创建新版本 session。重设密码递增用户 `auth_version`，使该用户现有登录会话失效。
 
@@ -83,15 +92,47 @@ async def service_call(principal: HeaderAuthDep) -> dict[str, str]:
 
 密码哈希参考 [FastAPI 官方说明](https://fastapi.tiangolo.com/tutorial/security/oauth2-jwt/) 和 [pwdlib API](https://frankie567.github.io/pwdlib/reference/pwdlib/)。
 
+## 账号与安全页面
+
+页面 `/account` 和 API `/api/account` 保留普通用户自助管理入口。`GET /api/account` 同时返回当前 `account`（`id`、`name`、`structure`）与用户资料。`User` 是稳定的用户主体，`Account` 是资源所属空间，`Identity` 是登录身份，`Profile` 是显示名称/头像等展示资料；详细命名约定见仓库 `CONTEXT.md`。资料与凭据变更影响全局用户，不因当前空间不同而生成另一套登录身份。
+
+账号页支持：编辑显示名称及头像 URL；查看绑定状态、密码用户名和渠道可用性；绑定 Google/钉钉；设置本地用户名密码、修改密码；确认后解绑登录方式。邮箱和手机号仅展示来源资料，不提供未验证的联系方式修改；租户、角色和其他用户资料不可通过该页面修改。
+
+| 接口 | 用途 |
+| --- | --- |
+| `GET /api/account` | 当前资料、绑定身份、渠道可用性、近期验证状态 |
+| `PATCH /api/account/profile` | 更新 `display_name` / `avatar_url`，其余字段拒绝 |
+| `POST /api/account/identities/{provider}/start` | 近期验证通过后开始 OAuth 绑定，返回 `authorization_url` |
+| `DELETE /api/account/identities/{identity_id}` | 解绑自己的登录身份；返回 `requires_login` |
+| `PUT /api/account/password` | 首次设置或修改密码；JSON `username?`、`password`、`current_password?` |
+| `POST /api/account/reauth/password` | 使用已绑定账号的密码重新验证，返回新 session/CSRF 信息 |
+| `POST /api/account/reauth/oauth/{provider}/start` | 通过已绑定的 OAuth 身份重新验证 |
+
+所有变更接口要求登录 session、CSRF token 和合法 Origin。资料编辑无需近期验证；绑定、解绑及密码管理要求 `auth.reauth_max_age_seconds` 窗口内验证过已有登录方式，默认 300 秒。旧 session 缺少验证时间时需先验证。Google 绑定/重新验证显式请求选账号和确认授权；钉钉显示授权确认。供应商可能复用其已有 SSO 会话，这不保证强制重新输入供应商密码，也不等同于 MFA。
+
+绑定 OAuth 使用现有回调地址，不需要额外登记 callback。一次性 state 明确区分 `login`、`link` 和 `reauth`，并绑定发起时的用户、租户、认证版本、session ID 摘要及浏览器随机值。回调前后检查源会话和期限，链接到当前用户，不经过自动注册路径。重新验证必须返回已属于当前用户的身份；绑定目标已被另一个用户占用时返回 `identity_conflict`，同邮箱不会触发合并。每个用户每个渠道只绑定一个身份，冲突不会覆盖旧绑定，原用户 ID、资料和业务资源保持不变。
+
+仓库通过用户行锁和 `auth_version` 串行化安全变更，避免并发解绑删光登录方式。解绑至少保留一种当前已启用且配置可用的登录方式；仅保留禁用/未配置的渠道不算有效保障。解绑密码时同时删除凭据。首次设置密码要求未占用的用户名；修改已有密码必须验证当前密码，用户名不可更改。没有跨账号合并、凭据转移或手机号绑定实现。
+
+绑定、解绑、密码变更成功后递增 `auth_version`，其他旧 session 将失效；当前 session 轮换 ID/CSRF token。如果解绑的是当前登录渠道，则注销当前 session 并要求重新登录。重新验证只刷新近期验证时间；资料编辑和绑定本身不会刷新这一时间。账户操作保留 `login_expires_at`，即使 SDK 轮换了 Redis key，也不能延长登录的绝对期限。
+
+PostgreSQL 变更和 Redis 会话轮换不是跨系统事务：数据库提交后 Redis 失败，账号变更仍可能已经生效，接口返回 503，旧认证版本失效。前端不会自动重试该操作，而会重新读取 session；恢复服务后重新登录并查看绑定状态。审计日志只记录事件类型、用户/租户及渠道，不记录密码、外部令牌或 OAuth code；账号校验错误不回显密码请求体。
+
+设计依据：[OWASP 的联合身份绑定实践](https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html#secure-federated-account-linking)、[Auth0 账号绑定说明](https://auth0.com/docs/manage-users/user-accounts/user-account-linking/link-user-accounts)。
+
 ## 身份、租户与会话边界
 
-`auth_user` 保存稳定的本地 UUID、单一 `tenant_id` 和账号状态；`auth_identity` 以 `(provider, subject)` 唯一映射外部身份。Google `sub`、钉钉 `unionId` 用来识别账号，同邮箱不会自动合并。首次注册由服务端 `default_tenant_id` 分配租户，后续更改该默认值不会迁移已有用户。当前不提供租户切换、成员管理、管理员角色或账号合并接口；新增这些功能须验证成员关系并轮换会话。
+`user` 保存稳定的本地 UUID、资料和认证状态；`account` 保存资源空间，`structure` 默认 `personal`，支持 `workspace`；`account_member` 以 `(account_id, user_id)` 连接两者并记录 `owner/admin/member` 角色。每个新用户与自己的个人账户、owner 成员关系在同一事务内创建。`user_identity` 以 `(provider, subject)` 唯一映射外部身份；Google `sub`、钉钉 `unionId` 用来识别身份，同邮箱不会自动合并。
 
-浏览器 Cookie 只保存随机 session ID。会话由 **fastapi-redis-sdk** 的单个 `SessionMiddleware`、`SessionStore.rotate/revoke` 管理；Redis 只保留本地用户 ID、租户 ID、渠道、认证版本、CSRF token 等必要状态，不保存 Google/钉钉令牌。OAuth state 存 Redis，绑定浏览器会话，带过期时间，并通过 `GETDEL` 原子消费。Google 额外验证签名、issuer、audience、有效期、nonce、azp，并使用 PKCE S256。
+`AccountRepository` 支持列出可访问账户、创建 workspace 及成员资格查询；本次提供模型与授权基础，不新增工作空间切换、邀请或成员管理 HTTP/UI。接入这些入口时须验证相应角色并轮换会话。当前资源仍按 `(account_id, user_id)` 私有，不因同属 workspace 自动共享。
 
-每次认证请求回查用户和渠道状态。禁用账号、移除/禁用渠道、改变用户租户或增加 `auth_version` 都使旧 session 不再通过。Redis 故障返回 503，不降级为已登录；默认 `session_fail_closed=true`。退出仅在服务端成功撤销后清 Cookie，前端不会把退出失败伪装为成功。原项目的自定义 session 格式不兼容，迁移后需重新登录；此改动不复制来源项目的数据库或凭据。
+旧 `auth.default_tenant_id` 仅为配置兼容接受，已不参与新用户注册。迁移按每位用户创建个人账户，原来共享同一 tenant 的用户不会合并。迁移前会检查资源与用户的旧 tenant 是否一致，不一致则拒绝升级以便人工核实。迁移备份表 `_account_legacy_scope` 保留原 tenant 映射以支持降级；若已创建 workspace 或移动资源等导致旧模型无法表达，降级会拒绝执行。
 
-`/agents`、`/conversations` 使用 `auth_resource_owner` 校验当前用户及租户归属，包括消息、turn、SSE、删除和列表分页。创建记录后才由服务端写入归属，不允许客户端自行认领。旧资源没有归属映射时默认不可访问；已有部署应核实历史所有者后单独补齐映射，不能按首次访问自动认领。资源与归属跨事务写入失败时可能产生不可访问的孤立记录，接口不会返回成功。
+浏览器 Cookie 只保存随机 session ID。会话由 **fastapi-redis-sdk** 的单个 `SessionMiddleware`、`SessionStore.rotate/revoke` 管理；Redis 保存 `user_id`、`account_id`、渠道、认证版本、CSRF token 等必要状态，不保存 Google/钉钉令牌。旧 session 的 `tenant_id` 不作为账户授权依据，升级后需重新登录。响应 `user.tenant_id` 暂作 `user.account_id` 的兼容别名。OAuth state 存 Redis，绑定浏览器会话与账户，带过期时间，并通过 `GETDEL` 原子消费。Google 额外验证签名、issuer、audience、有效期、nonce、azp，并使用 PKCE S256。
+
+每次认证请求回查用户、渠道、账户状态和成员关系。禁用用户或账户、移除成员、移除/禁用渠道或增加 `auth_version` 都使相关旧 session 不再通过。Redis 故障返回 503，不降级为已登录；默认 `session_fail_closed=true`。退出仅在服务端成功撤销后清 Cookie，前端不会把退出失败伪装为成功。
+
+`/agents`、`/conversations` 使用 `resource_owner` 校验当前用户及账户归属，包括消息、turn、SSE、删除和列表分页。创建记录后才由服务端写入归属，不允许客户端自行认领。旧资源没有归属映射时默认不可访问；已有部署应核实历史所有者后单独补齐映射，不能按首次访问自动认领。资源与归属跨事务写入失败时可能产生不可访问的孤立记录，接口不会返回成功。
 
 ## API 与追踪
 
@@ -105,13 +146,15 @@ async def service_call(principal: HeaderAuthDep) -> dict[str, str]:
 
 受保护的 POST/PATCH/PUT/DELETE 必须携带当前 session 返回的 `X-CSRF-Token`。如请求带 `Origin`，须与 `frontend_url` 完全一致。用户和认证响应不缓存。
 
-默认每个请求生成/回传 `Request-ID`，也可接受长度 ≤128 的合法外部 ID；重复或非法值会重新生成。`request_context.accept_request_id=false` 可强制服务端生成。`User-ID` / `Tenant-ID` 仅在认证成功后回传；请求中的这两个字段是可选一致性断言，不是凭据，不一致返回 403。客户端 `User-Code` / 请求体 `user_id` 不能替换登录身份。
+默认每个请求生成/回传 `Request-ID`，也可接受长度 ≤128 的合法外部 ID；重复或非法值会重新生成。`request_context.accept_request_id=false` 可强制服务端生成。`User-ID` / `Tenant-ID` 仅在认证成功后回传；兼容追踪头 `Tenant-ID` 值为当前 `account_id`。请求中的 `User-ID`、`Tenant-ID`、`Account-ID` 是可选一致性断言，不是切换账户或登录的凭据，不一致返回 403。客户端 `User-Code` / 请求体 `user_id` 不能替换登录身份。
 
 启用现有 OTel 配置后，标准 `traceparent` / `tracestate` 延续当前 span，span 带 `request.id`、`user.id`、`tenant.id`。应用日志和请求完成日志自动带 `request_id`、`user_id`、`tenant_id`、trace/span ID；不记录 Cookie、OAuth code、token 或完整查询串。关闭 OTel 时只传播合法入站 trace context，并用 `incoming_trace_id` 明确标记，不伪造本地 span。访问日志中的外部 Request-ID 仅用于排查，不用于授权。
 
 需要调用内部下游服务时使用 `api.core.request_context.outbound_context_headers()` 传播可信 ID 和 W3C 链路头。不要把这些身份字段发给无关第三方。可用 `[request_context]` 配置头名、是否接受外部 Request-ID、是否回传身份头、请求完成日志和总开关。
 
-新增渠道时，在 `api/auth/providers/` 实现 `OAuthProvider`（或另建 OTP 协议）、添加强类型配置并注册到 `PROVIDER_REGISTRY`。业务路由和本地用户映射保持 provider 无关。手机号当前 `implemented=false`；配置 `enabled=true` 会被拒绝，未来接入短信发送、限流、验证码原子消费后再开放。
+代码按技术层组织：`routes/{auth,password,account}.py` 定义 HTTP 路由；`schemas` 定义契约；`models` 定义单数表；`repositories` 管理事务与查询，其中 `user_security.py` 管理用户资料/凭据，`account.py` 管理空间与成员查询；`dependencies` 组合请求依赖；`core` 管理配置、会话和安全检查；`cli/auth.py` 提供命令行管理。
+
+新增渠道时，在 `api/src/api/services/auth_providers/` 实现 `OAuthProvider`（或另建 OTP 协议）、添加强类型配置并注册到 `PROVIDER_REGISTRY`。业务路由和本地用户映射保持 provider 无关。手机号当前 `implemented=false`；配置 `enabled=true` 会被拒绝，未来接入短信发送、限流、验证码原子消费后再开放。
 
 ## 验证
 
@@ -120,6 +163,8 @@ async def service_call(principal: HeaderAuthDep) -> dict[str, str]:
 uv run --no-sync pytest api/tests -q
 # 可选：专用 Redis 服务上的真实 TTL、轮换、撤销验证，只使用随机测试前缀。
 TEST_AUTH_REDIS_URL=redis://127.0.0.1:16389/0 uv run --no-sync pytest api/tests/test_auth_redis_integration.py -q
+# 可选：专用本地 PostgreSQL 上的真实锁竞争验证，使用随机 schema 并自动清理。
+TEST_ACCOUNT_POSTGRES_DSN='postgresql+psycopg://postgres:test-only@127.0.0.1:16439/postgres' uv run --no-sync pytest api/tests/test_account_migration.py api/tests/test_account_postgres_integration.py -q
 ```
 
 Google/钉钉端到端外部授权仍需部署环境的真实凭据和已登记回调地址。主应用关闭 SDK 的匿名偏好/session 管理教学路由，避免示例轮换绕过真实登录的绝对期限；其余访问会话数据的缓存示例也检查资源归属，批量请求逐项检查。独立测试应用可以注册隔离的示例 session，不得在主应用叠加两个 SessionMiddleware。

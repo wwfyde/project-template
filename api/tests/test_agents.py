@@ -31,18 +31,18 @@ from api.agents.contracts import (
 )
 from api.agents.service import AgentService
 from api.agents.store import InMemorySessionStore
-from api.auth.dependencies import (
+from api.dependencies.auth import (
     get_optional_auth_user,
     get_user_repository,
     require_auth_user,
 )
-from api.auth.schemas import AuthUser
+from api.schemas.auth import AuthUser
 from api.routes.agents import agents_router, get_agent_service
 
 
 TEST_USER = AuthUser(
     id="00000000-0000-0000-0000-000000000001",
-    tenant_id="tenant-test",
+    account_id="tenant-test",
     provider="google",
     display_name="Test User",
 )
@@ -53,16 +53,16 @@ class MemoryOwnershipRepository:
         self.owners: dict[tuple[str, str], tuple[str, str]] = {}
 
     async def own(self, kind: str, resource_id: str, user: AuthUser) -> None:
-        self.owners[(kind, resource_id)] = (user.id, user.tenant_id)
+        self.owners[(kind, resource_id)] = (user.id, user.account_id)
 
     async def owns(self, kind: str, resource_id: str, user: AuthUser) -> bool:
-        return self.owners.get((kind, resource_id)) == (user.id, user.tenant_id)
+        return self.owners.get((kind, resource_id)) == (user.id, user.account_id)
 
     async def owned_ids(self, kind: str, user: AuthUser) -> set[str]:
         return {
             resource_id
             for (resource_kind, resource_id), owner in self.owners.items()
-            if resource_kind == kind and owner == (user.id, user.tenant_id)
+            if resource_kind == kind and owner == (user.id, user.account_id)
         }
 
 

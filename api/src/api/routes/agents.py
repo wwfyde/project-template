@@ -16,7 +16,7 @@ from api.agents.contracts import (
 )
 from api.agents.runtime import create_agent_service
 from api.agents.service import AgentService, PreparedTurn
-from api.auth.dependencies import CurrentUserDep, UsersDep, authorize_resource
+from api.dependencies.auth import CurrentUserDep, UsersDep, authorize_resource
 from api.core.config import get_settings
 
 agents_router = APIRouter(dependencies=[Depends(authorize_resource)])

@@ -18,14 +18,14 @@ from test_agents import FakeBackend, MemoryOwnershipRepository, TEST_USER, new_a
 from api.agents.contracts import SessionCreate
 from api.agents.service import AgentService
 from api.agents.store import InMemorySessionStore
-from api.auth.dependencies import get_optional_auth_user, require_auth_user
-from api.auth.schemas import AuthUser
+from api.dependencies.auth import get_optional_auth_user, require_auth_user
+from api.schemas.auth import AuthUser
 from api.models.conversation import Conversation, Message
 from api.routes import conversations
 from api.schemas.conversation import ConversationRead
 
 OTHER_USER = TEST_USER.model_copy(update={"id": "00000000-0000-0000-0000-000000000002"})
-OTHER_TENANT = TEST_USER.model_copy(update={"tenant_id": "different-tenant"})
+OTHER_ACCOUNT = TEST_USER.model_copy(update={"account_id": "different-tenant"})
 
 
 @pytest.fixture
@@ -61,8 +61,8 @@ def client(app: FastAPI) -> Iterator[TestClient]:
         yield client
 
 
-@pytest.mark.parametrize("visitor", [OTHER_USER, OTHER_TENANT])
-def test_conversations_and_messages_are_private_to_both_user_and_tenant(
+@pytest.mark.parametrize("visitor", [OTHER_USER, OTHER_ACCOUNT])
+def test_conversations_and_messages_are_private_to_both_user_and_account(
     app: FastAPI,
     client: TestClient,
     visitor: AuthUser,
@@ -96,8 +96,8 @@ def test_conversations_and_messages_are_private_to_both_user_and_tenant(
     assert len(client.get(f"{path}/messages").json()) == 1
 
 
-@pytest.mark.parametrize("visitor", [OTHER_USER, OTHER_TENANT])
-def test_agent_turns_and_streams_are_private_to_both_user_and_tenant(
+@pytest.mark.parametrize("visitor", [OTHER_USER, OTHER_ACCOUNT])
+def test_agent_turns_and_streams_are_private_to_both_user_and_account(
     app: FastAPI,
     client: TestClient,
     visitor: AuthUser,

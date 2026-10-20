@@ -20,6 +20,7 @@ export function AuthenticatedShell() {
     { to: '/assets', label: 'assets' },
     { to: '/examples', label: 'examples' },
     { to: '/about', label: 'about' },
+    { to: '/account', label: 'account' },
   ] as const
 
   const handleLogout = async () => {
@@ -61,9 +62,12 @@ export function AuthenticatedShell() {
               </Link>
             ))}
           </nav>
-          <span className="hidden max-w-40 truncate text-sm text-muted-foreground lg:block">
+          <Link
+            to="/account"
+            className="hidden max-w-40 truncate rounded-md text-sm text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:block"
+          >
             {auth.user?.display_name}
-          </span>
+          </Link>
           <div className="flex items-center gap-2">
             <LanguageSwitcher compact />
             <ThemeConfigurator />

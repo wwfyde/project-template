@@ -3,7 +3,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from api.auth.header import HEADER_EXAMPLE_PREFIX as HEADER_EXAMPLE_PREFIX
+from api.core.header_auth import HEADER_EXAMPLE_PREFIX as HEADER_EXAMPLE_PREFIX
 from api.core.deps import HeaderAuthDep, verify_header_token
 from api.deps import SettingsDep
 

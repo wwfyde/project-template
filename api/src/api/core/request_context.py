@@ -62,6 +62,11 @@ class RequestContextConfig(BaseModel):
 
     @model_validator(mode="after")
     def validate_distinct_headers(self) -> "RequestContextConfig":
+        if "account-id" in {
+            self.request_id_header.lower(),
+            self.user_id_header.lower(),
+        }:
+            raise ValueError("Account-ID is reserved for the account context")
         if (
             len(
                 {
