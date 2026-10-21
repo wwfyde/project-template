@@ -7,6 +7,7 @@ members = [
     "api",
     "project-template",
     "python-extension-with-rust",
+    "use-extension",
 ]
 overrides = [{ name = "websockets", specifier = ">=16.0" }]
 
@@ -286,15 +287,15 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.14.1" },
     { name = "pydantic-settings", specifier = ">=2.16.0" },
     { name = "pyjwt", extras = ["crypto"], specifier = ">=2.15.1" },
-    { name = "python-dotenv", specifier = ">=1.2.2" },
-    { name = "python-multipart", specifier = ">=0.0.29" },
+    { name = "python-dotenv", specifier = ">=1.2.4" },
+    { name = "python-multipart", specifier = ">=0.0.32" },
     { name = "python-socks", extras = ["asyncio"], specifier = ">=3.1.1" },
     { name = "redis", extras = ["otel"], specifier = ">=8.1.0" },
     { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.1.4" },
     { name = "tenacity", specifier = ">=9.1.4" },
     { name = "uuid-utils", specifier = ">=0.17.1" },
     { name = "uvicorn", specifier = ">=0.54.0" },
-    { name = "volcengine-python-sdk", extras = ["ark"], specifier = ">=5.0.43" },
+    { name = "volcengine-python-sdk", extras = ["ark"], specifier = ">=5.0.53" },
     { name = "websockets", specifier = ">=16.0" },
 ]
 
@@ -1740,6 +1741,11 @@ wheels = [
 ]
 
 [[package]]
+name = "my-python-extension"
+version = "0.1.0"
+source = { editable = "my-python-extension" }
+
+[[package]]
 name = "openai"
 version = "3.31.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2145,6 +2151,7 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "api" },
+    { name = "use-extension" },
 ]
 
 [package.dev-dependencies]
@@ -2160,7 +2167,10 @@ dev = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "api", editable = "api" }]
+requires-dist = [
+    { name = "api", editable = "api" },
+    { name = "use-extension", editable = "python/use-extension" },
+]
 
 [package.metadata.requires-dev]
 dev = [
@@ -3239,6 +3249,21 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/e3/05/b17359e1cefb4f909b5e40b1b90a496d987258916dbbf88e842c729f510e/urllib3-2.8.0.tar.gz", hash = "sha256:63bf2ead4c879426ebf22ef2a781eeb4aa3b4ae798a0435506f8687fd5bb9b63", size = 458972, upload-time = "2026-09-15T19:29:36.253Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/92/9d/c4e665119135114480843e7ab388fa94d8480650450e6f8e26b70d323a4c/urllib3-2.8.0-py3-none-any.whl", hash = "sha256:0cf3cae568d36aa9576b28dfb35f11328f1cb974ca7647d9475ebb86c75ac6e3", size = 135717, upload-time = "2026-09-15T19:29:34.577Z" },
+]
+
+[[package]]
+name = "use-extension"
+version = "0.1.0"
+source = { editable = "python/use-extension" }
+dependencies = [
+    { name = "my-python-extension" },
+    { name = "python-extension-with-rust" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "my-python-extension", editable = "my-python-extension" },
+    { name = "python-extension-with-rust", editable = "python-extension-with-rust" },
 ]
 
 [[package]]

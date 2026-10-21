@@ -1935,6 +1935,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "743fb55ba31b18fb1ecef6bdc9aa2743314978ac084044301a7eee33fb99a20d"
 
 [[package]]
+name = "my_python_extension"
+version = "0.1.0"
+dependencies = [
+ "pyo3",
+ "pyo3-build-config",
+]
+
+[[package]]
 name = "nix"
 version = "0.31.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2346,6 +2354,7 @@ name = "python_extension_with_rust"
 version = "0.1.0"
 dependencies = [
  "pyo3",
+ "pyo3-build-config",
 ]
 
 [[package]]

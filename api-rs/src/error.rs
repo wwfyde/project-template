@@ -6,6 +6,7 @@ use serde_json::json;
 use thiserror::Error;
 use utoipa::ToSchema;
 
+#[allow(dead_code)]
 #[derive(Error, Debug)]
 pub enum ApiError {
     #[error("SQL error: {0}")]

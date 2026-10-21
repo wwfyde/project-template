@@ -5,6 +5,7 @@ requires-python = ">=3.14"
 dependencies = [
   # api
   "api",
+  "use-extension",
 ]
 
 [tool.uv]
@@ -19,22 +20,19 @@ override-dependencies = [
 members = [
   "api",
   "python-extension-with-rust",
-  #    "libs/utils",
-  #    "libs/config",
-  #    "examples/agentscope_app",
-  #    "web/libs/utils",
-  #    "llm-providers",
-  #    "kayn-core",
-  #    "langchain-examples",
+  "python/use-extension",
+  # "my-python-extension",
 ]
 
 [tool.uv.sources]
-libs-config = { workspace = true }
 api = { workspace = true }
+use-extension = { workspace = true }
 
 [tool.ruff]
 target-version = "py314"
 
+[tool.ruff.format]
+quote-style = "double"
 [tool.ruff.lint]
 select = ["ANN"]
 

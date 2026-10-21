@@ -1,0 +1,19 @@
+[project]
+name = "use-extension"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [{ name = "wwfyde", email = "wwfyde@gmail.com" }]
+requires-python = ">=3.14"
+dependencies = ["python-extension-with-rust", "my-python-extension"]
+
+[project.scripts]
+use-extension = "use_extension:main"
+
+[build-system]
+requires = ["uv_build>=0.13.1,<0.14.0"]
+build-backend = "uv_build"
+
+[tool.uv.sources]
+python-extension-with-rust = { workspace = true }
+my-python-extension = { path = "../../my-python-extension", editable = true }
