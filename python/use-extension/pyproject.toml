@@ -16,4 +16,5 @@ build-backend = "uv_build"
 
 [tool.uv.sources]
 python-extension-with-rust = { workspace = true }
-my-python-extension = { path = "../../my-python-extension", editable = true }
+my-python-extension = { workspace = true }
+#my-python-extension = { path = "../../my-python-extension", editable = true }

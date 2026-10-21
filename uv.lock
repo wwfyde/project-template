@@ -5,6 +5,7 @@ requires-python = ">=3.14"
 [manifest]
 members = [
     "api",
+    "my-python-extension",
     "project-template",
     "python-extension-with-rust",
     "use-extension",
