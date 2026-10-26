@@ -22,8 +22,6 @@ def get_oss_client() -> AsyncClient:
     if oss_config is None:
         raise RuntimeError("Aliyun OSS config is required when app.agent_mode is api")
 
-
-
     cfg = oss.config.load_default()
     cfg.credentials_provider = oss.credentials.StaticCredentialsProvider(
         oss_config.access_key_id,
@@ -59,14 +57,14 @@ async def upload_image(
             MimeType,
             Image.MIME.get(img.format or "image/jpeg") if not mime_type else mime_type,
         )
-        extension: Literal["jpg", "png", "webp"] = (
+        extension: str = (
             img.format.lower().replace("jpeg", "jpg") if img.format else "jpg"
         )
 
         upload_name = f"{id}.{extension}" if rename else Path(filename).name
         storage_prefix = prefix or oss_config.prefix or "tmp"
         storage_key = f"{storage_prefix.strip('/')}/{upload_name}"
-        original_address = f"{oss_config.bucket_name}.{oss_config.region or 'cn-hangzhou'}.aliyuncs.com"
+        original_address = f"{oss_config.bucket_name}.oss-{oss_config.region or 'cn-hangzhou'}.aliyuncs.com"
 
         result = await get_oss_client().put_object(
             oss.PutObjectRequest(
@@ -83,7 +81,7 @@ async def upload_image(
         encoded_key = quote(storage_key)
         sha256 = hashlib.sha256(data).hexdigest()
 
-        domain = oss_config.cdn if oss_config.cdn else original_address
+        domain = oss_config.endpoint if oss_config.endpoint else original_address
         url = f"https://{domain}/{encoded_key}"
         return ImageInfo(
             url=url,
@@ -105,8 +103,9 @@ if __name__ == "__main__":
     import asyncio
 
     file: Path = settings.data_dir.joinpath(
-        "creative", "gpt", "019e39bd-faf6-7652-9143-24a02a2beaba.png"
+        "creative", "gpt", "019dd080-605b-78d1-a4da-998dc5640960.png"
     )
+    print(file)
     data = file.read_bytes()
     image = asyncio.run(upload_image(file.name, data, rename=True, prefix="tmp"))
     print(image)
