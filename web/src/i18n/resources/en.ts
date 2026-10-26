@@ -1,4 +1,7 @@
+import { imagesEn } from '../../features/images/model/translations'
+
 export const en = {
+  images: imagesEn,
   common: {
     appName: 'Project Template',
     languageSwitcherLabel: 'Change language',

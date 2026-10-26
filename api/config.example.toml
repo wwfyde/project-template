@@ -127,7 +127,8 @@ bucket_name = "bucket-name-here"
 region = "cn-hangzhou"
 access_key_id = "****"
 access_key_secret = "****"
-endpoint = "****" # 自定义域名CDN加上, 如果不使用则填写None 有OSS SDK自行推断
+endpoint = "" # 可选 OSS 服务 endpoint；为空时 SDK 根据 region 选择。
+cdn = "" # 可选图片访问域名，例如 https://cdn.example.com；为空时使用 OSS 公网域名。
 prefix = "agent/creative"
 imageStyle = "" # x-oss-process=style/webp x-oss-process=style/png
 thumbnail_image_style = "x-oss-process=image/resize,w_320"
@@ -174,10 +175,42 @@ api_key = "****"
 base_url = "https://api.evolink.ai/v1"
 model = "gpt-image-2"
 
+[providers.laozhang] # Gemini 的可选渠道；请求仍使用 Google 原生参数
+api_key = "****"
+base_url = "https://api.laozhang.ai/v1beta"
+
 [providers.vertex]
 region = "us-east5"
 project_id = "****"
 api_key = "****"
 base_url = "https://us-east5-aiplatform.googleapis.com"
 model = ""
+
+# 图片预览与对外 API；完整契约见 docs/image-editing.md。
+[images]
+max_upload_bytes = 10485760
+max_pixels = 16000000
+max_concurrent_edits = 2
+edit_timeout_seconds = 180
+gpt_models = ["gpt-image-2.5-sunburst", "gpt-image-2.5-flare"]
+gemini_models = ["gemini-3.1-flash-image"]
+seedream_models = ["doubao-seedream-5-0-pro-260628"]
+# Linux 中文文字标注需安装相应字体并指定服务端字体路径。
+# font_path = "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc"
+
+# 不配置 clients 时，外部私有图片资产 /api/v1/images 关闭；前端会话 API 仍可用。
+# /api/ai-tools/images 不执行调用方认证，不依赖 clients；只用 providers 中的渠道密钥向上游鉴权。
+# 同一 id 可以临时配置两个 key 进行轮换，资源归属保持不变。
+# [[images.clients]]
+# id = "design-service"
+# keys = ["replace-with-a-random-secret-at-least-32-chars"]
+
+[images.veimagex]
+# veImageX 是独立图像服务，不复用方舟 API key。
+access_key = ""
+secret_key = ""
+service_id = ""
+region = "cn-north-1"
+domain = "" # 只填写已配置的 CDN 主机名，不带 https:// 或路径
+template = "" # 控制台中的原图处理模板，需保留 PNG 透明通道
 

@@ -175,7 +175,11 @@ Compose 冒烟和部署测试入口见 [部署说明](../../deploy/README.md)，
 
 ## 9. 故障定位
 
+图片 API 的422错误先查同一 Request-ID 下的 ERROR 事件 `http.request.validation_failed`。`json_invalid` 表示 JSON 语法错误，日志会指出行、列及字符偏移；其他类型通过 `validation.error_locations` 定位字段，例如 `body.prompt` 或 `query.provider`。不要仅凭 INFO access log 中的状态码判断缺了哪个参数。
+
 先记录发生时间、接口、HTTP 状态与 `Request-ID`，再根据下表检查；不复制 Cookie、密码、OAuth code 或完整配置到日志。
+
+AI 图片工具采用 `200 + success=false` 表达工具失败。GPT 调用失败时，先用本地 Request-ID 查找 `image.request.failed` 日志，再查看 `data.diagnostics` 的 `upstream_host/status/upstream_request_id/error_code/error_param/error_message`。渠道配置名不保证直连官方主机；不要只根据 `provider=openai` 或异常类名归因。上游未返回的字段无法从旧日志恢复；诊断日志不会自动重试模型调用。
 
 | 现象 | 优先检查 |
 | --- | --- |

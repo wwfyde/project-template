@@ -21,3 +21,9 @@ web $port=env_var_or_default("WEB_PORT", "5173"):
 [arg("web_port", long="web-port")]
 run $web_port=env_var_or_default("WEB_PORT", "5173") $api_port=env_var_or_default("API_PORT", "8000"):
     WEB_PORT="$web_port" API_PORT="$api_port" pnpm exec node scripts/run-dev.mjs
+
+# 停止当前项目指定端口上的前后端；默认读取 .env，保留其他项目的进程。
+[arg("api_port", long="api-port")]
+[arg("web_port", long="web-port")]
+stop $web_port=env_var_or_default("WEB_PORT", "5173") $api_port=env_var_or_default("API_PORT", "8000"):
+    WEB_PORT="$web_port" API_PORT="$api_port" node scripts/stop-dev.mjs

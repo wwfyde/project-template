@@ -18,6 +18,8 @@ api/
     ├── data-schema.md            # 实体、表结构、约束、存储与迁移
     ├── business-flows.md         # 业务流程、不变量、失败和并发
     ├── api-reference.md          # HTTP 契约、认证要求、错误与示例
+    ├── ai-image-tools.md         # 图片工具 HTTP 参数、统一结果与 OSS 配置
+    ├── ai-image-models-reference.md # 独立端点、请求模型与工具直调维护
     ├── configuration.md          # 配置来源、优先级、默认值与限制
     ├── operations.md             # 启动、迁移、验证和故障处理
     ├── development.md            # 新增功能、扩展渠道、测试和文档维护
@@ -35,6 +37,8 @@ api/
 | 第一次接手项目 | [架构](architecture.md) → [数据模型](data-schema.md) → [业务流程](business-flows.md) |
 | 本地启动或部署 | [配置参考](configuration.md) → [操作手册](operations.md) |
 | 对接前端或其他客户端 | [接口参考](api-reference.md) → [认证与账户流程](business-flows.md) |
+| 接入图片编辑或模型提供商 | [图片编辑 API](image-editing.md) → [配置示例](../config.example.toml) |
+| 调用图片工具或切换渠道 | [AI 图片工具 API](ai-image-tools.md) → [图片工具调用参考](ai-image-models-reference.md) → [配置示例](../config.example.toml) |
 | 新增模型、接口或外部渠道 | [开发指南](development.md) → 对应专题 → [设计决策](decisions/README.md) |
 | 排查登录、权限、数据问题 | [操作手册](operations.md) → [业务流程](business-flows.md) → [数据模型](data-schema.md) |
 | 理解为什么不用一个 account/auth 目录 | [架构](architecture.md) → [ADR 0001](decisions/0001-user-account.md) |

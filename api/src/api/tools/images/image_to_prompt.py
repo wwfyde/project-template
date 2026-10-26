@@ -3,17 +3,12 @@ from io import BytesIO
 
 import httpx2
 from PIL import Image
-from google.genai import Client, types
+from google.genai import types
 
 from api.core import settings
-from api.lib.image import parse_data_url_to_bytes
+from api.core.storage import parse_data_url_to_bytes
 
-http_options = types.HttpOptions(
-    client_args={"proxy": settings.proxy_url},
-    async_client_args={"proxy": settings.proxy_url},
-)
-
-api_key = settings.providers.gemini.api_key
+from api.tools.images.gemini import _create_client
 
 vision_struct = """
 ROLE & OBJECTIVE
@@ -120,7 +115,7 @@ CRITICAL CONSTRAINTS
 basic_prompt = "根据图片反推中文绘画Prompt, 直接输出该Prompt, 不输出其他额外内容"
 
 
-async def image_to_prompt(url: str, prompt: str | None = None):
+async def image_to_prompt(url: str, prompt: str | None = None) -> str | None:
     if url.startswith("data"):
         content = parse_data_url_to_bytes(url)
     else:
@@ -130,28 +125,32 @@ async def image_to_prompt(url: str, prompt: str | None = None):
             content = resp.content
     pil = Image.open(BytesIO(content))
     img_format = pil.format.lower() or "png"
-    async with Client(api_key=api_key, http_options=http_options).aio as aclient:
-        response = await aclient.models.generate_content(
-            model=settings.providers.gemini.model,
-            contents=[
-                # vision_struct,
-                basic_prompt,
-                types.Part.from_bytes(
-                    data=content,
-                    mime_type=f"image/{img_format}",
-                ),
-            ],
-        )
-        return response.text
+    client = _create_client("google")
+    try:
+        async with client.aio as aclient:
+            response = await aclient.models.generate_content(
+                model=settings.providers.google.model,
+                contents=[
+                    # vision_struct,
+                    basic_prompt,
+                    types.Part.from_bytes(
+                        data=content,
+                        mime_type=f"image/{img_format}",
+                    ),
+                ],
+            )
+            return response.text
+    finally:
+        client.close()
 
 
 if __name__ == "__main__":
-    async def main():
+
+    async def main() -> None:
         print(
             await image_to_prompt(
                 "https://cdn.fullspeed.cn/agent/image_prompt_url/019b540d-56e5-7570-ba3b-5305e283880d.webp"
             )
         )
-
 
     asyncio.run(main())

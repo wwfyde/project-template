@@ -7,7 +7,7 @@
 ## 1. 服务入口与认证约定
 
 业务 API 前缀为 `/api`。本文表格列出完整路径，`{...}` 是路径参数。
-除明确公开或 Header API Key 示例外，业务端点使用浏览器 Cookie 对应的 Redis 会话；没有用户 Bearer Token 登录协议。
+除明确公开或 API Key 端点外，业务端点使用浏览器 Cookie 对应的 Redis 会话；没有用户 Bearer Token 登录协议。
 `account_id` 表示当前账户；响应中的 `tenant_id` 是相同值的兼容字段。
 
 | 标记 | 认证含义 | 写请求要求 |
@@ -15,7 +15,7 @@
 | 公开 | 不要求已登录用户 | 仍可能需要 Redis 或其他依赖 |
 | 会话 | 有效 Redis 会话 + 用户/身份有效 + auth_version 匹配 + 账户可访问 | `X-CSRF-Token`；如有 `Origin`，必须等于配置的前端地址 |
 | 资源 | 会话认证，再校验资源属于当前 user 和 account | 同上；其他用户的资源统一返回 `404` |
-| API Key | 仅适用于明确挂载的 Header 认证教学接口 | 配置的专用头，默认 `X-Api-Key`；不要求 Cookie 或 CSRF |
+| API Key | 明确挂载的 Header 认证教学接口、外部私有图片资产 API `/api/v1/images` | 图片资产入口使用 `images.clients` 配置的 `X-Api-Key`；教学接口使用独立配置；不要求 Cookie 或 CSRF |
 
 `GET`、`HEAD`、`OPTIONS` 不要求 CSRF。需 CSRF 的请求必须提供恰好一个匹配 token。
 token 来自登录响应或 `GET /api/auth/session`；重新认证、绑定、改密和解绑非当前身份后会轮换，应重新读取会话。
@@ -179,7 +179,23 @@ data: <AgentEvent 的 JSON>
 
 源码：[应用契约](../src/api/agents/contracts.py)、[Agent 路由](../src/api/routes/agents.py)。
 
-## 7. 哪些接口只是开发教学？哪些代码没有挂载？
+## 7. AI 图片工具 API
+
+11 个固定 POST 端点直接调用 `api.tools.images` 函数，路径为 `/api/ai-tools/images/<系列>/<模型ID>`。每个端点独立声明请求 Schema、显式路由和处理函数，字段类型、枚举及默认值与对应工具保持一致，处理函数直接调用该工具。完整路径和示例见 [AI 图片工具 API](ai-image-tools.md)，实现映射见 [图片工具调用参考](ai-image-models-reference.md)。
+
+| 工具系列 | 默认 provider query | 可选渠道 | body 参数 |
+| --- | --- | --- | --- |
+| Gemini | `google` | `laozhang` | `prompt/image_urls/aspect_ratio/image_size` |
+| Seedream | `volcengine` | — | `prompt/image_urls/aspect_ratio/image_size` |
+| GPT Image | `openai` | `evolink` | 公共四项、`quality/n`，以及尺寸、输出格式、背景和蒙版选项；详见工具 API 文档 |
+
+这组端点公开调用，不执行调用方身份认证，不需要 `X-Api-Key`、Cookie、CSRF 或 `images.clients`，也不读取 Redis 会话。工具只使用服务端 `settings.providers` 中渠道配置的 `api_key` 向上游鉴权，调用方 header 不会覆盖它。body 不含 `model` 或 `provider`。路由按请求 Schema 校验类型、枚举和额外字段，错误返回 `422`；`image_urls/mask_url` 原值交给工具，不做统一的公网、DNS 或本地路径预检查。图片引用是否可用、重定向、大小和格式限制由具体工具处理。
+
+同步 `def` 路由由 FastAPI 在线程池运行，并在处理函数内直接调用工具；图片通过 `api.utils.object_storage.aliyun_oss.upload_image` 上传 OSS，最终统一返回 `ImageToolResponse`。Evolink 工具会轮询生成任务并上传结果后再返回；没有 SSE 或厂商 JSON 透传。客户端应检查 `success`：厂商/OSS 缺少配置、生成或上传失败以 `200 + success=false` 表达。`images.clients` 的有无不影响该工具入口。
+
+必须配置模型 provider 与 OSS，`oss.cdn` 可选。此工具入口不创建私有资产版本或评论，相关能力见 [图片编辑 API](image-editing.md)。
+
+## 8. 哪些接口只是开发教学？哪些代码没有挂载？
 
 Header 示例 `/api/examples/auth-header/ping`（GET）与 `/api/examples/auth-header/echo`（POST，body 为 `message`）只检查配置的 API Key，不依赖用户会话。
 它们在非 prod 可访问；prod 返回 `404`。未启用 Header 认证为 `503`，凭证缺失/错误为 `401` 并带 `WWW-Authenticate: ApiKey`。
@@ -206,6 +222,6 @@ Header 示例 `/api/examples/auth-header/ping`（GET）与 `/api/examples/auth-h
 SDK session 示例在主应用中被拦截，以免教学代码旋转或撤销真实登录会话。
 部分端点依赖真实 Redis/PostgreSQL，需按 [开发指南](development.md) 准备环境；它们不是隔离的内存 mock。
 `routes/editor.py` 当前为空且没有被注册；工具模块、SDK samples、仓储方法也不会自动成为 HTTP 端点。
-workspace 创建/切换/邀请、用户注册/找回密码、独立图片生成等不能从源码文件名推断出已存在 API。
+workspace 创建/切换/邀请、用户注册/找回密码等不能从源码文件名推断出已存在 API。
 
 新增端点时先定义认证、资源归属、成功/失败语义与是否进入 OpenAPI，再同步本文；层间职责见 [架构设计](architecture.md)。

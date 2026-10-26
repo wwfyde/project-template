@@ -79,12 +79,16 @@ uv run --directory api alembic upgrade head
 ```sh
 just run                                  # 同时启动 Vite 和 FastAPI
 just run --web-port 6173 --api-port 9036    # 覆盖两端端口，代理随之后端端口变化
+just stop                                 # 停止当前配置端口上的本项目前后端
+just stop --web-port 6173 --api-port 9036   # 停止使用自定义端口启动的服务
 just web --port 6173                      # 只启动前端，也支持 -p
 just api --port 9036                      # 只启动后端，也支持 -p
 WEB_PORT=6173 API_PORT=9036 just run       # 通过环境变量设置端口
 ```
 
 共享端口写在根目录 `.env`，格式见 [.env.example](.env.example)。优先级为 recipe flags、终端环境变量、`.env`、内置默认值（前端 `5173`、后端 `8000`）。端口被占用会直接报错。`just run` 使用 macOS/Linux 进程组管理：按 Ctrl+C 会关闭本次启动的两个服务；任一服务进程退出时也会清理另一个服务。
+
+`just stop` 适用于 macOS/Linux，需要 `lsof` 和 `ps`。它根据端口查找当前项目的 Vite/Uvicorn 服务，包含 Uvicorn reload 父子进程；先正常停止，3 秒后强制结束仍存活的已确认子进程。未运行时可重复执行；其他项目或归属无法确认的占用进程会保留并返回错误。停止命令不启动 pnpm，不依赖前端包或 Node 版本自动下载。
 
 浏览器打开前端地址。可通过 `curl --fail http://127.0.0.1:8000/api/health` 检查 API、Postgres 和 Redis；修改端口后同步替换检查地址。前端使用 `/api/...` 相对路径，Vite 将其转发至对应 API 端口；部署环境由 Nginx 代理同一路径，详见 [web 开发与部署](web/README.md#api-代理与部署)。
 

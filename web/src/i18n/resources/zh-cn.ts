@@ -1,4 +1,7 @@
+import { imagesZhCN } from '../../features/images/model/translations'
+
 export const zhCN = {
+  images: imagesZhCN,
   common: {
     appName: 'Project Template',
     languageSwitcherLabel: '切换语言',

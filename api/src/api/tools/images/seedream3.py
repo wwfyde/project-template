@@ -1,17 +1,15 @@
+import asyncio
 import base64
 import math
 import time
-from io import BytesIO
 from pathlib import Path
 from typing import Literal
 
 import httpx2
-import uuid_utils as uuid
-from PIL import Image
 
 from api.core import settings
-from api.lib.image import upload_image
-from api.tools.types import ImageInfo, ImageToolResponse
+from api.utils.object_storage.aliyun_oss import upload_image
+from api.tools.types import ImageToolResponse
 from api.tools.volcengine import (
     VISUAL_BASE_URL,
     AsyncResultRequest,
@@ -27,7 +25,10 @@ from api.tools.volcengine import (
 
 IMAGE_MODEL = "seedream-3.0"
 SYNC_QUERY_PARAMS = {"Action": "CVProcess", "Version": "2022-08-31"}
-ASYNC_SUBMIT_QUERY_PARAMS = {"Action": "CVSync2AsyncSubmitTask", "Version": "2022-08-31"}
+ASYNC_SUBMIT_QUERY_PARAMS = {
+    "Action": "CVSync2AsyncSubmitTask",
+    "Version": "2022-08-31",
+}
 ASYNC_RESULT_QUERY_PARAMS = {"Action": "CVSync2AsyncGetResult", "Version": "2022-08-31"}
 ASYNC_POLL_INTERVAL_SECONDS = 1.0
 ASYNC_POLL_TIMEOUT_SECONDS = 180.0
@@ -52,7 +53,9 @@ RECOMMENDED_2K_SIZES = {
 def _parse_aspect_ratio(aspect_ratio: str | None) -> tuple[int, int] | None:
     if not aspect_ratio or aspect_ratio.lower() == "auto":
         return None
-    parts = aspect_ratio.replace(":", "×").replace("x", "×").replace("X", "×").split("×")
+    parts = (
+        aspect_ratio.replace(":", "×").replace("x", "×").replace("X", "×").split("×")
+    )
     if len(parts) != 2:
         return None
     try:
@@ -76,8 +79,12 @@ def _constrain_dimensions(width: int, height: int) -> tuple[int, int]:
         MAX_DIMENSION / height,
         math.sqrt((MAX_PIXELS - 1) / pixels),
     )
-    constrained_width = max(MIN_DIMENSION, min(MAX_DIMENSION, math.floor(width * scale / 16) * 16))
-    constrained_height = max(MIN_DIMENSION, min(MAX_DIMENSION, math.floor(height * scale / 16) * 16))
+    constrained_width = max(
+        MIN_DIMENSION, min(MAX_DIMENSION, math.floor(width * scale / 16) * 16)
+    )
+    constrained_height = max(
+        MIN_DIMENSION, min(MAX_DIMENSION, math.floor(height * scale / 16) * 16)
+    )
 
     while constrained_width * constrained_height >= MAX_PIXELS:
         if constrained_width >= constrained_height:
@@ -95,7 +102,9 @@ def _fit_dimensions(width: int, height: int, target_pixels: int) -> tuple[int, i
     return _round_to_multiple(fitted_width), _round_to_multiple(fitted_height)
 
 
-def _resolve_dimensions(aspect_ratio: str | None, image_size: str | None) -> tuple[int, int, str]:
+def _resolve_dimensions(
+    aspect_ratio: str | None, image_size: str | None
+) -> tuple[int, int, str]:
     normalized_size = "1K" if image_size and image_size.upper() == "1K" else "2K"
     parsed_ratio = _parse_aspect_ratio(aspect_ratio) or (1, 1)
 
@@ -114,8 +123,14 @@ def _resolve_dimensions(aspect_ratio: str | None, image_size: str | None) -> tup
 
 
 def _normalize_image_inputs(image_urls: list[str] | str | None) -> list[str]:
+    if isinstance(image_urls, str) and image_urls.startswith("data:"):
+        return [image_urls]
     if isinstance(image_urls, str):
-        return [item.strip() for item in image_urls.replace("，", ",").split(",") if item.strip()]
+        return [
+            item.strip()
+            for item in image_urls.replace("，", ",").split(",")
+            if item.strip()
+        ]
     return [item.strip() for item in image_urls or [] if item and item.strip()]
 
 
@@ -142,11 +157,14 @@ def _upload_portrait_input(image: str) -> str:
 
     if image.startswith("data:") and "base64," in image:
         content = _decode_data_url(image)
-        filename = f"{uuid.uuid7()}.png"
+        filename = "portrait.png"
     else:
         filename, content = _read_local_image(image)
 
-    return upload_image(filename, content, prefix="files/seedream3", rename=False)
+    uploaded_image = asyncio.run(
+        upload_image(filename, content, prefix="files/seedream3")
+    )
+    return uploaded_image.url
 
 
 def _prepare_instruction_input(image: str) -> tuple[list[str] | None, list[str] | None]:
@@ -162,7 +180,9 @@ def _prepare_instruction_input(image: str) -> tuple[list[str] | None, list[str] 
 def _credentials() -> tuple[str, str, str]:
     jimeng = getattr(getattr(settings, "solutions", None), "jimeng", None)
     if not jimeng or not jimeng.access_key or not jimeng.secret_key:
-        raise ValueError("请配置 solutions.jimeng.access_key 和 solutions.jimeng.secret_key")
+        raise ValueError(
+            "请配置 solutions.jimeng.access_key 和 solutions.jimeng.secret_key"
+        )
     return jimeng.access_key, jimeng.secret_key, jimeng.base_url or VISUAL_BASE_URL
 
 
@@ -203,9 +223,9 @@ def _run_async_task(body: dict, req_key: str) -> dict:
     last_status = "in_queue"
 
     while time.monotonic() < deadline:
-        result_body = AsyncResultRequest(req_key=req_key, task_id=task_id, req_json=req_json).model_dump(
-            exclude_none=True
-        )
+        result_body = AsyncResultRequest(
+            req_key=req_key, task_id=task_id, req_json=req_json
+        ).model_dump(exclude_none=True)
         result = _post_volcengine(result_body, ASYNC_RESULT_QUERY_PARAMS)
         data = result.get("data", {})
         if data.get("image_urls") or data.get("binary_data_base64"):
@@ -222,27 +242,10 @@ def _run_async_task(body: dict, req_key: str) -> dict:
 
 
 def _image_info_from_bytes(content: bytes) -> dict:
-    with Image.open(BytesIO(content)) as image:
-        image_format = (image.format or "PNG").lower()
-        width, height = image.size
-
-    if image_format not in {"png", "jpeg", "webp"}:
-        image_format = "png"
-    extension = "jpg" if image_format == "jpeg" else image_format
-    mime_type = "image/jpeg" if image_format == "jpeg" else f"image/{image_format}"
-    image_id = str(uuid.uuid7())
-    filename = f"{image_id}.{extension}"
-    image_url = upload_image(filename, content, prefix="creative/seedream", rename=False)
-    return ImageInfo(
-        url=image_url,
-        width=width,
-        height=height,
-        id=image_id,
-        filename=filename,
-        mime_type=mime_type,
-        content=image_url,
-        file_size=len(content),
-    ).model_dump(exclude_none=True, exclude_unset=True)
+    uploaded_image = asyncio.run(
+        upload_image("seedream3.png", content, prefix="creative/seedream")
+    )
+    return uploaded_image.model_dump(mode="json", exclude_none=True, exclude_unset=True)
 
 
 def _collect_images(data: dict) -> list[dict]:
@@ -273,7 +276,9 @@ def image_create_with_seedream3(
     """
 
     input_images = _normalize_image_inputs(image_urls)
-    resolved_mode: Seedream3Mode = "instruction_edit" if mode == "auto" and input_images else mode
+    resolved_mode: Seedream3Mode = (
+        "instruction_edit" if mode == "auto" and input_images else mode
+    )
     if resolved_mode == "auto":
         resolved_mode = "text_to_image"
     width, height, normalized_size = _resolve_dimensions(aspect_ratio, image_size)
@@ -295,7 +300,9 @@ def image_create_with_seedream3(
                 return_url=True,
                 logo_info={"add_logo": False},
             )
-            result = _post_volcengine(request.model_dump(exclude_none=True), SYNC_QUERY_PARAMS)
+            result = _post_volcengine(
+                request.model_dump(exclude_none=True), SYNC_QUERY_PARAMS
+            )
             data = result.get("data", {})
             image_model = SeedreamVisionServiceIdentity.General.value
         elif resolved_mode == "instruction_edit":

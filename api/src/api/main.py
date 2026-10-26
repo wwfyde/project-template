@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 from collections.abc import Callable
 from typing import Any
 
@@ -17,7 +18,7 @@ from api.core.db import engine
 from api.core.lifespan import lifespan
 from api.core.log import setup_logging
 from api.core.request_context import RequestContextMiddleware
-from api.otel import setup_telemetry
+from api.telemetry import setup_telemetry
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +29,8 @@ def create_app(lifespan: Callable = lifespan) -> FastAPI:
     from api.routes import router
     from api.routes.examples.cache import configure_sdk_examples
 
-    setup_logging(level=settings.app.log_level)
+    log_level = os.getenv("LOG_LEVEL") or settings.app.log_level
+    setup_logging(level=log_level)
     app = FastAPI(
         lifespan=lifespan,
         # One Settings-controlled instrumentation path; FastAPI 0.139 also has
@@ -87,6 +89,10 @@ def create_app(lifespan: Callable = lifespan) -> FastAPI:
     @app.get("/api/hello")
     async def hello() -> dict[str, str]:
         s: str = "世界"
+        logger.error(s)
+        logger.info(s)
+        logger.debug(s)
+        logger.warning(s)
         return {"message": f"Hello, {s}!", "data": f"hello, {s}!"}
 
     setup_telemetry(app, settings.otel, environment=settings.app.env)

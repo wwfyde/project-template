@@ -17,6 +17,7 @@ from api.core.config import Settings
 from api.core.request_context import bind_identity
 from api.models.user import User
 from api.core.header_auth import HEADER_EXAMPLE_PREFIX
+from api.images.auth import IMAGE_API_PREFIX
 
 logger = logging.getLogger(__name__)
 
@@ -137,10 +138,11 @@ def configure_auth_sessions(app: FastAPI, settings: Settings) -> None:
         raise ValueError("Session cookie path must cover all API routes")
 
     def skip(request: Request) -> bool:
-        # Header-only service examples must work even with an expired browser
-        # cookie or an unavailable session store. User routes are never exempt.
-        if request.url.path == HEADER_EXAMPLE_PREFIX or request.url.path.startswith(
-            f"{HEADER_EXAMPLE_PREFIX}/"
+        # Service APIs and stateless image tools do not use browser sessions.
+        # User routes are never exempt, even with an expired browser cookie.
+        if any(
+            request.url.path == prefix or request.url.path.startswith(f"{prefix}/")
+            for prefix in (HEADER_EXAMPLE_PREFIX, IMAGE_API_PREFIX, "/api/ai-tools/images")
         ):
             return True
         return not request.url.path.startswith("/api/") or request.url.path in {

@@ -9,7 +9,6 @@ from opentelemetry.sdk._logs import LoggerProvider
 
 from api.core.request_context import correlation_attributes, get_request_context
 
-
 _RECORD_FIELDS = frozenset(logging.makeLogRecord({}).__dict__) | {
     "asctime",
     "message",
