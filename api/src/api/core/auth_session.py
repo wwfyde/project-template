@@ -9,15 +9,14 @@ from fastapi.exception_handlers import request_validation_exception_handler
 from fastapi.exceptions import RequestValidationError
 from redis_fastapi import FastAPIRedis, Session, SessionStore
 from redis_fastapi.session_backend import SessionState, SessionStoreError
-from starlette.responses import JSONResponse
 from starlette.datastructures import MutableHeaders
+from starlette.responses import JSONResponse
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from api.core.config import Settings
+from api.core.header_auth import HEADER_EXAMPLE_PREFIX
 from api.core.request_context import bind_identity
 from api.models.user import User
-from api.core.header_auth import HEADER_EXAMPLE_PREFIX
-from api.images.auth import IMAGE_API_PREFIX
 
 logger = logging.getLogger(__name__)
 
@@ -142,7 +141,7 @@ def configure_auth_sessions(app: FastAPI, settings: Settings) -> None:
         # User routes are never exempt, even with an expired browser cookie.
         if any(
             request.url.path == prefix or request.url.path.startswith(f"{prefix}/")
-            for prefix in (HEADER_EXAMPLE_PREFIX, IMAGE_API_PREFIX, "/api/ai-tools/images")
+            for prefix in (HEADER_EXAMPLE_PREFIX, "/api/ai-tools/images")
         ):
             return True
         return not request.url.path.startswith("/api/") or request.url.path in {

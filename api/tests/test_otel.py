@@ -27,7 +27,7 @@ from opentelemetry.trace import SpanKind
 from pydantic import ValidationError
 from pytest import MonkeyPatch
 
-from api import otel
+from api import telemetry as otel
 from api.core.config import Settings
 from api.core.log import TraceContextFilter
 from api.core.telemetry_config import OtelConfig

@@ -1,10 +1,9 @@
 import json
 import logging
 from collections.abc import Callable, Coroutine
-from typing import Annotated, Any, Literal
-from uuid import UUID
+from typing import Any
 
-from fastapi import APIRouter, Depends, File, Form, Query, Request, Response, UploadFile
+from fastapi import Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.routing import APIRoute
 from pydantic import BaseModel
@@ -12,17 +11,7 @@ from starlette.responses import JSONResponse
 from starlette.types import Message
 
 from api.core.request_context import correlation_attributes
-from api.deps import SettingsDep
-from api.images.contracts import (
-    AssetResponse,
-    CommentCreate,
-    EditRequest,
-    ImageAsset,
-    ImageComment,
-    ImageFailure,
-    ProviderInfo,
-)
-from api.images.service import ImageService
+from api.images.contracts import ImageFailure
 
 logger = logging.getLogger(__name__)
 
@@ -245,16 +234,3 @@ class ImageRoute(APIRoute):
                 )
 
         return handle
-
-
-async def get_image_service(request: Request, settings: SettingsDep) -> ImageService:
-    service = getattr(request.app.state, "image_service", None)
-    if service is None:
-        from api.images.runtime import create_image_service
-
-        service = create_image_service(settings)
-        request.app.state.image_service = service
-    return service
-
-
-ServiceDep = Annotated[ImageService, Depends(get_image_service)]

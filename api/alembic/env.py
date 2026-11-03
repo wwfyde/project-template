@@ -1,13 +1,14 @@
 import asyncio
 from logging.config import fileConfig
+from typing import Any
 
+from alembic import context
+from api.core import settings
 from sqlalchemy import MetaData, pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config, create_async_engine
 
-from alembic import context
 from api import models
-from api.core import settings
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -32,11 +33,15 @@ target_metadata: list[MetaData] | MetaData = [models.Base.metadata]
 
 
 # !Important preserve existed tables
-def include_name(name, type_, parent_names):
+def include_name(name: str, type_: str, parent_names: list[str]) -> bool:
     if type_ == "table":
         # tables = [item.tables for item in target_metadata]
         if isinstance(target_metadata, list):
-            return any(name in item.tables for item in target_metadata if isinstance(item, MetaData))
+            return any(
+                name in item.tables
+                for item in target_metadata
+                if isinstance(item, MetaData)
+            )
         else:
             return name in target_metadata.tables
     else:

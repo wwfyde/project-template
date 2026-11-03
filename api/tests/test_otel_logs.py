@@ -12,7 +12,7 @@ from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanE
 from pydantic import ValidationError
 from pytest import LogCaptureFixture, MonkeyPatch
 
-from api import otel
+from api import telemetry as otel
 from api.core.telemetry_config import OtelConfig
 
 
@@ -177,7 +177,7 @@ def test_flush_continues_after_failure_and_flushes_logs_last(
     otel.TelemetryRuntime(traces, metrics, logs).force_flush()
 
     assert call_order == ["traces", "metrics", "logs"]
-    record = next(record for record in caplog.records if record.name == "api.otel")
+    record = next(record for record in caplog.records if record.name == "api.telemetry")
     assert record.event_name == "telemetry.flush_failed"
     assert record.telemetry_signal == "traces"
     assert record.exc_info[0] is RuntimeError

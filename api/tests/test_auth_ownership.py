@@ -13,35 +13,64 @@ from pytest import MonkeyPatch
 from sqlalchemy import Result, Select, Table, create_engine
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
-from test_agents import FakeBackend, MemoryOwnershipRepository, TEST_USER, new_app
 
-from api.agents.contracts import SessionCreate
-from api.agents.service import AgentService
-from api.agents.store import InMemorySessionStore
-from api.dependencies.auth import get_optional_auth_user, require_auth_user
-from api.schemas.auth import AuthUser
+from api.dependencies.auth import (
+    get_optional_auth_user,
+    get_user_repository,
+    require_auth_user,
+)
 from api.models.conversation import Conversation, Message
 from api.routes import conversations
+from api.schemas.auth import AuthUser
 from api.schemas.conversation import ConversationRead
 
+TEST_USER = AuthUser(
+    id="00000000-0000-0000-0000-000000000001",
+    account_id="tenant-test",
+    provider="google",
+    display_name="Test User",
+)
 OTHER_USER = TEST_USER.model_copy(update={"id": "00000000-0000-0000-0000-000000000002"})
 OTHER_ACCOUNT = TEST_USER.model_copy(update={"account_id": "different-tenant"})
 
 
+class MemoryOwnershipRepository:
+    def __init__(self) -> None:
+        self.owners: dict[tuple[str, str], tuple[str, str]] = {}
+
+    async def own(self, kind: str, resource_id: str, user: AuthUser) -> None:
+        self.owners[(kind, resource_id)] = (user.id, user.account_id)
+
+    async def owns(self, kind: str, resource_id: str, user: AuthUser) -> bool:
+        return self.owners.get((kind, resource_id)) == (user.id, user.account_id)
+
+    async def owned_ids(self, kind: str, user: AuthUser) -> set[str]:
+        return {
+            resource_id
+            for (resource_kind, resource_id), owner in self.owners.items()
+            if resource_kind == kind and owner == (user.id, user.account_id)
+        }
+
+
 @pytest.fixture
 def app(monkeypatch: MonkeyPatch) -> FastAPI:
-    monkeypatch.setattr(conversations.settings, "repo_type", "in-memory")
+    monkeypatch.setattr(conversations.settings, "repo_type", "memory")
     monkeypatch.setattr(conversations, "_memory_conversations", {})
     monkeypatch.setattr(
         conversations, "_memory_messages", conversations.defaultdict(list)
     )
-    backend = FakeBackend()
-    service = AgentService(
-        backends={backend.name: backend},
-        store=InMemorySessionStore(),
-        default_backend=backend.name,
+    app = FastAPI(
+        telemetry={
+            "tracing": False,
+            "metrics": False,
+            "logs": False,
+            "operation_spans": False,
+            "auto_configure": False,
+        }
     )
-    app = new_app(service)
+    users = MemoryOwnershipRepository()
+    app.state.ownership_repository = users
+    app.dependency_overrides[get_user_repository] = lambda: users
     app.include_router(conversations.conversations_router, prefix="/api/conversations")
     app.state.current_user = TEST_USER
 
@@ -96,37 +125,7 @@ def test_conversations_and_messages_are_private_to_both_user_and_account(
     assert len(client.get(f"{path}/messages").json()) == 1
 
 
-@pytest.mark.parametrize("visitor", [OTHER_USER, OTHER_ACCOUNT])
-def test_agent_turns_and_streams_are_private_to_both_user_and_account(
-    app: FastAPI,
-    client: TestClient,
-    visitor: AuthUser,
-) -> None:
-    created = client.post("/api/agents/sessions", json={})
-    assert created.status_code == 201
-    path = f"/api/agents/sessions/{created.json()['id']}"
-    turn = client.post(f"{path}/turns", json={"input": "private"}).json()
-    backend = app.state.agent_service.backends["fake"]
-    previous_runs = len(backend.requests)
-    app.state.current_user = visitor
-    for method, suffix, body in (
-        ("GET", "", None),
-        ("GET", "/turns", None),
-        ("GET", f"/turns/{turn['id']}", None),
-        ("POST", "/turns", {"input": "injected", "stream": True}),
-        ("DELETE", "", None),
-    ):
-        response = client.request(method, path + suffix, json=body)
-        assert response.status_code == 404
-        assert response.headers["content-type"] == "application/json"
-    assert len(backend.requests) == previous_runs
-    app.state.current_user = TEST_USER
-    assert client.get(path).status_code == 200
-    assert len(client.get(f"{path}/turns").json()) == 1
-
-
 def test_legacy_records_without_ownership_remain_unavailable(
-    app: FastAPI,
     client: TestClient,
 ) -> None:
     legacy = ConversationRead(
@@ -140,14 +139,8 @@ def test_legacy_records_without_ownership_remain_unavailable(
         updated_at="",
     )
     conversations._memory_conversations[legacy.id] = legacy
-    assert client.portal is not None
-    agent_session = client.portal.call(
-        app.state.agent_service.create_session, SessionCreate()
-    )
-
     assert client.get("/api/conversations").json() == []
     assert client.get("/api/conversations/legacy").status_code == 404
-    assert client.get(f"/api/agents/sessions/{agent_session.id}").status_code == 404
 
 
 def test_collection_endpoints_require_authentication(
@@ -157,8 +150,6 @@ def test_collection_endpoints_require_authentication(
     for method, path, body in (
         ("GET", "/api/conversations", None),
         ("POST", "/api/conversations", {}),
-        ("GET", "/api/agents/backends", None),
-        ("POST", "/api/agents/sessions", {}),
     ):
         assert client.request(method, path, json=body).status_code == 401
 
@@ -171,16 +162,14 @@ def test_creation_rejects_forged_owner_and_legacy_user_code(
         client.post("/api/conversations", json={"user_id": OTHER_USER.id}).status_code
         == 403
     )
-    for path in ("/api/conversations", "/api/agents/sessions"):
-        for headers in (
-            {"User-Code": OTHER_USER.id},
-            [("User-Code", TEST_USER.id), ("User-Code", OTHER_USER.id)],
-        ):
-            assert client.post(path, json={}, headers=headers).status_code == 403
-    assert (
-        client.post("/api/agents/sessions", json={"user_id": OTHER_USER.id}).status_code
-        == 422
-    )
+    for headers in (
+        {"User-Code": OTHER_USER.id},
+        [("User-Code", TEST_USER.id), ("User-Code", OTHER_USER.id)],
+    ):
+        assert (
+            client.post("/api/conversations", json={}, headers=headers).status_code
+            == 403
+        )
     assert not app.state.ownership_repository.owners
     assert not conversations._memory_conversations
 
