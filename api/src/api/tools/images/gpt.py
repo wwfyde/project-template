@@ -30,10 +30,22 @@ model_config = settings.providers.openai
 type ImageSource = str | bytes | Path | Image.Image
 
 
-def _image_url(source: ImageSource) -> str:
-    """Preserve API-ready URLs; convert local images and raw Base64 as needed."""
+async def _image_url(
+    source: ImageSource, *, convert_image_url_to_base64: bool = True
+) -> str:
+    """Download HTTP images when requested; preserve existing Base64 data URLs."""
     if isinstance(source, str) and source.startswith(("https://", "http://")):
-        return source
+        if not convert_image_url_to_base64:
+            return source
+        async with httpx2.AsyncClient(
+            proxy=settings.proxy_url,
+            timeout=60,
+            trust_env=False,
+            follow_redirects=True,
+        ) as image_client:
+            image_response = await image_client.get(source)
+            image_response.raise_for_status()
+            source = image_response.content
     encoded = None
     if isinstance(source, str) and source.startswith("data:"):
         if source.startswith("data:image/") and ";base64," in source:
@@ -119,14 +131,19 @@ async def image_create_with_gpt_image(
             {"type": "input_text", "text": prompt}
         ]
         for source in sources:
+            image_input: ResponseInputImageParam
             if isinstance(source, (str, bytes, Path, Image.Image)):
-                content.append(
-                    ResponseInputImageParam(
-                        type="input_image", image_url=_image_url(source), detail="auto"
-                    )
+                image_input = ResponseInputImageParam(
+                    type="input_image",
+                    image_url=await _image_url(source),
+                    detail="auto",
                 )
             else:
-                content.append(source)
+                image_input = source.copy()
+                image_url = image_input.get("image_url")
+                if image_url:
+                    image_input["image_url"] = await _image_url(image_url)
+            content.append(image_input)
         request_input = [EasyInputMessageParam(role="user", content=content)]
 
     tool = ImageGeneration(
@@ -135,21 +152,19 @@ async def image_create_with_gpt_image(
     if image_mask is not MISSING and image_mask is not None:
         if not sources:
             raise ValueError("image_mask requires at least one input image")
-        if isinstance(image_mask, str) and image_mask.startswith(
-            ("https://", "http://")
-        ):
-            async with httpx2.AsyncClient(
-                proxy=settings.proxy_url, timeout=60, trust_env=False
-            ) as image_client:
-                mask_response = await image_client.get(image_mask)
-                mask_response.raise_for_status()
-                image_mask = mask_response.content
+        mask_input: ImageGenerationInputImageMask
         if isinstance(image_mask, (str, bytes, Path, Image.Image)):
-            tool["input_image_mask"] = ImageGenerationInputImageMask(
-                image_url=_image_url(image_mask)
+            mask_input = ImageGenerationInputImageMask(
+                image_url=await _image_url(image_mask, convert_image_url_to_base64=True)
             )
         else:
-            tool["input_image_mask"] = image_mask
+            mask_input = image_mask.copy()
+            mask_url = mask_input.get("image_url")
+            if mask_url:
+                mask_input["image_url"] = await _image_url(
+                    mask_url, convert_image_url_to_base64=True
+                )
+        tool["input_image_mask"] = mask_input
 
     client = get_openai_client()
     response = await client.responses.create(
