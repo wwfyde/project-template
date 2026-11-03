@@ -1,8 +1,9 @@
 import base64
+from collections.abc import Iterable
 from functools import lru_cache
 from io import BytesIO
 from pathlib import Path
-from typing import Literal
+from typing import Literal, cast
 
 import httpx2
 from openai import AsyncOpenAI
@@ -28,6 +29,7 @@ from api.utils.object_storage import upload_image
 model_config = settings.providers.openai
 
 type ImageSource = str | bytes | Path | Image.Image
+type ImageInput = ImageSource | ResponseInputImageParam
 
 
 async def _image_url(
@@ -105,26 +107,26 @@ class ImageParam(BaseModel):
 async def image_create_with_gpt_image(
     *,
     prompt: str,
-    images: ImageSource
-    | ResponseInputImageParam
-    | list[ImageSource | ResponseInputImageParam]
-    | None
-    | MISSING = MISSING,
-    image_mask: ImageSource | ImageGenerationInputImageMask | None | MISSING = MISSING,
+    images: ImageInput | Iterable[ImageInput] | None | MISSING = MISSING,
+    mask: ImageSource | ImageGenerationInputImageMask | None | MISSING = MISSING,
+    model: GPTImageModel = "gpt-image-2.5-flare",
     image_param: ImageParam = ImageParam(),
 ) -> ImageToolResponse:
     if model_config is None:
         raise RuntimeError("CONFIG_MISSING: OpenAI Configuration not provided")
-    image_model = image_param.model
+    image_model = model
     main_model = model_config.model
 
-    sources: list[ImageSource | ResponseInputImageParam]
+    sources: list[ImageInput]
     if images is MISSING or images is None:
         sources = []
-    elif isinstance(images, list):
-        sources = images
-    else:
+    elif isinstance(images, (str, bytes, Path, Image.Image)):
         sources = [images]
+    elif isinstance(images, dict):
+        # A native image part is one input, not an iterable of its keys.
+        sources = [cast(ResponseInputImageParam, images)]
+    else:
+        sources = list(images)
     request_input: str | ResponseInputParam = prompt
     if sources:
         content: list[ResponseInputContentParam] = [
@@ -149,16 +151,16 @@ async def image_create_with_gpt_image(
     tool = ImageGeneration(
         type="image_generation", **image_param.model_dump(exclude_none=True)
     )
-    if image_mask is not MISSING and image_mask is not None:
+    if mask is not MISSING and mask is not None:
         if not sources:
             raise ValueError("image_mask requires at least one input image")
         mask_input: ImageGenerationInputImageMask
-        if isinstance(image_mask, (str, bytes, Path, Image.Image)):
+        if isinstance(mask, (str, bytes, Path, Image.Image)):
             mask_input = ImageGenerationInputImageMask(
-                image_url=await _image_url(image_mask, convert_image_url_to_base64=True)
+                image_url=await _image_url(mask, convert_image_url_to_base64=True)
             )
         else:
-            mask_input = image_mask.copy()
+            mask_input = mask.copy()
             mask_url = mask_input.get("image_url")
             if mask_url:
                 mask_input["image_url"] = await _image_url(

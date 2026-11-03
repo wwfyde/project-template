@@ -1,7 +1,7 @@
 """Responses image inputs are prepared without external network or model calls."""
 
 import base64
-from collections.abc import Callable
+from collections.abc import Callable, Iterable, Iterator
 from io import BytesIO
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
@@ -96,7 +96,7 @@ async def test_default_downloads_reference_urls_and_mask(
     await gpt.image_create_with_gpt_image(
         prompt="edit",
         images=["https://images.example/redirect", reference],
-        image_mask=mask,
+        mask=mask,
     )
 
     responses_create.assert_awaited_once()
@@ -155,7 +155,7 @@ async def test_remote_mask_is_converted_for_plain_and_native_inputs(
     await gpt.image_create_with_gpt_image(
         prompt="edit",
         images=inline,
-        image_mask=mask if native_mask else mask_url,
+        mask=mask if native_mask else mask_url,
     )
     assert responses_create.await_args is not None
     request = responses_create.await_args.kwargs
@@ -189,7 +189,7 @@ async def test_data_urls_and_file_ids_bypass_download_and_base64_codecs(
     monkeypatch.setattr(gpt.base64, "b64decode", unexpected)
     monkeypatch.setattr(gpt.base64, "b64encode", unexpected)
     await gpt.image_create_with_gpt_image(
-        prompt="edit", images=[inline, native_inline, file_input], image_mask=mask
+        prompt="edit", images=[inline, native_inline, file_input], mask=mask
     )
     assert responses_create.await_args is not None
     request = responses_create.await_args.kwargs
@@ -221,3 +221,78 @@ async def test_failed_download_never_invokes_responses(
         )
     responses_create.assert_not_awaited()
     assert len(clients) == 1 and clients[0].is_closed
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("use_generator", [False, True], ids=["tuple", "generator"])
+async def test_iterable_inputs_preserve_order_and_consume_generator_once(
+    responses_create: AsyncMock, use_generator: bool
+) -> None:
+    inline = data_url()
+    native = ResponseInputImageParam(
+        type="input_image", detail="high", file_id="file-reference"
+    )
+    sources: tuple[gpt.ImageInput, ...] = (inline, native)
+    consumed: list[gpt.ImageInput] = []
+
+    def generate() -> Iterator[gpt.ImageInput]:
+        for source in sources:
+            consumed.append(source)
+            yield source
+
+    images: Iterable[gpt.ImageInput] = generate() if use_generator else sources
+    await gpt.image_create_with_gpt_image(prompt="edit", images=images)
+
+    assert responses_create.await_args is not None
+    assert responses_create.await_args.kwargs["input"][0]["content"][1:] == [
+        {"type": "input_image", "detail": "auto", "image_url": inline},
+        native,
+    ]
+    assert consumed == (list(sources) if use_generator else [])
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("with_mask", [False, True])
+async def test_empty_generator_behaves_like_no_reference_images(
+    responses_create: AsyncMock, with_mask: bool
+) -> None:
+    images: Iterator[gpt.ImageInput] = (source for source in ())
+    if with_mask:
+        with pytest.raises(
+            ValueError, match="image_mask requires at least one input image"
+        ):
+            await gpt.image_create_with_gpt_image(
+                prompt="draw",
+                images=images,
+                mask=ImageGenerationInputImageMask(file_id="file-mask"),
+            )
+        responses_create.assert_not_awaited()
+    else:
+        await gpt.image_create_with_gpt_image(prompt="draw", images=images)
+        assert responses_create.await_args is not None
+        assert responses_create.await_args.kwargs["input"] == "draw"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("kind", ["str", "bytes", "native"])
+async def test_single_iterable_image_values_are_not_split(
+    responses_create: AsyncMock, kind: str
+) -> None:
+    native = ResponseInputImageParam(
+        type="input_image", detail="high", file_id="file-reference"
+    )
+    source: gpt.ImageInput
+    if kind == "str":
+        source = data_url()
+    elif kind == "bytes":
+        source = png()
+    else:
+        source = native
+    await gpt.image_create_with_gpt_image(prompt="edit", images=source)
+
+    assert responses_create.await_args is not None
+    assert responses_create.await_args.kwargs["input"][0]["content"][1:] == [
+        native
+        if kind == "native"
+        else {"type": "input_image", "detail": "auto", "image_url": data_url()}
+    ]

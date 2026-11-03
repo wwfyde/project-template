@@ -10,8 +10,7 @@ from api.schemas.ai_tools import (
     Gemini31FlashImageRequest,
     Gemini31FlashLiteImageRequest,
     GeminiNanoBanana21Request,
-    GPTImage2Request,
-    GPTImage25Request,
+    GPTImageRequest,
     Seedream40Request,
     Seedream45Request,
     Seedream50LiteRequest,
@@ -25,6 +24,7 @@ from api.tools.images import (
     seedream5_lite,
     seedream5_pro,
 )
+from api.tools.images.gpt import ImageParam
 from api.tools.types import ImageToolResponse
 
 ai_tools_router = APIRouter(
@@ -235,26 +235,21 @@ def seedream_50_pro(
 
 
 @ai_tools_router.post("/gpt/gpt-image-2", response_model=ImageToolResponse)
-def gpt_image_2(
-    payload: GPTImage2Request,
+async def gpt_image_2(
+    payload: GPTImageRequest,
     provider: Annotated[Literal["openai", "evolink"], Query()] = "openai",
 ) -> ImageToolResponse:
     try:
-        return gpt.image_create_with_gpt_image_2(
+        return await gpt.image_create_with_gpt_image(
             prompt=payload.prompt,
-            image_urls=payload.image_urls,
-            aspect_ratio=payload.aspect_ratio,
-            image_size=payload.image_size,
-            provider=provider,
-            quality=payload.quality,
-            n=payload.n,
-            size=payload.size,
-            background=payload.background,
-            output_format=payload.output_format,
-            output_compression=payload.output_compression,
-            moderation=payload.moderation,
-            safety_identifier=payload.safety_identifier,
-            mask_url=payload.mask_url,
+            images=payload.image_urls,
+            mask=payload.mask_url,
+            model="gpt-image-2",
+            image_param=ImageParam(
+                quality=payload.quality,
+                background=payload.background,
+                output_format=payload.output_format,
+            ),
         )
     except Exception:
         return ImageToolResponse(
@@ -268,25 +263,19 @@ def gpt_image_2(
 
 @ai_tools_router.post("/gpt/gpt-image-2.5-flare", response_model=ImageToolResponse)
 async def gpt_image_2_5_flare(
-    payload: GPTImage2Request,
+    payload: GPTImageRequest,
     provider: Annotated[Literal["openai", "evolink"], Query()] = "openai",
 ) -> ImageToolResponse:
     try:
-        return await gpt.image_create_with_gpt_2_5(
+        return await gpt.image_create_with_gpt_image(
             prompt=payload.prompt,
-            image_urls=payload.image_urls,
-            aspect_ratio=payload.aspect_ratio,
-            image_size=payload.image_size,
-            provider=provider,
-            quality=payload.quality,
-            n=payload.n,
-            size=payload.size,
-            background=payload.background,
-            output_format=payload.output_format,
-            output_compression=payload.output_compression,
-            moderation=payload.moderation,
-            safety_identifier=payload.safety_identifier,
-            mask_url=payload.mask_url,
+            images=payload.image_urls,
+            mask=payload.mask_url,
+            image_param=ImageParam(
+                quality=payload.quality,
+                background=payload.background,
+                output_format=payload.output_format,
+            ),
         )
     except Exception:
         return ImageToolResponse(
@@ -300,25 +289,20 @@ async def gpt_image_2_5_flare(
 
 @ai_tools_router.post("/gpt/gpt-image-2.5-sunburst", response_model=ImageToolResponse)
 async def gpt_image_25_sunburst(
-    payload: GPTImage25Request,
+    payload: GPTImageRequest,
     provider: Annotated[Literal["openai", "evolink"], Query()] = "openai",
 ) -> ImageToolResponse:
     try:
         return await gpt.image_create_with_gpt_image(
             prompt=payload.prompt,
-            image_urls=payload.image_urls,
-            aspect_ratio=payload.aspect_ratio,
-            image_size=payload.image_size,
-            provider=provider,
-            quality=payload.quality,
-            n=payload.n,
-            size=payload.size,
-            background=payload.background,
-            output_format=payload.output_format,
-            output_compression=payload.output_compression,
-            moderation=payload.moderation,
-            safety_identifier=payload.safety_identifier,
-            mask_url=payload.mask_url,
+            images=payload.image_urls,
+            mask=payload.mask_url,
+            model="gpt-image-2.5-sunburst",
+            image_param=ImageParam(
+                quality=payload.quality,
+                background=payload.background,
+                output_format=payload.output_format,
+            ),
         )
     except Exception:
         return ImageToolResponse(
