@@ -198,11 +198,143 @@ async def image_create_with_gpt_image(
     )
 
 
+async def image_create_with_image_api(
+    *,
+    prompt: str,
+    images: ImageInput | Iterable[ImageInput] | None | MISSING = MISSING,
+    mask: ImageSource | ImageGenerationInputImageMask | None | MISSING = MISSING,
+    model: GPTImageModel = "gpt-image-2.5-flare",
+    image_param: ImageParam = ImageParam(),
+) -> ImageToolResponse:
+    """Use the Images API; auto selects editing when reference images are present."""
+    if model_config is None:
+        raise RuntimeError("CONFIG_MISSING: OpenAI Configuration not provided")
+
+    sources: list[ImageInput]
+    if images is MISSING or images is None:
+        sources = []
+    elif isinstance(images, (str, bytes, Path, Image.Image)):
+        sources = [images]
+    elif isinstance(images, dict):
+        sources = [cast(ResponseInputImageParam, images)]
+    else:
+        sources = list(images)
+
+    action = image_param.action
+    if action is MISSING or action == "auto":
+        action = "edit" if sources else "generate"
+    if action == "edit" and not sources:
+        raise ValueError("action='edit' requires at least one input image")
+    if action == "generate" and (sources or (mask is not MISSING and mask is not None)):
+        raise ValueError("action='generate' does not accept images or mask")
+
+    client = get_openai_client()
+
+    async def image_file(
+        source: ImageInput | ImageGenerationInputImageMask, name: str
+    ) -> tuple[str, bytes, str]:
+        if not isinstance(source, (str, bytes, Path, Image.Image)):
+            image_url = source.get("image_url")
+            file_id = source.get("file_id")
+            if bool(image_url) == bool(file_id):
+                raise ValueError(
+                    "Image input requires exactly one of image_url or file_id"
+                )
+            if image_url:
+                source = image_url
+            else:
+                assert file_id is not None
+                source = (await client.files.content(file_id)).content
+
+        if isinstance(source, bytes):
+            data = source
+        elif isinstance(source, Path):
+            data = source.read_bytes()
+        elif isinstance(source, Image.Image):
+            output = BytesIO()
+            source.convert("RGBA").save(output, format="PNG")
+            data = output.getvalue()
+        elif source.startswith("data:"):
+            data = decode_data_url(source)
+        elif source.startswith(("https://", "http://")):
+            async with httpx2.AsyncClient(
+                proxy=settings.proxy_url,
+                timeout=60,
+                trust_env=False,
+                follow_redirects=True,
+            ) as image_client:
+                image_response = await image_client.get(source)
+                image_response.raise_for_status()
+                data = image_response.content
+        else:
+            data = base64.b64decode(source, validate=True)
+        with Image.open(BytesIO(data)) as image:
+            image_format = image.format or ""
+            mime_type = Image.MIME.get(image_format)
+            if mime_type is None:
+                raise ValueError("Unsupported image format")
+        return f"{name}.{image_format.lower()}", data, mime_type
+
+    params = image_param.model_dump(
+        exclude_none=True, exclude={"action", "model", "partial_images"}
+    )
+    if action == "generate":
+        params.pop("input_fidelity", None)
+        response = await client.images.generate(
+            prompt=prompt, model=model, stream=False, **params
+        )
+    else:
+        image_files = [
+            await image_file(source, f"reference-{index}")
+            for index, source in enumerate(sources)
+        ]
+        if mask is not MISSING and mask is not None:
+            params["mask"] = await image_file(mask, "mask")
+        # The API supports moderation; the SDK edit signature has no keyword yet.
+        moderation = params.pop("moderation")
+        response = await client.images.edit(
+            image=image_files,
+            prompt=prompt,
+            model=model,
+            stream=False,
+            extra_body={"moderation": moderation},
+            **params,
+        )
+
+    usage = response.usage.model_dump(exclude_none=True) if response.usage else None
+    output_format = response.output_format or image_param.output_format
+    uploaded_images: list[dict] = []
+    for image in response.data or []:
+        if not image.b64_json:
+            continue
+        metadata = await upload_image(
+            f"generated.{output_format}",
+            base64.b64decode(image.b64_json, validate=True),
+            prefix="creative/gpt",
+        )
+        uploaded_images.append(metadata.model_dump(mode="json", exclude_none=True))
+
+    return ImageToolResponse(
+        image_model=model,
+        content="" if uploaded_images else "模型未返回图片，请调整提示词后重试",
+        success=bool(uploaded_images),
+        error=None if uploaded_images else "no_image_returned",
+        images=uploaded_images,
+        usage=usage,
+    )
+
+
 if __name__ == "__main__":
     import asyncio
 
+    # image = asyncio.run(
+    #     image_create_with_gpt_image(
+    #         prompt="将图像改成卡通风格,里面添加一只猫",
+    #         images="https://cdn.fullspeed.cn/creative/gpt/01a1a097-a701-7264-8b15-bd94dffcfe7a.png",
+    #     )
+    # )
     image = asyncio.run(
-        image_create_with_gpt_image(
+        image_create_with_image_api(
             prompt="将图像改成卡通风格,里面添加一只猫",
             images="https://cdn.fullspeed.cn/creative/gpt/01a1a097-a701-7264-8b15-bd94dffcfe7a.png",
         )

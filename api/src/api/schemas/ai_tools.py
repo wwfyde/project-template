@@ -1,5 +1,6 @@
 """Explicit request parameters maintained separately for each image endpoint."""
 
+from statistics import mode
 from typing import Literal
 
 from pydantic import MISSING, BaseModel, ConfigDict, Field
@@ -134,6 +135,7 @@ class GPTImageRequest(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True, hide_input_in_errors=True)
 
     prompt: str
+    action: Literal["generate", "edit", "auto"] = "auto"
     image_urls: str | list[str] | None | MISSING = MISSING
     aspect_ratio: str | None = None
     image_size: Literal["1K", "2K", "4K"] | None = None

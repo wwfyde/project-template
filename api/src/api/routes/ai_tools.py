@@ -246,6 +246,7 @@ async def gpt_image_2(
             mask=payload.mask_url,
             model="gpt-image-2",
             image_param=ImageParam(
+                action=payload.action,
                 quality=payload.quality,
                 background=payload.background,
                 output_format=payload.output_format,
@@ -272,6 +273,7 @@ async def gpt_image_2_5_flare(
             images=payload.image_urls,
             mask=payload.mask_url,
             image_param=ImageParam(
+                action=payload.action,
                 quality=payload.quality,
                 background=payload.background,
                 output_format=payload.output_format,
@@ -299,6 +301,7 @@ async def gpt_image_25_sunburst(
             mask=payload.mask_url,
             model="gpt-image-2.5-sunburst",
             image_param=ImageParam(
+                action=payload.action,
                 quality=payload.quality,
                 background=payload.background,
                 output_format=payload.output_format,
