@@ -1,10 +1,13 @@
 import asyncio
 import logging
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 from io import BytesIO
 from pathlib import Path
-from typing import Literal, cast
+from typing import Literal, cast, get_args
 from urllib.parse import urlsplit
 
+import httpx2
 import requests
 import uuid_utils as uuid
 from google import genai
@@ -14,9 +17,8 @@ from PIL import Image
 
 from api.core import settings
 from api.core.storage import parse_data_url_to_bytes
-from api.images.source_access import get_image_reference, guard_image_source
-from api.tools.types import ImageToolResponse
-from api.utils.object_storage.aliyun_oss import upload_image
+from api.tools.types import GeminiImageModel, ImageToolResponse
+from api.utils.object_storage import upload_image
 
 logger = logging.getLogger(__name__)
 
@@ -37,10 +39,11 @@ def _failure(model: str | None, code: str, message: str) -> ImageToolResponse:
     )
 
 
-def _create_client(provider: GeminiProvider) -> genai.Client:
+@asynccontextmanager
+async def _create_client(provider: GeminiProvider) -> AsyncGenerator[genai.Client]:
     if provider not in {"google", "laozhang"}:
         raise _GeminiToolError("unsupported_provider", "不支持当前 Gemini 提供商")
-    config = getattr(settings.providers, provider)
+    config = getattr(settings.providers, provider, None)
     if config is None or not config.base_url or not config.api_key.get_secret_value():
         raise _GeminiToolError("provider_unavailable", "Gemini 提供商未配置")
     if provider == "google" and config.use_vertexai:
@@ -52,16 +55,27 @@ def _create_client(provider: GeminiProvider) -> genai.Client:
         base = base.removesuffix("/v1") + "/v1beta"
     if not urlsplit(base).path.rstrip("/"):
         base += "/v1beta"
-    return genai.Client(
-        api_key=config.api_key.get_secret_value(),
-        http_options=types.HttpOptions(
-            base_url=base,
-            base_url_resource_scope=types.ResourceScope.COLLECTION,
-            client_args={"proxy": settings.proxy_url, "trust_env": False},
-            retry_options=types.HttpRetryOptions(attempts=1),
-            timeout=175_000,
-        ),
-    )
+    async with httpx2.AsyncClient(
+        proxy=settings.proxy_url, trust_env=False, timeout=175, follow_redirects=True
+    ) as http_client:
+        client = genai.Client(
+            api_key=config.api_key.get_secret_value(),
+            http_options=types.HttpOptions(
+                base_url=base,
+                base_url_resource_scope=types.ResourceScope.COLLECTION,
+                client_args={"proxy": settings.proxy_url, "trust_env": False},
+                httpx_async_client=http_client,
+                retry_options=types.HttpRetryOptions(attempts=1),
+                timeout=175_000,
+            ),
+        )
+        try:
+            yield client
+        finally:
+            try:
+                await client.aio.aclose()
+            finally:
+                client.close()
 
 
 def _image_inputs(image_urls: str | list[str] | None) -> list[str]:
@@ -82,11 +96,10 @@ def _image_inputs(image_urls: str | list[str] | None) -> list[str]:
 
 
 def _image_part(source: str) -> types.Part:
-    guard_image_source(source)
     if source.startswith("data:"):
         content = parse_data_url_to_bytes(source)
     elif source.startswith(("https://", "http://")):
-        response = get_image_reference(source, timeout=175)
+        response = requests.get(source, timeout=175)
         response.raise_for_status()
         content = response.content
     else:
@@ -114,7 +127,7 @@ def _image_part(source: str) -> types.Part:
     return types.Part.from_bytes(data=content, mime_type=mime_type)
 
 
-def handle_gemini_image_response(
+async def handle_gemini_image_response(
     response: GenerateContentResponse, *, include_usage: bool = True
 ) -> ImageToolResponse:
     usage = (
@@ -146,14 +159,12 @@ def handle_gemini_image_response(
                 )
             extension = mime_type.split("/")[-1].replace("jpeg", "jpg")
             filename = f"{uuid.uuid7()}.{extension}"
-            metadata = asyncio.run(
-                upload_image(
-                    filename,
-                    image_bytes,
-                    mime_type=cast(ImageMimeType, mime_type),
-                    prefix="creative/gemini",
-                    rename=False,
-                )
+            metadata = await upload_image(
+                filename,
+                image_bytes,
+                mime_type=cast(ImageMimeType, mime_type),
+                prefix="creative/gemini",
+                rename=False,
             )
             images.append(metadata.model_dump(mode="json", exclude_none=True))
     except _GeminiToolError as error:
@@ -183,217 +194,95 @@ def handle_gemini_image_response(
     )
 
 
-def _generate(
+def _prepare_request(
     prompt: str,
-    *,
-    image_model: str,
+    model: GeminiImageModel,
     image_urls: str | list[str] | None,
-    config: types.GenerateContentConfig,
-    provider: GeminiProvider,
-    max_images: int = 14,
+    aspect_ratio: str | None,
+    image_size: ImageSize | None,
+) -> tuple[list[str | types.Part], types.GenerateContentConfig]:
+    if model not in get_args(GeminiImageModel.__value__):
+        raise _GeminiToolError("unsupported_model", "不支持当前 Gemini 图片模型")
+    if model == "gemini-3.1-flash-lite-image":
+        if image_size not in {None, "1K"}:
+            raise _GeminiToolError(
+                "unsupported_image_size", "Gemini 3.1 Flash Lite Image 仅支持 1K 图片"
+            )
+        image_size = "1K"
+    sources = _image_inputs(image_urls)
+    if len(sources) > 14:
+        raise _GeminiToolError("too_many_images", "当前模型最多支持 14 张参考图")
+    config = types.GenerateContentConfig(
+        response_modalities=["TEXT", "IMAGE"],
+        image_config=types.ImageConfig(
+            aspect_ratio=None if aspect_ratio == "auto" else aspect_ratio,
+            image_size=image_size,
+        ),
+    )
+    if model in {"gemini-3.1-flash-image", "gemini-nano-banana-2.1"}:
+        config.temperature = 1
+        config.top_p = 0.95
+        config.safety_settings = [
+            types.SafetySetting(category=category, threshold="OFF")
+            for category in (
+                "HARM_CATEGORY_HATE_SPEECH",
+                "HARM_CATEGORY_DANGEROUS_CONTENT",
+                "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+                "HARM_CATEGORY_HARASSMENT",
+            )
+        ]
+        config.thinking_config = types.ThinkingConfig(thinking_level=ThinkingLevel.HIGH)
+        config.image_config.image_size = image_size or "2K"
+    return [prompt, *[_image_part(source) for source in sources]], config
+
+
+def _request_failure(
+    model: str, provider: GeminiProvider, error: Exception
 ) -> ImageToolResponse:
-    try:
-        sources = _image_inputs(image_urls)
-        if len(sources) > max_images:
-            return _failure(
-                image_model,
-                "too_many_images",
-                f"当前模型最多支持 {max_images} 张参考图",
-            )
-        contents = [prompt, *[_image_part(source) for source in sources]]
-        client = _create_client(provider)
-        try:
-            response = client.models.generate_content(
-                model=image_model, contents=contents, config=config
-            )
-        finally:
-            client.close()
-        result = handle_gemini_image_response(response)
-        result.image_model = result.image_model or image_model
-        return result
-    except _GeminiToolError as error:
-        return _failure(image_model, error.code, error.message)
-    except errors.APIError as error:
+    if isinstance(error, _GeminiToolError):
+        return _failure(model, error.code, error.message)
+    if isinstance(error, errors.APIError):
         logger.warning(
             "Gemini image request failed: provider=%s status=%s", provider, error.code
         )
         return _failure(
-            image_model, "provider_failed", "Gemini 图片生成失败，请检查参数或稍后重试"
+            model, "provider_failed", "Gemini 图片生成失败，请检查参数或稍后重试"
         )
-    except (OSError, ValueError, requests.RequestException) as error:
+    if isinstance(error, (OSError, ValueError, requests.RequestException)):
         logger.warning("Gemini image input failed: error_type=%s", type(error).__name__)
-        return _failure(image_model, "invalid_image_input", "参考图无效或无法读取")
-    except Exception as error:
-        logger.warning(
-            "Gemini image request failed: error_type=%s", type(error).__name__
-        )
-        return _failure(
-            image_model, "provider_failed", "Gemini 图片生成失败，请稍后重试"
-        )
-
-
-def image_create_with_gemini(
-    prompt: str,
-    *,
-    image_urls: str | list[str] | None = None,
-    aspect_ratio: Literal["1:1", "2:3", "3:2", "3:4", "4:3", "9:16", "16:9", "21:9"]
-    | None = None,
-    image_size: ImageSize | None = None,
-    provider: GeminiProvider = "google",
-) -> ImageToolResponse:
-    return _generate(
-        prompt,
-        image_model="gemini-3-pro-image",
-        image_urls=image_urls,
-        config=types.GenerateContentConfig(
-            response_modalities=["TEXT", "IMAGE"],
-            image_config=types.ImageConfig(
-                aspect_ratio=aspect_ratio, image_size=image_size
-            ),
-        ),
-        provider=provider,
+        return _failure(model, "invalid_image_input", "参考图无效或无法读取")
+    logger.warning(
+        "Gemini image request failed: provider=%s error_type=%s",
+        provider,
+        type(error).__name__,
     )
+    return _failure(model, "provider_failed", "Gemini 图片生成失败，请稍后重试")
 
 
-def image_create_with_gemini_flash_2(
+async def image_create_with_gemini(
     prompt: str,
     *,
-    image_urls: str | list[str] | None = None,
-    aspect_ratio: Literal[
-        "auto",
-        "1:1",
-        "2:3",
-        "3:2",
-        "3:4",
-        "4:3",
-        "4:5",
-        "5:4",
-        "9:16",
-        "16:9",
-        "1:8",
-        "8:1",
-        "21:9",
-    ]
-    | None = None,
-    image_size: ImageSize | None = None,
-    provider: GeminiProvider = "google",
-) -> ImageToolResponse:
-    return _image_create_with_gemini_flash_2(
-        prompt,
-        image_model="gemini-3.1-flash-image",
-        image_urls=image_urls,
-        aspect_ratio=aspect_ratio,
-        image_size=image_size,
-        provider=provider,
-    )
-
-
-def image_create_with_gemini_flash_2_1(
-    prompt: str,
-    *,
-    image_urls: str | list[str] | None = None,
-    aspect_ratio: Literal[
-        "auto",
-        "1:1",
-        "2:3",
-        "3:2",
-        "3:4",
-        "4:3",
-        "4:5",
-        "5:4",
-        "9:16",
-        "16:9",
-        "1:8",
-        "8:1",
-        "21:9",
-    ]
-    | None = None,
-    image_size: ImageSize | None = None,
-    provider: GeminiProvider = "google",
-) -> ImageToolResponse:
-    return _image_create_with_gemini_flash_2(
-        prompt,
-        image_model="gemini-nano-banana-2.1",
-        image_urls=image_urls,
-        aspect_ratio=aspect_ratio,
-        image_size=image_size,
-        provider=provider,
-    )
-
-
-def _image_create_with_gemini_flash_2(
-    prompt: str,
-    *,
-    image_model: str,
+    model: GeminiImageModel = "gemini-3-pro-image",
     image_urls: str | list[str] | None = None,
     aspect_ratio: str | None = None,
     image_size: ImageSize | None = None,
     provider: GeminiProvider = "google",
 ) -> ImageToolResponse:
-    return _generate(
-        prompt,
-        image_model=image_model,
-        image_urls=image_urls,
-        config=types.GenerateContentConfig(
-            temperature=1,
-            top_p=0.95,
-            response_modalities=["TEXT", "IMAGE"],
-            safety_settings=[
-                types.SafetySetting(category=category, threshold="OFF")
-                for category in (
-                    "HARM_CATEGORY_HATE_SPEECH",
-                    "HARM_CATEGORY_DANGEROUS_CONTENT",
-                    "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-                    "HARM_CATEGORY_HARASSMENT",
-                )
-            ],
-            thinking_config=types.ThinkingConfig(thinking_level=ThinkingLevel.HIGH),
-            image_config=types.ImageConfig(
-                aspect_ratio=None if aspect_ratio == "auto" else aspect_ratio,
-                image_size=image_size or "2K",
-            ),
-        ),
-        provider=provider,
-    )
-
-
-def image_create_with_gemini_flash(
-    prompt: str,
-    *,
-    image_urls: str | list[str] | None = None,
-    aspect_ratio: Literal["1:1", "2:3", "3:2", "3:4", "4:3", "9:16", "16:9", "21:9"]
-    | None = None,
-    image_size: ImageSize | None = "1K",
-    provider: GeminiProvider = "google",
-) -> ImageToolResponse:
-    image_model = "gemini-2.5-flash-image"
-    if image_size not in {None, "1K"}:
-        return _failure(
-            image_model,
-            "unsupported_image_size",
-            "Gemini 2.5 Flash Image 仅支持 1K 图片",
+    try:
+        contents, config = await asyncio.to_thread(
+            _prepare_request,
+            prompt,
+            model,
+            image_urls,
+            aspect_ratio,
+            image_size,
         )
-    return _generate(
-        prompt,
-        image_model=image_model,
-        image_urls=image_urls,
-        config=types.GenerateContentConfig(
-            response_modalities=["TEXT", "IMAGE"],
-            image_config=types.ImageConfig(aspect_ratio=aspect_ratio),
-        ),
-        provider=provider,
-        max_images=3,
-    )
-
-
-def magic_generate_with_gemini(
-    prompt: str,
-    image_url: str,
-    *,
-    provider: GeminiProvider = "google",
-) -> tuple[list[dict], dict | None]:
-    result = image_create_with_gemini_flash(
-        prompt, image_urls=[image_url], provider=provider
-    )
-    images = [{**image, "image_url": image["url"]} for image in result.images or []]
-    return images, result.usage
+        async with _create_client(provider) as client:
+            response = await client.aio.models.generate_content(
+                model=model, contents=contents, config=config
+            )
+        result = await handle_gemini_image_response(response)
+        result.image_model = result.image_model or model
+        return result
+    except Exception as error:
+        return _request_failure(model, provider, error)

@@ -1,5 +1,9 @@
 # Project Template
 
+## Python library
+
+[`mylib`](mylib/README.md) 是可独立打包的 Python 库，使用 uv、uv_build 和 Ruff。从仓库根目录运行 `bash mylib/scripts/check.sh`，可完成检查、测试、构建和分发包安装验证；开发与 PyPI 发布步骤见该目录的 README。
+
 ## 可观测性（OpenTelemetry）
 
 FastAPI 请求和 PostgreSQL 调用通过官方 OTel instrumentation 采集；Redis 使用 `fastapi-redis-sdk` 自带的观测能力。Traces、metrics、logs 共用服务标识，通过 OTLP/HTTP 发给 Alloy，分别转发至 Tempo、Prometheus、Loki。本机和 Docker 使用同一日志推送通路，终端和 `docker logs` 仍保留可读文本；Docker 的重复采集需按[接入说明](deploy/observability/README.md#docker-避免重复采集)排除。

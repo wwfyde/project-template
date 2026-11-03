@@ -3,7 +3,7 @@
 import socket
 from io import BytesIO
 from pathlib import Path
-from types import SimpleNamespace
+from types import ModuleType, SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
@@ -18,7 +18,7 @@ from api.images.source_access import (
     http_image_sources,
     validate_public_image_url,
 )
-from api.tools.images import gemini
+from api.tools.images import gemini, gemini_sync
 
 
 @pytest.mark.parametrize(
@@ -180,8 +180,9 @@ def test_guard_rechecks_dns_before_download(monkeypatch: MonkeyPatch) -> None:
     download.assert_not_called()
 
 
-def test_direct_python_calls_keep_local_and_existing_http_behavior(
-    monkeypatch: MonkeyPatch, tmp_path: Path
+@pytest.mark.parametrize("module", [gemini, gemini_sync], ids=["async", "sync"])
+def test_gemini_sources_are_independent_of_http_source_context(
+    monkeypatch: MonkeyPatch, tmp_path: Path, module: ModuleType
 ) -> None:
     output = BytesIO()
     Image.new("RGB", (2, 3), "red").save(output, format="PNG")
@@ -195,11 +196,16 @@ def test_direct_python_calls_keep_local_and_existing_http_behavior(
         return_value=SimpleNamespace(content=image, raise_for_status=Mock())
     )
     monkeypatch.setattr(source_access.socket, "getaddrinfo", resolver)
-    monkeypatch.setattr(source_access.requests, "get", download)
-    assert gemini._image_part(str(local)).inline_data.data == image
-    assert gemini._image_part("http://127.0.0.1/image.png").inline_data.data == image
+    monkeypatch.setattr(module.requests, "get", download)
+    assert module._image_part(str(local)).inline_data.data == image
+    assert module._image_part("http://127.0.0.1/image.png").inline_data.data == image
     download.assert_called_once_with("http://127.0.0.1/image.png", timeout=175)
     resolver.assert_not_called()
+    download.reset_mock()
     with http_image_sources():
-        with pytest.raises(ImageSourceError):
-            gemini._image_part(str(local))
+        assert module._image_part(str(local)).inline_data.data == image
+        assert (
+            module._image_part("http://127.0.0.1/image.png").inline_data.data == image
+        )
+    download.assert_called_once_with("http://127.0.0.1/image.png", timeout=175)
+    resolver.assert_not_called()

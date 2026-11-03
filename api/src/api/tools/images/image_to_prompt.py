@@ -125,23 +125,19 @@ async def image_to_prompt(url: str, prompt: str | None = None) -> str | None:
             content = resp.content
     pil = Image.open(BytesIO(content))
     img_format = pil.format.lower() or "png"
-    client = _create_client("google")
-    try:
-        async with client.aio as aclient:
-            response = await aclient.models.generate_content(
-                model=settings.providers.google.model,
-                contents=[
-                    # vision_struct,
-                    basic_prompt,
-                    types.Part.from_bytes(
-                        data=content,
-                        mime_type=f"image/{img_format}",
-                    ),
-                ],
-            )
-            return response.text
-    finally:
-        client.close()
+    async with _create_client("google") as client:
+        response = await client.aio.models.generate_content(
+            model=settings.providers.google.model,
+            contents=[
+                # vision_struct,
+                basic_prompt,
+                types.Part.from_bytes(
+                    data=content,
+                    mime_type=f"image/{img_format}",
+                ),
+            ],
+        )
+        return response.text
 
 
 if __name__ == "__main__":

@@ -13,7 +13,6 @@ from starlette.types import Message
 
 from api.core.request_context import correlation_attributes
 from api.deps import SettingsDep
-from api.images.auth import browser_image_owner, service_image_owner
 from api.images.contracts import (
     AssetResponse,
     CommentCreate,
@@ -259,97 +258,3 @@ async def get_image_service(request: Request, settings: SettingsDep) -> ImageSer
 
 
 ServiceDep = Annotated[ImageService, Depends(get_image_service)]
-
-
-def create_image_router(prefix: str, authorize: Callable) -> APIRouter:
-    router = APIRouter(prefix=prefix, tags=["images"], route_class=ImageRoute)
-    OwnerDep = Annotated[str, Depends(authorize)]
-
-    def public_asset(asset: ImageAsset) -> AssetResponse:
-        return AssetResponse(
-            **asset.model_dump(), content_url=f"/api{prefix}/assets/{asset.id}/content"
-        )
-
-    @router.get("/providers", response_model=list[ProviderInfo])
-    async def providers(owner: OwnerDep, service: ServiceDep) -> list[ProviderInfo]:
-        return service.provider_info()
-
-    @router.post("/assets", response_model=AssetResponse, status_code=201)
-    async def upload(
-        owner: OwnerDep,
-        service: ServiceDep,
-        file: Annotated[UploadFile, File()],
-        purpose: Annotated[Literal["image", "mask"], Form()] = "image",
-    ) -> AssetResponse:
-        try:
-            content = await file.read(service.config.max_upload_bytes + 1)
-            return public_asset(
-                await service.upload(owner, content, file.filename or "image", purpose)
-            )
-        finally:
-            await file.close()
-
-    @router.get("/assets", response_model=list[AssetResponse])
-    async def assets(
-        owner: OwnerDep,
-        service: ServiceDep,
-        limit: Annotated[int, Query(ge=1, le=100)] = 50,
-    ) -> list[AssetResponse]:
-        return [
-            public_asset(asset)
-            for asset in await service.store.list_assets(owner, limit)
-        ]
-
-    @router.get("/assets/{asset_id}", response_model=AssetResponse)
-    async def asset(
-        asset_id: UUID, owner: OwnerDep, service: ServiceDep
-    ) -> AssetResponse:
-        return public_asset(await service.store.get_asset(owner, str(asset_id)))
-
-    @router.get("/assets/{asset_id}/content")
-    async def content(
-        asset_id: UUID, owner: OwnerDep, service: ServiceDep, download: bool = False
-    ) -> Response:
-        data = await service.store.get_content(owner, str(asset_id))
-        return Response(
-            data,
-            media_type="image/png",
-            headers={
-                "Content-Disposition": f'{"attachment" if download else "inline"}; filename="{asset_id}.png"'
-            },
-        )
-
-    @router.post(
-        "/assets/{asset_id}/edits", response_model=AssetResponse, status_code=201
-    )
-    async def edit(
-        asset_id: UUID, payload: EditRequest, owner: OwnerDep, service: ServiceDep
-    ) -> AssetResponse:
-        return public_asset(await service.edit(owner, str(asset_id), payload))
-
-    @router.get("/assets/{asset_id}/comments", response_model=list[ImageComment])
-    async def comments(
-        asset_id: UUID, owner: OwnerDep, service: ServiceDep
-    ) -> list[ImageComment]:
-        return await service.store.list_comments(owner, str(asset_id))
-
-    @router.post(
-        "/assets/{asset_id}/comments", response_model=ImageComment, status_code=201
-    )
-    async def comment(
-        asset_id: UUID, payload: CommentCreate, owner: OwnerDep, service: ServiceDep
-    ) -> ImageComment:
-        return await service.comment(owner, str(asset_id), payload)
-
-    @router.delete("/assets/{asset_id}/comments/{comment_id}", status_code=204)
-    async def delete_comment(
-        asset_id: UUID, comment_id: UUID, owner: OwnerDep, service: ServiceDep
-    ) -> Response:
-        await service.store.delete_comment(owner, str(asset_id), str(comment_id))
-        return Response(status_code=204)
-
-    return router
-
-
-images_router = create_image_router("/images", browser_image_owner)
-image_service_router = create_image_router("/v1/images", service_image_owner)

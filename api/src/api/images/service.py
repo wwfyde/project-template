@@ -4,7 +4,7 @@ from collections.abc import Callable
 from pathlib import PurePath
 from typing import Literal
 
-from api.images.config import ImagesConfig
+from api.images.config import ImageConfig
 from api.images.contracts import (
     CommentCreate,
     EditRequest,
@@ -42,7 +42,7 @@ class ImageService:
         self,
         store: ImageStore,
         providers: dict[str, ImageProvider],
-        config: ImagesConfig,
+        config: ImageConfig,
     ) -> None:
         self.store, self.providers, self.config = store, providers, config
         self._edits = asyncio.Semaphore(config.max_concurrent_edits)

@@ -3,6 +3,22 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, field_serializer
 
+type GPTModel = Literal[
+    "gpt-6.1-sol",
+    "gpt-6.1-terra",
+]
+type GPTImageModel = Literal[
+    "gpt-image-2",
+    "gpt-image-2.5-sunburst",
+    "gpt-image-2.5-flare",
+]
+type GeminiImageModel = Literal[
+    "gemini-3.1-flash-lite-image",
+    "gemini-3.1-flash-image",
+    "gemini-nano-banana-2.1",
+    "gemini-3-pro-image",
+]
+
 
 class ToolResponse(BaseModel):
     content: str = Field()
@@ -31,7 +47,7 @@ class ImageInfo(BaseModel):
         return 0, 0
 
     @field_serializer("file_size")
-    def serialize_file_size(self, value: int | None):
+    def serialize_file_size(self, value: int | None) -> str | None:
         if value is None:
             return None
 

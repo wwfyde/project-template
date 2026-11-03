@@ -2,9 +2,10 @@
 
 import asyncio
 import hashlib
+import uuid
 from io import BytesIO
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 from PIL import Image
@@ -128,6 +129,88 @@ def test_legacy_names_resolve_to_the_canonical_async_uploader() -> None:
 
     assert upload_image is aliyun_oss.upload_image
     assert storage.upload_image is aliyun_oss.upload_image
+
+
+@pytest.mark.parametrize("image_format", ["PNG", "JPEG", "WEBP"])
+@pytest.mark.parametrize("rename", [False, True])
+def test_sync_upload_matches_async_metadata_and_request(
+    monkeypatch: MonkeyPatch,
+    oss_env: tuple[object, list[FakeOSSClient]],
+    image_format: str,
+    rename: bool,
+) -> None:
+    config, async_clients = oss_env
+    config.oss.endpoint = "cdn.example"
+    monkeypatch.setattr(
+        aliyun_oss.uuid,
+        "uuid7",
+        lambda: uuid.UUID("019df621-0000-7000-8000-000000000001"),
+    )
+    client = Mock()
+    client.put_object.return_value = SimpleNamespace(etag="etag")
+    factory = Mock(return_value=client)
+    monkeypatch.setattr(aliyun_oss.oss, "Client", factory)
+    output = BytesIO()
+    Image.new("RGB", (4, 3), "red").save(output, format=image_format)
+    data = output.getvalue()
+    filename = f"folder/中文 image.{image_format.lower()}"
+    aliyun_oss.get_oss_client_sync.cache_clear()
+    try:
+        sync_result = aliyun_oss.upload_image_sync(
+            filename, data, prefix="/creative/gemini/", rename=rename
+        )
+        async_result = asyncio.run(
+            aliyun_oss.upload_image(
+                filename, data, prefix="/creative/gemini/", rename=rename
+            )
+        )
+    finally:
+        aliyun_oss.get_oss_client_sync.cache_clear()
+    assert sync_result == async_result
+    assert sync_result.width == 4 and sync_result.height == 3
+    assert sync_result.file_size == len(data)
+    assert sync_result.sha256 == hashlib.sha256(data).hexdigest()
+    assert sync_result.url.startswith("https://cdn.example/creative/gemini/")
+    assert sync_result.original_filename == filename
+    factory.assert_called_once()
+    assert factory.call_args.args[0].region == "cn-hangzhou"
+    client.put_object.assert_called_once()
+    sync_request = client.put_object.call_args.args[0]
+    async_request = async_clients[0].put_object.call_args.args[0]
+    for name in ("bucket", "key", "body", "content_type", "content_length"):
+        assert getattr(sync_request, name) == getattr(async_request, name)
+    assert sync_request.body == data
+    assert sync_request.content_type == f"image/{image_format.lower()}"
+
+
+@pytest.mark.parametrize("failure", ["error", "no_etag"])
+def test_sync_upload_propagates_failure(
+    monkeypatch: MonkeyPatch,
+    oss_env: tuple[object, list[FakeOSSClient]],
+    failure: str,
+) -> None:
+    client = Mock()
+    client.put_object.return_value = SimpleNamespace(etag=None)
+    if failure == "error":
+        client.put_object.side_effect = RuntimeError("upload failed")
+    monkeypatch.setattr(aliyun_oss, "get_oss_client_sync", lambda: client)
+    with pytest.raises(RuntimeError):
+        aliyun_oss.upload_image_sync("image.png", png())
+    client.put_object.assert_called_once()
+    assert not oss_env[1]
+
+
+def test_sync_upload_is_exported_and_requires_configuration(
+    oss_env: tuple[object, list[FakeOSSClient]],
+) -> None:
+    from api.utils.object_storage import upload_image_sync
+
+    assert upload_image_sync is aliyun_oss.upload_image_sync
+    config, clients = oss_env
+    config.oss = None
+    with pytest.raises(RuntimeError, match="OSS config"):
+        upload_image_sync("image.png", png())
+    assert not clients
 
 
 def test_http_endpoint_runs_real_seedream_tool_and_canonical_oss_upload(

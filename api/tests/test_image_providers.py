@@ -11,7 +11,7 @@ import pytest
 from PIL import Image
 
 from api.core.config import LLMProvider
-from api.images.config import ImagesConfig
+from api.images.config import ImageConfig
 from api.images.contracts import ImageFailure, ImageProvider, ProviderInput
 from api.images.providers import _veimagex_sdk, build_providers
 
@@ -25,7 +25,7 @@ def png(color: str = "red") -> bytes:
 def settings(**image_settings: object) -> SimpleNamespace:
     return SimpleNamespace(
         proxy_url=None,
-        images=ImagesConfig(**image_settings),
+        images=ImageConfig(**image_settings),
         providers=LLMProvider.model_validate(
             {
                 "openai": {

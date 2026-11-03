@@ -22,16 +22,12 @@ class ImageFailure(Exception):
         self.code, self.message, self.status = code, message, status
 
 
-class StrictModel(BaseModel):
-    model_config = ConfigDict(extra="forbid", hide_input_in_errors=True)
-
-
-class Point(StrictModel):
+class Point(BaseModel):
     x: float = Field(ge=0, le=1, allow_inf_nan=False)
     y: float = Field(ge=0, le=1, allow_inf_nan=False)
 
 
-class Markup(StrictModel):
+class Markup(BaseModel):
     kind: Literal["path", "text", "rectangle", "ellipse"]
     points: list[Point] = Field(min_length=1, max_length=2000)
     color: str = Field(default="#ef4444", pattern=r"^#[0-9a-fA-F]{6}$")
@@ -51,7 +47,7 @@ class Markup(StrictModel):
         return self
 
 
-class EditRequest(StrictModel):
+class EditRequest(BaseModel):
     operation: Operation
     provider: ProviderId = "local"
     model: str | None = Field(default=None, min_length=1, max_length=200)
@@ -90,7 +86,7 @@ class EditRequest(StrictModel):
         return self
 
 
-class ImageAsset(StrictModel):
+class ImageAsset(BaseModel):
     id: str = Field(default_factory=new_id)
     filename: str
     width: int
@@ -125,7 +121,7 @@ class ImageComment(CommentCreate):
     created_at: datetime = Field(default_factory=utc_now)
 
 
-class ProviderInfo(StrictModel):
+class ProviderInfo(BaseModel):
     id: ProviderId
     label: str
     configured: bool
@@ -136,7 +132,7 @@ class ProviderInfo(StrictModel):
     unavailable_reason: str | None = None
 
 
-class ProviderInput(StrictModel):
+class ProviderInput(BaseModel):
     operation: Literal["remove_background", "erase"]
     model: str
     image: bytes

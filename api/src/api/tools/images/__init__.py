@@ -9,15 +9,11 @@ _EXPORTS = {
     "image_create_with_seedream5_lite": "seedream5_lite",
     "image_create_with_seedream5_pro": "seedream5_pro",
     "image_create_with_gemini": "gemini",
-    "image_create_with_gemini_flash": "gemini",
-    "image_create_with_gemini_flash_2": "gemini",
-    "image_create_with_gemini_flash_2_1": "gemini",
     "image_create_with_gpt_image_2": "gpt_evolink",
     "image_create_with_gpt_image_2_5": "gpt_evolink",
     "image_edit_with_qwen": "qwen",
     "image_generate_with_qwen": "qwen",
     "rembg_with_url": "remove_background",
-    "magic_generate_with_gemini": "gemini",
 }
 __all__ = list(_EXPORTS)
 

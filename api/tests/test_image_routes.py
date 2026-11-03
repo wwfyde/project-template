@@ -16,7 +16,7 @@ from pydantic import ValidationError
 from redis_fastapi import SessionStore, get_session_store
 from starlette.types import Message, Scope
 
-from api.images.config import ImagesConfig, ImageServiceClient
+from api.images.config import ImageConfig, ImageServiceClient
 from api.images.contracts import ImageProvider, ProviderInfo, ProviderInput
 from api.images.service import ImageService
 from api.images.store import InMemoryImageStore
@@ -72,7 +72,7 @@ class ImageEnvironment:
 
 @pytest.fixture
 def image_env(auth_env: AuthTestEnvironment) -> ImageEnvironment:
-    config = ImagesConfig(
+    config = ImageConfig(
         clients=[
             ImageServiceClient(id="client-a", keys=[KEY, ROTATED_KEY]),
             ImageServiceClient(id="client-b", keys=[OTHER_KEY]),
@@ -498,7 +498,7 @@ def test_configuration_rejects_ambiguous_external_key_namespaces(
     clients: list[dict[str, object]],
 ) -> None:
     with pytest.raises(ValidationError) as error:
-        ImagesConfig(clients=clients)
+        ImageConfig(clients=clients)
     assert KEY not in str(error.value)
 
 

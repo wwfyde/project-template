@@ -8,10 +8,10 @@
 
 | 固定路径 | 模块与函数 |
 | --- | --- |
-| `/gemini/gemini-2.5-flash-image` | `gemini.image_create_with_gemini_flash` |
+| `/gemini/gemini-3.1-flash-lite-image` | `gemini.image_create_with_gemini(model="gemini-3.1-flash-lite-image")` |
 | `/gemini/gemini-3-pro-image` | `gemini.image_create_with_gemini` |
-| `/gemini/gemini-3.1-flash-image` | `gemini.image_create_with_gemini_flash_2` |
-| `/gemini/gemini-nano-banana-2.1` | `gemini.image_create_with_gemini_flash_2_1` |
+| `/gemini/gemini-3.1-flash-image` | `gemini.image_create_with_gemini(model="gemini-3.1-flash-image")` |
+| `/gemini/gemini-nano-banana-2.1` | `gemini.image_create_with_gemini(model="gemini-nano-banana-2.1")` |
 | `/seedream/doubao-seedream-4-0-250828` | `seedream.image_create_with_seedream` |
 | `/seedream/doubao-seedream-4-5-251128` | `seedream4_5.image_create_with_seedream4_5` |
 | `/seedream/doubao-seedream-5-0-260128` | `seedream5_lite.image_create_with_seedream5_lite` |
@@ -36,7 +36,7 @@ GPT 选择 Evolink 时，由 `gpt` 模块调用 [gpt_evolink](../src/api/tools/i
 
 公共请求字段为 `prompt/image_urls/aspect_ratio/image_size`。GPT 另有 `quality/n`，以及可选的 `size/background/output_format/output_compression/moderation/safety_identifier/mask_url`；具体型号和渠道的支持范围见下节。工具内部的尺寸转换、渠道适配、默认质量和业务校验属于执行合同；Schema 接受参数不代表工具一定能完成当前请求。
 
-路由处理函数是同步 `def`，由 FastAPI 自动放在线程池执行。没有共享工具调度服务。每条路由直接调用工具，失败时在本条路由中构造 [ImageToolResponse](../src/api/tools/types.py)。厂商错误状态、SSE 或任务提交响应不会作为这个 API 的最终响应。
+Gemini 路由使用 `async def` 并等待 `gemini.image_create_with_gemini`。该模块独立创建 Google Gen AI 异步客户端，通过 `await upload_image(...)` 上传图片，不依赖 `gemini_sync`。同步 Python 调用使用 `gemini_sync.image_create_with_gemini`，直接调用同步 SDK 和 `upload_image_sync(...)`；模型枚举集中在 `api.tools.types.GeminiImageModel`。默认模型为 `gemini-3-pro-image`，Lite 仅支持 1K。其他同步路由由 FastAPI 在线程池执行。每条路由直接调用工具，失败时在本条路由中构造 [ImageToolResponse](../src/api/tools/types.py)。厂商错误状态、SSE 或任务提交响应不会作为这个 API 的最终响应。
 
 ## GPT 执行合同
 

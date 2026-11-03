@@ -1,11 +1,9 @@
 from pathlib import Path
 
-from pydantic import Field, SecretStr, model_validator
-
-from api.images.contracts import StrictModel
+from pydantic import BaseModel, ConfigDict, Field, SecretStr, model_validator
 
 
-class ImageServiceClient(StrictModel):
+class ImageServiceClient(BaseModel):
     id: str = Field(pattern=r"^[a-zA-Z0-9_-]{1,64}$")
     keys: list[SecretStr] = Field(min_length=1, max_length=4)
 
@@ -20,7 +18,7 @@ class ImageServiceClient(StrictModel):
         return self
 
 
-class VeImageXConfig(StrictModel):
+class VeImageXConfig(BaseModel):
     access_key: SecretStr | None = None
     secret_key: SecretStr | None = None
     service_id: str | None = None
@@ -29,7 +27,9 @@ class VeImageXConfig(StrictModel):
     template: str | None = None
 
 
-class ImagesConfig(StrictModel):
+class ImageConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     max_upload_bytes: int = Field(
         default=10 * 1024 * 1024, ge=1024, le=20 * 1024 * 1024
     )
@@ -51,7 +51,7 @@ class ImagesConfig(StrictModel):
     veimagex: VeImageXConfig = Field(default_factory=VeImageXConfig)
 
     @model_validator(mode="after")
-    def unique_clients(self) -> "ImagesConfig":
+    def unique_clients(self) -> "ImageConfig":
         ids = [client.id for client in self.clients]
         keys = [
             key.get_secret_value() for client in self.clients for key in client.keys

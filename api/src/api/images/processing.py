@@ -6,11 +6,11 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont, ImageOps, UnidentifiedImageError
 
-from api.images.config import ImagesConfig
+from api.images.config import ImageConfig
 from api.images.contracts import EditRequest, ImageFailure
 
 
-def encode_png(image: Image.Image, config: ImagesConfig) -> bytes:
+def encode_png(image: Image.Image, config: ImageConfig) -> bytes:
     output = BytesIO()
     image.save(output, format="PNG")
     content = output.getvalue()
@@ -21,7 +21,7 @@ def encode_png(image: Image.Image, config: ImagesConfig) -> bytes:
     return content
 
 
-def decode_image(content: bytes, config: ImagesConfig) -> Image.Image:
+def decode_image(content: bytes, config: ImageConfig) -> Image.Image:
     if not content or len(content) > config.max_upload_bytes:
         raise ImageFailure(
             "image_too_large", "Image is empty or exceeds the byte limit.", 413
@@ -60,13 +60,13 @@ def decode_image(content: bytes, config: ImagesConfig) -> Image.Image:
         ) from error
 
 
-def normalize_image(content: bytes, config: ImagesConfig) -> tuple[bytes, int, int]:
+def normalize_image(content: bytes, config: ImageConfig) -> tuple[bytes, int, int]:
     image = decode_image(content, config)
     return encode_png(image, config), image.width, image.height
 
 
 def _font(
-    size: int, text: str, config: ImagesConfig
+    size: int, text: str, config: ImageConfig
 ) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
     if config.font_path is not None:
         try:
@@ -92,7 +92,7 @@ def _font(
 
 
 def local_edit(
-    content: bytes, request: EditRequest, config: ImagesConfig
+    content: bytes, request: EditRequest, config: ImageConfig
 ) -> tuple[bytes, int, int]:
     image = decode_image(content, config)
     if request.operation == "resize":
@@ -154,7 +154,7 @@ def local_edit(
     return encode_png(image, config), image.width, image.height
 
 
-def validate_mask(content: bytes, size: tuple[int, int], config: ImagesConfig) -> bytes:
+def validate_mask(content: bytes, size: tuple[int, int], config: ImageConfig) -> bytes:
     mask = decode_image(content, config)
     if mask.size != size:
         raise ImageFailure(
@@ -173,7 +173,7 @@ def validate_mask(content: bytes, size: tuple[int, int], config: ImagesConfig) -
 
 
 def finish_provider_edit(
-    source: bytes, output: bytes, mask: bytes | None, config: ImagesConfig
+    source: bytes, output: bytes, mask: bytes | None, config: ImageConfig
 ) -> tuple[bytes, int, int]:
     original = decode_image(source, config)
     edited = decode_image(output, config)

@@ -2,13 +2,12 @@ import asyncio
 from typing import Literal
 
 import httpx2
-from google.genai import types
 
 from api.core import settings
 from api.tools.types import ImageToolResponse
 from api.utils.object_storage.aliyun_oss import upload_image
 
-from api.tools.images.gemini import _create_client, _image_part
+from api.tools.images.gemini_sync import image_create_with_gemini
 
 base_prompt = "超高清细节增强，4K分辨率，保持原图构图与内容不变，提升纹理清晰度、边缘锐度与色彩饱和度，专业摄影级画质"
 base_prompt = "超高清细节增强，4K分辨率，保持原图构图、色彩与内容完全不变，强化纹理清晰度、边缘锐度与微表面质感，消除压缩伪影，专业级画质修复"
@@ -117,42 +116,12 @@ def image_upscaling_with_gemini(
     image_url: str | None = None,
     image_size: Literal["2K", "4K"] | None = "4K",
 ) -> ImageToolResponse:
-    try:
-        image_parts = [_image_part(item) for item in [image_url] if item]
-        image_model = "gemini-2.5-flash-image"
-        prompt = f"{prompt}  {base_prompt}"
-        with _create_client("google") as client:
-            response = client.models.generate_content(
-                model=image_model,
-                contents=[prompt, *image_parts],
-                config=types.GenerateContentConfig(
-                    response_modalities=["Text", "Image"],
-                    image_config=types.ImageConfig(image_size=image_size),
-                ),
-            )
-        images = []
-        for part in response.parts or []:
-            if part.inline_data is None or not part.inline_data.data:
-                continue
-            uploaded_image = asyncio.run(
-                upload_image(
-                    "gemini.png", part.inline_data.data, prefix="creative/gemini"
-                )
-            )
-            images.append(
-                uploaded_image.model_dump(
-                    mode="json", exclude_unset=True, exclude_none=True
-                )
-            )
-        return ImageToolResponse(
-            content=f"重绘完成, 共生成{len(images)}张图像, 图像信息:{images}",
-            success=bool(images),
-            images=images,
-        )
-    except Exception as exc:
-        return ImageToolResponse(
-            content=f"工具调用失败, 无生成图像, 错误提示: {exc}", success=False
-        )
+    return image_create_with_gemini(
+        f"{prompt}  {base_prompt}",
+        model="gemini-3.1-flash-image",
+        image_urls=image_url,
+        image_size=image_size,
+    )
 
 
 def test_upscaling() -> None:

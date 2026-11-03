@@ -7,7 +7,7 @@ from io import BytesIO
 import pytest
 from PIL import Image
 
-from api.images.config import ImagesConfig
+from api.images.config import ImageConfig
 from api.images.contracts import (
     CommentCreate,
     EditRequest,
@@ -53,7 +53,7 @@ class FakeProvider:
 
 @pytest.fixture
 def service() -> ImageService:
-    return ImageService(InMemoryImageStore(), {"gpt": FakeProvider()}, ImagesConfig())
+    return ImageService(InMemoryImageStore(), {"gpt": FakeProvider()}, ImageConfig())
 
 
 @pytest.mark.asyncio
@@ -297,12 +297,12 @@ async def test_processor_capacity_limits_upload_and_edits(
 )
 def test_rejects_untrusted_formats(content: bytes) -> None:
     with pytest.raises(ImageFailure):
-        normalize_image(content, ImagesConfig())
+        normalize_image(content, ImageConfig())
 
 
 def test_pixel_budget_checked_before_decode() -> None:
     with pytest.raises(ImageFailure) as error:
-        normalize_image(png("red", (20, 20)), ImagesConfig(max_pixels=10))
+        normalize_image(png("red", (20, 20)), ImageConfig(max_pixels=10))
     assert error.value.status == 413
 
 
@@ -312,7 +312,7 @@ def test_jpeg_orientation_applied_and_exif_stripped() -> None:
     exif[274] = 6
     buffer = BytesIO()
     source.save(buffer, "JPEG", exif=exif)
-    content, width, height = normalize_image(buffer.getvalue(), ImagesConfig())
+    content, width, height = normalize_image(buffer.getvalue(), ImageConfig())
     assert (width, height) == (10, 20)
     assert not Image.open(BytesIO(content)).getexif()
 
@@ -325,7 +325,7 @@ async def test_cancelled_upload_keeps_capacity_until_decoder_finishes(
 
     entered, release = threading.Event(), threading.Event()
 
-    def decode(content: bytes, config: ImagesConfig) -> tuple[bytes, int, int]:
+    def decode(content: bytes, config: ImageConfig) -> tuple[bytes, int, int]:
         entered.set()
         assert release.wait(2)
         return content, 20, 10

@@ -8,7 +8,7 @@
 
 | 固定路径 | 默认 provider | 可选 provider |
 | --- | --- | --- |
-| `/gemini/gemini-2.5-flash-image` | `google` | `laozhang` |
+| `/gemini/gemini-3.1-flash-lite-image` | `google` | `laozhang` |
 | `/gemini/gemini-3-pro-image` | `google` | `laozhang` |
 | `/gemini/gemini-3.1-flash-image` | `google` | `laozhang` |
 | `/gemini/gemini-nano-banana-2.1` | `google` | `laozhang` |
@@ -45,7 +45,7 @@
 
 | 工具对应模型 | `aspect_ratio` | `image_size` 类型枚举 | 函数默认值 |
 | --- | --- | --- | --- |
-| Gemini 2.5 Flash Image | 下述 A 组 | `1K/2K/4K` 或 null | `1K`；实际传 2K/4K 时工具返回 `unsupported_image_size` |
+| Gemini 3.1 Flash Lite Image | 下述 B 组 | `1K` 或 null | `1K`；HTTP 请求传 2K/4K 返回 `422`，直接 Python 调用返回 `unsupported_image_size` |
 | Gemini 3 Pro Image | A 组 | `1K/2K/4K` 或 null | null |
 | Gemini 3.1 Flash Image / Nano Banana 2.1 | B 组 | `1K/2K/4K` 或 null | null；当前工具内部按 2K 调用 |
 | Seedream 4.0 | string 或 null，由工具转换比例/宽高 | `1K/2K/4K` 或 null | `2K` |
@@ -151,7 +151,7 @@ OpenAI GPT 结果的 `input_params` 记录实际的 `operation`、尺寸、质�
 
 `cdn` 可配置图片访问域名；省略时上传函数使用 OSS 公网域名。工具提供自己的对象前缀，例如 `creative/gpt`。返回 URL 能否被客户端读取取决于 Bucket/CDN 的既有访问配置。
 
-唯一图片上传入口是 [api.utils.object_storage.aliyun_oss.upload_image](../src/api/utils/object_storage/aliyun_oss.py)：异步上传图片 bytes，返回 `ImageInfo`。同步图片工具通过 `asyncio.run(...)` 调用它，每次上传创建并关闭独立 OSS 客户端。每条同步 `def` 路由直接调用对应工具，FastAPI 自动在线程池运行该处理函数，避免阻塞 API 事件循环。
+对象存储的 [upload_image / upload_image_sync](../src/api/utils/object_storage/aliyun_oss.py) 分别提供异步和同步上传，均接收图片 bytes 并返回 `ImageInfo`。Gemini 路由等待 `gemini.image_create_with_gemini`，独立使用 Google Gen AI 原生异步客户端生成图片，并直接 `await upload_image(...)` 上传；参考图读取在线程中执行。同步 Python 调用使用 `gemini_sync.image_create_with_gemini`，直接通过同步 SDK 生成图片，再调用 `upload_image_sync(...)` 上传。其他同步 `def` 路由由 FastAPI 在线程池运行。
 
 图片生成功能不再写入本地公开文件目录。此入口也不创建私有图片资产版本或评论；相关能力仍使用 [图片编辑 API](image-editing.md)。
 

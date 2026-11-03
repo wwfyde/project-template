@@ -23,10 +23,13 @@ from pydantic_settings import (
 from redis_fastapi import RedisSettings
 from sqlalchemy.engine import URL
 
-from api.agents.config import AgentsConfig
 from api.core.auth_config import AuthConfig
 from api.core.request_context import RequestContextConfig
 from api.core.telemetry_config import OtelConfig
+
+
+class AgentConfig(BaseModel):
+    pass
 
 
 class RedisConfig(RedisSettings):
@@ -38,12 +41,12 @@ class RedisConfig(RedisSettings):
 
     @classmethod
     def settings_customise_sources(
-            cls,
-            settings_cls: Type[BaseSettings],
-            init_settings: PydanticBaseSettingsSource,
-            env_settings: PydanticBaseSettingsSource,
-            dotenv_settings: PydanticBaseSettingsSource,
-            file_secret_settings: PydanticBaseSettingsSource,
+        cls,
+        settings_cls: Type[BaseSettings],
+        init_settings: PydanticBaseSettingsSource,
+        env_settings: PydanticBaseSettingsSource,
+        dotenv_settings: PydanticBaseSettingsSource,
+        file_secret_settings: PydanticBaseSettingsSource,
     ) -> Tuple[PydanticBaseSettingsSource, ...]:
         return (init_settings,)
 
@@ -97,7 +100,7 @@ class Model(BaseModel):
 class LLMConfig(BaseModel):
     base_url: str
     api_key: SecretStr
-    model: str | None = None
+    model: str = Field(..., description="默认agent模型")
     image_model: str | None = None
     models: list[str] | list[Model] = []
     max_tokens: int | None = None
@@ -154,12 +157,12 @@ class ExtraSettings(BaseSettings):
 
     @classmethod
     def settings_customise_sources(
-            cls,
-            settings_cls: Type[BaseSettings],
-            init_settings: PydanticBaseSettingsSource,
-            env_settings: PydanticBaseSettingsSource,
-            dotenv_settings: PydanticBaseSettingsSource,
-            file_secret_settings: PydanticBaseSettingsSource,
+        cls,
+        settings_cls: Type[BaseSettings],
+        init_settings: PydanticBaseSettingsSource,
+        env_settings: PydanticBaseSettingsSource,
+        dotenv_settings: PydanticBaseSettingsSource,
+        file_secret_settings: PydanticBaseSettingsSource,
     ) -> Tuple[PydanticBaseSettingsSource, ...]:
         # The order of the returned callables decides the priority of inputs; first item is the highest priority.
         # 第一个优先级最高
@@ -169,15 +172,13 @@ class ExtraSettings(BaseSettings):
 class Settings(BaseSettings):
     # app_name: str = "ai-tools"
     project_name: str = "Api"
-    repo_type: Literal["in-memory", "postgres", "mongodb", "mysql", "redis"] = (
-        "in-memory"
-    )
+    repo_type: Literal["memory", "postgres", "mongodb", "mysql", "redis"] = "memory"
     profile: Literal["web", "cli", "desktop", "app"] = Field(
         default="web", title="执行环境"
     )
     admin_users: list[str] = []
     app: AppConfig = Field(default_factory=AppConfig)
-    agents: AgentsConfig = Field(default_factory=AgentsConfig)
+    agent: AgentConfig = Field(default_factory=AgentConfig)
     auth: AuthConfig = Field(default_factory=AuthConfig)
     request_context: RequestContextConfig = Field(default_factory=RequestContextConfig)
     otel: OtelConfig = Field(default_factory=OtelConfig)
@@ -196,6 +197,8 @@ class Settings(BaseSettings):
     postgres: PostgresConfig = Field(default_factory=PostgresConfig)
 
     providers: LLMProvider = Field(default_factory=LLMProvider, title="LLM提供商配置")
+    # openai: LLMConfig = Field(default_factory=LLMConfig)
+    # gemini: LLMConfig = Field(default_factory=LLMConfig)
     # solutions: SolutionConfig | None = Field(None, title="解决方案配置")
     # apps: Any | None = Field(None, title="多应用配置")
     tools: Any | None = Field(None, title="私有化部署工具")
@@ -217,7 +220,7 @@ class Settings(BaseSettings):
         if self.auth.header.name.lower() in correlation_headers:
             raise ValueError("Authentication Header must not be a correlation header")
         if self.app.env == "prod" and any(
-                item.enabled for item in get_auth_providers(self.auth)
+            item.enabled for item in get_auth_providers(self.auth)
         ):
             if not self.auth.frontend_url.startswith("https://"):
                 raise ValueError(
@@ -226,10 +229,10 @@ class Settings(BaseSettings):
             for provider in get_auth_providers(self.auth):
                 config = getattr(self.auth, provider.id, None)
                 if (
-                        provider.enabled
-                        and provider.method == "oauth"
-                        and config is not None
-                        and not config.redirect_uri.startswith("https://")
+                    provider.enabled
+                    and provider.method == "oauth"
+                    and config is not None
+                    and not config.redirect_uri.startswith("https://")
                 ):
                     raise ValueError(
                         "Production authentication requires HTTPS callback URLs"
@@ -300,12 +303,12 @@ class Settings(BaseSettings):
 
     @classmethod
     def settings_customise_sources(
-            cls,
-            settings_cls: Type[BaseSettings],
-            init_settings: PydanticBaseSettingsSource,
-            env_settings: PydanticBaseSettingsSource,
-            dotenv_settings: PydanticBaseSettingsSource,
-            file_secret_settings: PydanticBaseSettingsSource,
+        cls,
+        settings_cls: Type[BaseSettings],
+        init_settings: PydanticBaseSettingsSource,
+        env_settings: PydanticBaseSettingsSource,
+        dotenv_settings: PydanticBaseSettingsSource,
+        file_secret_settings: PydanticBaseSettingsSource,
     ) -> Tuple[PydanticBaseSettingsSource, ...]:
         # The order of the returned callables decides the priority of inputs; first item is the highest priority.
         # 第一个优先级最高

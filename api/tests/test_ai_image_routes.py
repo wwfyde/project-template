@@ -21,22 +21,22 @@ from test_auth_routes import COOKIE_NAME, AuthTestEnvironment, auth_env as auth_
 PREFIX = "/api/ai-tools/images"
 MODELS = [
     (
-        "gemini/gemini-2.5-flash-image",
+        "gemini/gemini-3.1-flash-lite-image",
         "gemini",
-        "image_create_with_gemini_flash",
+        "image_create_with_gemini",
         "google",
     ),
     ("gemini/gemini-3-pro-image", "gemini", "image_create_with_gemini", "google"),
     (
         "gemini/gemini-3.1-flash-image",
         "gemini",
-        "image_create_with_gemini_flash_2",
+        "image_create_with_gemini",
         "google",
     ),
     (
         "gemini/gemini-nano-banana-2.1",
         "gemini",
-        "image_create_with_gemini_flash_2_1",
+        "image_create_with_gemini",
         "google",
     ),
     (
@@ -110,9 +110,12 @@ class ToolCalls:
     def run(
         self, function_name: str, parameters: dict[str, object]
     ) -> ImageToolResponse:
-        # Sync tool code must be able to use asyncio.run for its async OSS upload.
-        with pytest.raises(RuntimeError, match="no running event loop"):
-            asyncio.get_running_loop()
+        if function_name == "image_create_with_gemini":
+            assert asyncio.get_running_loop().is_running()
+        else:
+            # Sync tools can use asyncio.run for their async OSS upload.
+            with pytest.raises(RuntimeError, match="no running event loop"):
+                asyncio.get_running_loop()
         self.thread_ids.append(threading.get_ident())
         self.calls.append((function_name, parameters))
         if self.error is not None:
@@ -124,6 +127,8 @@ class ToolCalls:
 def tool_calls(monkeypatch: MonkeyPatch) -> ToolCalls:
     calls = ToolCalls()
     for _, module_name, function_name, _ in MODELS:
+        if function_name in calls.defaults:
+            continue
         module = import_module(f"api.tools.images.{module_name}")
         calls.defaults[function_name] = {
             name: parameter.default
@@ -136,7 +141,16 @@ def tool_calls(monkeypatch: MonkeyPatch) -> ToolCalls:
         def fake(*, _name: str = function_name, **kwargs: object) -> ImageToolResponse:
             return calls.run(_name, kwargs)
 
-        monkeypatch.setattr(module, function_name, fake)
+        if module_name == "gemini":
+
+            async def fake_gemini(**kwargs: object) -> ImageToolResponse:
+                return calls.run("image_create_with_gemini", kwargs)
+
+            monkeypatch.setattr(
+                module, function_name, AsyncMock(side_effect=fake_gemini)
+            )
+        else:
+            monkeypatch.setattr(module, function_name, fake)
     return calls
 
 
@@ -146,6 +160,68 @@ def client(tool_calls: ToolCalls) -> Iterator[TestClient]:
     app.include_router(ai_tools_router, prefix="/api")
     with TestClient(app) as client:
         yield client
+
+
+@pytest.mark.parametrize(
+    "model",
+    [
+        "gemini-3.1-flash-lite-image",
+        "gemini-3-pro-image",
+        "gemini-3.1-flash-image",
+        "gemini-nano-banana-2.1",
+    ],
+)
+def test_gemini_routes_await_unified_model_entry(
+    monkeypatch: MonkeyPatch, model: str
+) -> None:
+    from api.tools.images import gemini
+
+    result = ImageToolResponse(content="done", images=[], usage={"total_tokens": 12})
+    generate = AsyncMock(return_value=result)
+    monkeypatch.setattr(gemini, "image_create_with_gemini", generate)
+    app = FastAPI()
+    app.include_router(ai_tools_router, prefix="/api")
+    with TestClient(app) as client:
+        response = client.post(
+            f"{PREFIX}/gemini/{model}",
+            params={"provider": "laozhang"},
+            json={"prompt": "draw", "image_urls": ["https://example.com/ref.png"]},
+        )
+    assert response.status_code == 200, response.text
+    assert response.json() == result.model_dump(mode="json")
+    generate.assert_awaited_once_with(
+        prompt="draw",
+        model=model,
+        image_urls=["https://example.com/ref.png"],
+        aspect_ratio=None,
+        image_size="1K" if model == "gemini-3.1-flash-lite-image" else None,
+        provider="laozhang",
+    )
+
+
+def test_gemini_lite_rejects_large_sizes_and_replaces_old_route(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    from api.tools.images import gemini
+
+    generate = AsyncMock()
+    monkeypatch.setattr(gemini, "image_create_with_gemini", generate)
+    app = FastAPI()
+    app.include_router(ai_tools_router, prefix="/api")
+    with TestClient(app) as client:
+        for size in ("2K", "4K"):
+            response = client.post(
+                f"{PREFIX}/gemini/gemini-3.1-flash-lite-image",
+                json={"prompt": "draw", "image_size": size},
+            )
+            assert response.status_code == 422
+        assert (
+            client.post(
+                f"{PREFIX}/gemini/gemini-2.5-flash-image", json={"prompt": "draw"}
+            ).status_code
+            == 404
+        )
+    generate.assert_not_awaited()
 
 
 def test_fixed_endpoints_use_tool_signatures_and_image_tool_response_schema() -> None:
@@ -172,15 +248,22 @@ def test_fixed_endpoints_use_tool_signatures_and_image_tool_response_schema() ->
         body = schema["components"]["schemas"][reference]
         tool = getattr(import_module(f"api.tools.images.{module}"), function_name)
         parameters = inspect.signature(tool).parameters
-        assert set(body["properties"]) == set(parameters) - {"provider"}
+        fixed = {"provider", "model"} if module == "gemini" else {"provider"}
+        assert set(body["properties"]) == set(parameters) - fixed
         assert set(body["required"]) == {
             name
             for name, param in parameters.items()
             if param.default is inspect.Parameter.empty
         }
         for name, param in parameters.items():
-            if name != "provider" and param.default is not inspect.Parameter.empty:
-                assert body["properties"][name].get("default") == param.default
+            if name not in fixed and param.default is not inspect.Parameter.empty:
+                expected = param.default
+                if (
+                    path.endswith("gemini-3.1-flash-lite-image")
+                    and name == "image_size"
+                ):
+                    expected = "1K"
+                assert body["properties"][name].get("default") == expected
         query = {item["name"]: item for item in operation["parameters"]}
         assert query["provider"]["schema"]["default"] == provider
         assert "stream" not in query
@@ -202,6 +285,10 @@ def test_each_endpoint_calls_its_corresponding_tool_and_returns_its_result(
     expected = {**tool_calls.defaults[function_name], "prompt": "draw"}
     if provider != "volcengine":
         expected["provider"] = provider
+    if module == "gemini":
+        expected["model"] = path.rsplit("/", 1)[1]
+        if expected["model"] == "gemini-3.1-flash-lite-image":
+            expected["image_size"] = "1K"
     assert tool_calls.calls == [(function_name, expected)]
     assert all(value != threading.get_ident() for value in tool_calls.thread_ids)
     assert "no-store" in response.headers["cache-control"]
@@ -224,11 +311,14 @@ def test_optional_provider_is_passed_to_the_tool(
     response = client.post(path, params={"provider": provider}, json=payload)
     assert response.status_code == 200, response.text
     function_name = tool_calls.calls[0][0]
-    assert tool_calls.calls[0][1] == {
+    expected = {
         **tool_calls.defaults[function_name],
         **payload,
         "provider": provider,
     }
+    if path == GEMINI_PATH:
+        expected["model"] = "gemini-3.1-flash-image"
+    assert tool_calls.calls[0][1] == expected
 
 
 @pytest.mark.parametrize("path", [SEEDREAM_PATH, GEMINI_PATH, GPT_PATH])
@@ -345,6 +435,7 @@ def test_tool_failures_keep_the_unified_response(
         "/gpt/arbitrary",
         "/gpt/gpt-image-2.5",
         "/gemini/unknown",
+        "/gemini/gemini-2.5-flash-image",
     ],
 )
 def test_no_dynamic_or_qwen_endpoints(

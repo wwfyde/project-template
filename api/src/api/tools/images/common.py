@@ -32,5 +32,5 @@ def get_image_info(url: str) -> ImageInfo:
         height=height,
         id=id,
         filename=filename,
-        mime_type=f"image/{img_format}",  # noqa
+        mime_type=f"image/{img_format}",  # noqa  # ty: ignore
     )

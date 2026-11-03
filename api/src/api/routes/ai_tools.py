@@ -7,12 +7,11 @@ from fastapi import APIRouter, Query
 from api.routes.images import ImageRoute
 from api.schemas.ai_tools import (
     Gemini3ProImageRequest,
-    Gemini25FlashImageRequest,
     Gemini31FlashImageRequest,
+    Gemini31FlashLiteImageRequest,
     GeminiNanoBanana21Request,
     GPTImage2Request,
-    GPTImage25FlareRequest,
-    GPTImage25SunburstRequest,
+    GPTImage25Request,
     Seedream40Request,
     Seedream45Request,
     Seedream50LiteRequest,
@@ -38,15 +37,16 @@ ai_tools_router = APIRouter(
 
 
 @ai_tools_router.post(
-    "/gemini/gemini-2.5-flash-image", response_model=ImageToolResponse
+    "/gemini/gemini-3.1-flash-lite-image", response_model=ImageToolResponse
 )
-def gemini_25_flash_image(
-    payload: Gemini25FlashImageRequest,
+async def gemini_31_flash_lite_image(
+    payload: Gemini31FlashLiteImageRequest,
     provider: Annotated[Literal["google", "laozhang"], Query()] = "google",
 ) -> ImageToolResponse:
     try:
-        return gemini.image_create_with_gemini_flash(
+        return await gemini.image_create_with_gemini(
             prompt=payload.prompt,
+            model="gemini-3.1-flash-lite-image",
             image_urls=payload.image_urls,
             aspect_ratio=payload.aspect_ratio,
             image_size=payload.image_size,
@@ -54,7 +54,7 @@ def gemini_25_flash_image(
         )
     except Exception:
         return ImageToolResponse(
-            image_model="gemini-2.5-flash-image",
+            image_model="gemini-3.1-flash-lite-image",
             success=False,
             error="image_tool_failed",
             content="Image generation or upload failed.",
@@ -63,13 +63,14 @@ def gemini_25_flash_image(
 
 
 @ai_tools_router.post("/gemini/gemini-3-pro-image", response_model=ImageToolResponse)
-def gemini_3_pro_image(
+async def gemini_3_pro_image(
     payload: Gemini3ProImageRequest,
     provider: Annotated[Literal["google", "laozhang"], Query()] = "google",
 ) -> ImageToolResponse:
     try:
-        return gemini.image_create_with_gemini(
+        return await gemini.image_create_with_gemini(
             prompt=payload.prompt,
+            model="gemini-3-pro-image",
             image_urls=payload.image_urls,
             aspect_ratio=payload.aspect_ratio,
             image_size=payload.image_size,
@@ -88,13 +89,14 @@ def gemini_3_pro_image(
 @ai_tools_router.post(
     "/gemini/gemini-3.1-flash-image", response_model=ImageToolResponse
 )
-def gemini_31_flash_image(
+async def gemini_31_flash_image(
     payload: Gemini31FlashImageRequest,
     provider: Annotated[Literal["google", "laozhang"], Query()] = "google",
 ) -> ImageToolResponse:
     try:
-        return gemini.image_create_with_gemini_flash_2(
+        return await gemini.image_create_with_gemini(
             prompt=payload.prompt,
+            model="gemini-3.1-flash-image",
             image_urls=payload.image_urls,
             aspect_ratio=payload.aspect_ratio,
             image_size=payload.image_size,
@@ -113,13 +115,14 @@ def gemini_31_flash_image(
 @ai_tools_router.post(
     "/gemini/gemini-nano-banana-2.1", response_model=ImageToolResponse
 )
-def gemini_nano_banana_21(
+async def gemini_nano_banana_21(
     payload: GeminiNanoBanana21Request,
     provider: Annotated[Literal["google", "laozhang"], Query()] = "google",
 ) -> ImageToolResponse:
     try:
-        return gemini.image_create_with_gemini_flash_2_1(
+        return await gemini.image_create_with_gemini(
             prompt=payload.prompt,
+            model="gemini-nano-banana-2.1",
             image_urls=payload.image_urls,
             aspect_ratio=payload.aspect_ratio,
             image_size=payload.image_size,
@@ -264,12 +267,12 @@ def gpt_image_2(
 
 
 @ai_tools_router.post("/gpt/gpt-image-2.5-flare", response_model=ImageToolResponse)
-def gpt_image_25_flare(
-    payload: GPTImage25FlareRequest,
+async def gpt_image_2_5_flare(
+    payload: GPTImage2Request,
     provider: Annotated[Literal["openai", "evolink"], Query()] = "openai",
 ) -> ImageToolResponse:
     try:
-        return gpt.image_create_with_gpt_image_2_5_flare(
+        return await gpt.image_create_with_gpt_2_5(
             prompt=payload.prompt,
             image_urls=payload.image_urls,
             aspect_ratio=payload.aspect_ratio,
@@ -296,12 +299,12 @@ def gpt_image_25_flare(
 
 
 @ai_tools_router.post("/gpt/gpt-image-2.5-sunburst", response_model=ImageToolResponse)
-def gpt_image_25_sunburst(
-    payload: GPTImage25SunburstRequest,
+async def gpt_image_25_sunburst(
+    payload: GPTImage25Request,
     provider: Annotated[Literal["openai", "evolink"], Query()] = "openai",
 ) -> ImageToolResponse:
     try:
-        return gpt.image_create_with_gpt_image_2_5_sunburst(
+        return await gpt.image_create_with_gpt_image(
             prompt=payload.prompt,
             image_urls=payload.image_urls,
             aspect_ratio=payload.aspect_ratio,

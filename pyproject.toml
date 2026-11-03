@@ -17,7 +17,13 @@ override-dependencies = [
 
 
 [tool.uv.workspace]
-members = ["api", "python-extension-with-rust", "python/use-extension", "my-python-extension"]
+members = [
+    "api",
+    "python-extension-with-rust",
+    "python/use-extension",
+    "my-python-extension",
+    "mylib",
+]
 
 [tool.uv.sources]
 api = { workspace = true }

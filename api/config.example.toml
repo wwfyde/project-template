@@ -149,13 +149,15 @@ api_key = "****"
 vertex_api_key = "****"
 base_url = "https://generativelanguage.googleapis.com/v1beta/openai"
 model = "gemini-3.5-flash"
-image_model = "gemini-3-flash-image"
+image_model = "gemini-3.1-flash-image"
 models = [
     "gemini-3-pro",
     'gemini-3-flash',
     "gemini-flash",
     "gemini-3-pro-image",
-    "gemini-2.5-flash-image",
+    "gemini-3.1-flash-lite-image",
+    "gemini-3.1-flash-image",
+    "gemini-nano-banana-2.1",
 ]
 temperature = 1
 
