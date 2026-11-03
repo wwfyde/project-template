@@ -118,7 +118,7 @@ host = "127.0.0.1"
 port = "5432"
 username = "postgres"
 password = "pg123456"
-database = ""
+db = ""
 pool_size = "30"
 
 [oss]
@@ -151,11 +151,11 @@ base_url = "https://generativelanguage.googleapis.com/v1beta/openai"
 model = "gemini-3.5-flash"
 image_model = "gemini-3-flash-image"
 models = [
-  "gemini-3-pro",
-  'gemini-3-flash',
-  "gemini-flash",
-  "gemini-3-pro-image",
-  "gemini-2.5-flash-image",
+    "gemini-3-pro",
+    'gemini-3-flash',
+    "gemini-flash",
+    "gemini-3-pro-image",
+    "gemini-2.5-flash-image",
 ]
 temperature = 1
 

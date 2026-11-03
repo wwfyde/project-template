@@ -11,7 +11,7 @@ pub struct PostgresConfig {
     pub port: u16,
     pub username: String,
     pub password: String,
-    pub database: String,
+    pub db: String,
 }
 
 impl PostgresConfig {
@@ -30,7 +30,7 @@ impl PostgresConfig {
         url.path_segments_mut()
             .map_err(|_| anyhow::anyhow!("invalid postgres URL"))?
             .clear()
-            .push(&self.database);
+            .push(&self.db);
         Ok(url)
     }
 }
@@ -66,10 +66,7 @@ impl Settings {
             "app.access_token_expire_days must be a positive, representable duration"
         );
         ensure!(self.postgres.port > 0, "postgres.port must be nonzero");
-        ensure!(
-            !self.postgres.database.is_empty(),
-            "postgres.database is required"
-        );
+        ensure!(!self.postgres.db.is_empty(), "postgres.db is required");
         self.postgres.connection_url()?;
         Ok(self)
     }
@@ -133,7 +130,7 @@ mod tests {
         let mut postgres = settings().postgres;
         postgres.username = "user@tenant".into();
         postgres.password = "p@ss:/?#%".into();
-        postgres.database = "db/name?#".into();
+        postgres.db = "db/name?#".into();
         assert_eq!(
             postgres.connection_url().unwrap().as_str(),
             "postgresql://user%40tenant:p%40ss%3A%2F%3F%23%25@localhost:5432/db%2Fname%3F%23"

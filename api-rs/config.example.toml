@@ -9,7 +9,7 @@ host = "postgres"
 port = 5432
 username = "postgres"
 password = "postgres"
-database = "postgres"
+db = "postgres"
 
 [redis]
 host = "127.0.0.1"

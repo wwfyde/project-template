@@ -38,12 +38,12 @@ class RedisConfig(RedisSettings):
 
     @classmethod
     def settings_customise_sources(
-        cls,
-        settings_cls: Type[BaseSettings],
-        init_settings: PydanticBaseSettingsSource,
-        env_settings: PydanticBaseSettingsSource,
-        dotenv_settings: PydanticBaseSettingsSource,
-        file_secret_settings: PydanticBaseSettingsSource,
+            cls,
+            settings_cls: Type[BaseSettings],
+            init_settings: PydanticBaseSettingsSource,
+            env_settings: PydanticBaseSettingsSource,
+            dotenv_settings: PydanticBaseSettingsSource,
+            file_secret_settings: PydanticBaseSettingsSource,
     ) -> Tuple[PydanticBaseSettingsSource, ...]:
         return (init_settings,)
 
@@ -53,7 +53,7 @@ class PostgresConfig(BaseModel):
     port: int
     username: str
     password: SecretStr
-    database: str
+    db: str = Field(..., validation_alias=AliasChoices("db", "database"))
     pool_size: int = 30
 
 
@@ -154,12 +154,12 @@ class ExtraSettings(BaseSettings):
 
     @classmethod
     def settings_customise_sources(
-        cls,
-        settings_cls: Type[BaseSettings],
-        init_settings: PydanticBaseSettingsSource,
-        env_settings: PydanticBaseSettingsSource,
-        dotenv_settings: PydanticBaseSettingsSource,
-        file_secret_settings: PydanticBaseSettingsSource,
+            cls,
+            settings_cls: Type[BaseSettings],
+            init_settings: PydanticBaseSettingsSource,
+            env_settings: PydanticBaseSettingsSource,
+            dotenv_settings: PydanticBaseSettingsSource,
+            file_secret_settings: PydanticBaseSettingsSource,
     ) -> Tuple[PydanticBaseSettingsSource, ...]:
         # The order of the returned callables decides the priority of inputs; first item is the highest priority.
         # 第一个优先级最高
@@ -217,7 +217,7 @@ class Settings(BaseSettings):
         if self.auth.header.name.lower() in correlation_headers:
             raise ValueError("Authentication Header must not be a correlation header")
         if self.app.env == "prod" and any(
-            item.enabled for item in get_auth_providers(self.auth)
+                item.enabled for item in get_auth_providers(self.auth)
         ):
             if not self.auth.frontend_url.startswith("https://"):
                 raise ValueError(
@@ -226,10 +226,10 @@ class Settings(BaseSettings):
             for provider in get_auth_providers(self.auth):
                 config = getattr(self.auth, provider.id, None)
                 if (
-                    provider.enabled
-                    and provider.method == "oauth"
-                    and config is not None
-                    and not config.redirect_uri.startswith("https://")
+                        provider.enabled
+                        and provider.method == "oauth"
+                        and config is not None
+                        and not config.redirect_uri.startswith("https://")
                 ):
                     raise ValueError(
                         "Production authentication requires HTTPS callback URLs"
@@ -300,12 +300,12 @@ class Settings(BaseSettings):
 
     @classmethod
     def settings_customise_sources(
-        cls,
-        settings_cls: Type[BaseSettings],
-        init_settings: PydanticBaseSettingsSource,
-        env_settings: PydanticBaseSettingsSource,
-        dotenv_settings: PydanticBaseSettingsSource,
-        file_secret_settings: PydanticBaseSettingsSource,
+            cls,
+            settings_cls: Type[BaseSettings],
+            init_settings: PydanticBaseSettingsSource,
+            env_settings: PydanticBaseSettingsSource,
+            dotenv_settings: PydanticBaseSettingsSource,
+            file_secret_settings: PydanticBaseSettingsSource,
     ) -> Tuple[PydanticBaseSettingsSource, ...]:
         # The order of the returned callables decides the priority of inputs; first item is the highest priority.
         # 第一个优先级最高
@@ -335,7 +335,7 @@ class Settings(BaseSettings):
             password=self.postgres.password.get_secret_value(),
             host=self.postgres.host,
             port=self.postgres.port,
-            database=self.postgres.database,
+            database=self.postgres.db,
         ).render_as_string(hide_password=False)
 
 
