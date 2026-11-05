@@ -1,4 +1,3 @@
-from api.tools.images.utils import decode_data_url
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from io import BytesIO
@@ -9,13 +8,35 @@ import httpx2
 import requests
 import uuid_utils as uuid
 from google import genai
-from google.genai import types
-from google.genai.types import GenerateContentResponse, ThinkingLevel
+from google.genai.types import (
+    ContentListUnionDict,
+    GenerateContentConfig,
+    GenerateContentResponse,
+    GoogleSearch,
+    HarmBlockThreshold,
+    HarmCategory,
+    HttpOptions,
+    HttpRetryOptions,
+    ImageConfig,
+    ImageSearch,
+    Part,
+    ResourceScope,
+    SafetySetting,
+    SearchTypes,
+    ThinkingConfig,
+    ThinkingLevel,
+    Tool,
+    WebSearch,
+)
 from PIL import Image
 
 from api.core import settings
-from api.tools.images.types import GeminiImageGenerationParams
-from api.tools.types import GeminiImageModel, ImageToolResponse
+from api.tools.images.utils import decode_data_url
+from api.tools.types import (
+    GeminiImageGenerationParams,
+    GeminiImageModel,
+    ImageToolResponse,
+)
 from api.utils.object_storage import upload_image
 
 type GeminiProvider = Literal["google"]
@@ -41,12 +62,12 @@ async def _create_client() -> AsyncGenerator[genai.Client]:
     ) as http_client:
         client = genai.Client(
             api_key=config.api_key.get_secret_value(),
-            http_options=types.HttpOptions(
+            http_options=HttpOptions(
                 base_url=config.base_url,
-                base_url_resource_scope=types.ResourceScope.COLLECTION,
+                base_url_resource_scope=ResourceScope.COLLECTION,
                 client_args={"proxy": settings.proxy_url, "trust_env": False},
                 httpx_async_client=http_client,
-                retry_options=types.HttpRetryOptions(attempts=1),
+                retry_options=HttpRetryOptions(attempts=1),
                 timeout=175_000,
             ),
         )
@@ -76,7 +97,7 @@ def _image_inputs(image_urls: str | list[str] | None) -> list[str]:
     return image_urls
 
 
-def _image_part(source: str) -> types.Part:
+def _image_part(source: str) -> Part:
     if source.startswith("data:"):
         content = decode_data_url(source)
     elif source.startswith(("https://", "http://")):
@@ -105,7 +126,7 @@ def _image_part(source: str) -> types.Part:
                 )
                 mime_type = "image/jpeg"
             content = output.getvalue()
-    return types.Part.from_bytes(data=content, mime_type=mime_type)
+    return Part.from_bytes(data=content, mime_type=mime_type)
 
 
 async def handle_gemini_image_response(
@@ -162,7 +183,7 @@ async def _prepare_request(
     image_urls: str | list[str] | None,
     aspect_ratio: str | None,
     image_size: ImageSize | None,
-) -> tuple[types.ContentListUnionDict, types.GenerateContentConfig]:
+) -> tuple[ContentListUnionDict, GenerateContentConfig]:
     if model not in get_args(GeminiImageModel.__value__):
         raise GeminiToolError("unsupported_model", "不支持当前 Gemini 图片模型")
     if model == "gemini-3.1-flash-lite-image":
@@ -174,28 +195,26 @@ async def _prepare_request(
     sources = _image_inputs(image_urls)
     if len(sources) > 14:
         raise GeminiToolError("too_many_images", "当前模型最多支持 14 张参考图")
-    image_config = types.ImageConfig(
+    image_config = ImageConfig(
         aspect_ratio=None if aspect_ratio == "auto" else aspect_ratio,
         image_size=image_size,
     )
-    config = types.GenerateContentConfig(
+    config = GenerateContentConfig(
         response_modalities=["TEXT", "IMAGE"], image_config=image_config
     )
     if model in {"gemini-3.1-flash-image", "gemini-nano-banana-2.1"}:
         config.temperature = 1
         config.top_p = 0.95
         config.safety_settings = [
-            types.SafetySetting(
-                category=category, threshold=types.HarmBlockThreshold.OFF
-            )
+            SafetySetting(category=category, threshold=HarmBlockThreshold.OFF)
             for category in (
-                types.HarmCategory.HARM_CATEGORY_HATE_SPEECH,
-                types.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
-                types.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
-                types.HarmCategory.HARM_CATEGORY_HARASSMENT,
+                HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+                HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+                HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+                HarmCategory.HARM_CATEGORY_HARASSMENT,
             )
         ]
-        config.thinking_config = types.ThinkingConfig(thinking_level=ThinkingLevel.HIGH)
+        config.thinking_config = ThinkingConfig(thinking_level=ThinkingLevel.HIGH)
         image_config.image_size = image_size or "2K"
     return [prompt, *[_image_part(source) for source in sources]], config
 
@@ -207,7 +226,6 @@ async def image_create_with_gemini(
     image_urls: str | list[str] | None = None,
     aspect_ratio: str | None = None,
     image_size: ImageSize | None = None,
-    provider: GeminiProvider = "google",
     allow_grounding: bool = True,
 ) -> ImageToolResponse:
     """Generate and upload images; callers handle validation, SDK, and I/O errors."""
@@ -223,11 +241,11 @@ async def image_create_with_gemini(
         "gemini-nano-banana-2.1",
     }:
         config.tools = [
-            types.Tool(
-                google_search=types.GoogleSearch(
-                    search_types=types.SearchTypes(
-                        web_search=types.WebSearch(),
-                        image_search=types.ImageSearch(),
+            Tool(
+                google_search=GoogleSearch(
+                    search_types=SearchTypes(
+                        web_search=WebSearch(),
+                        image_search=ImageSearch(),
                     )
                 )
             )
@@ -238,7 +256,6 @@ async def image_create_with_gemini(
         prompt=prompt,
         images=_image_inputs(image_urls) or None,
         model=model,
-        provider=provider,
         **config_params,
     )
     async with _create_client() as client:

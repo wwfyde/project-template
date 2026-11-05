@@ -16,8 +16,11 @@ from PIL import Image
 
 from api.core import settings
 from api.core.storage import parse_data_url_to_bytes
-from api.tools.images.types import GeminiImageGenerationParams
-from api.tools.types import GeminiImageModel, ImageToolResponse
+from api.tools.types import (
+    GeminiImageGenerationParams,
+    GeminiImageModel,
+    ImageToolResponse,
+)
 from api.utils.object_storage import upload_image_sync
 
 logger = logging.getLogger(__name__)

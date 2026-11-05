@@ -49,7 +49,6 @@ async def gemini_31_flash_lite_image(
             image_urls=payload.image_urls,
             aspect_ratio=payload.aspect_ratio,
             image_size=payload.image_size,
-            provider=provider,
         )
     except Exception:
         return ImageToolResponse(
@@ -75,7 +74,6 @@ async def gemini_31_flash_lite_image(
             image_urls=payload.image_urls,
             aspect_ratio=payload.aspect_ratio,
             image_size=payload.image_size,
-            provider=provider,
         )
     except Exception:
         return ImageToolResponse(
@@ -99,7 +97,6 @@ async def gemini_3_pro_image(
             image_urls=payload.image_urls,
             aspect_ratio=payload.aspect_ratio,
             image_size=payload.image_size,
-            provider=provider,
         )
     except Exception:
         return ImageToolResponse(
@@ -125,7 +122,6 @@ async def gemini_31_flash_image(
             image_urls=payload.image_urls,
             aspect_ratio=payload.aspect_ratio,
             image_size=payload.image_size,
-            provider=provider,
         )
     except Exception:
         return ImageToolResponse(
@@ -142,7 +138,6 @@ async def gemini_31_flash_image(
 )
 async def gemini_nano_banana_21(
     payload: GeminiNanoBanana21Request,
-    provider: Annotated[Literal["google", "laozhang"], Query()] = "google",
 ) -> ImageToolResponse:
     try:
         return await gemini.image_create_with_gemini(
@@ -151,7 +146,6 @@ async def gemini_nano_banana_21(
             image_urls=payload.image_urls,
             aspect_ratio=payload.aspect_ratio,
             image_size=payload.image_size,
-            provider=provider,
         )
     except Exception:
         return ImageToolResponse(
