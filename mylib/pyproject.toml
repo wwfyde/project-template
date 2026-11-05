@@ -3,11 +3,8 @@ name = "mylib"
 version = "0.1.0"
 description = "Reusable Python utilities for project-template."
 readme = "README.md"
-authors = [
-    { name = "wwfyde", email = "wwfyde@gmail.com" }
-]
 requires-python = ">=3.14"
-dependencies = []
+authors = [{ name = "wwfyde", email = "wwfyde@gmail.com" }]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Programming Language :: Python :: 3",
@@ -15,10 +12,11 @@ classifiers = [
     "Programming Language :: Python :: 3.14",
     "Typing :: Typed",
 ]
+dependencies = []
 
 [project.urls]
-Repository = "https://github.com/wwfyde/project-template"
 Issues = "https://github.com/wwfyde/project-template/issues"
+Repository = "https://github.com/wwfyde/project-template"
 
 [dependency-groups]
 dev = [
@@ -31,10 +29,9 @@ dev = [
 requires = ["uv_build>=0.13.4,<0.14.0"]
 build-backend = "uv_build"
 
-[tool.uv.build-backend]
-# Keep the import name stable if the PyPI distribution name changes.
-module-name = "mylib"
-source-include = ["tests/**", "scripts/**", ".python-version"]
+[tool.pytest.ini_options]
+addopts = ["--import-mode=importlib", "--strict-config", "--strict-markers"]
+testpaths = ["tests"]
 
 [tool.ruff]
 target-version = "py314"
@@ -46,6 +43,7 @@ select = ["E4", "E7", "E9", "F", "I", "UP", "B", "ANN"]
 [tool.ruff.format]
 quote-style = "double"
 
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-addopts = ["--import-mode=importlib", "--strict-config", "--strict-markers"]
+[tool.uv.build-backend]
+# Keep the import name stable if the PyPI distribution name changes.
+module-name = "mylib"
+source-include = ["tests/**", "scripts/**", ".python-version"]

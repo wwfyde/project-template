@@ -3,11 +3,13 @@ name = "python-extension-with-rust"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-authors = [
-    { name = "wwfyde", email = "wwfyde@gmail.com" }
-]
 requires-python = ">=3.12"
+authors = [{ name = "wwfyde", email = "wwfyde@gmail.com" }]
 dependencies = []
+
+[build-system]
+requires = ["maturin>=1.0,<2.0"]
+build-backend = "maturin"
 
 [tool.maturin]
 module-name = "python_extension_with_rust._core"
@@ -15,8 +17,9 @@ python-packages = ["python_extension_with_rust"]
 python-source = "src"
 
 [tool.uv]
-cache-keys = [{ file = "pyproject.toml" }, { file = "src/**/*.rs" }, { file = "Cargo.toml" }, { file = "Cargo.lock" }]
-
-[build-system]
-requires = ["maturin>=1.0,<2.0"]
-build-backend = "maturin"
+cache-keys = [
+    { file = "pyproject.toml" },
+    { file = "src/**/*.rs" },
+    { file = "Cargo.toml" },
+    { file = "Cargo.lock" }
+]

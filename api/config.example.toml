@@ -1,9 +1,10 @@
 # toml config
 proxy_url = "http://127.0.0.1:7890"
 httpx_timeout = 180
-cloud_provider = "volcengine" # ark
-object_storage_provider = "oss" # s3 r2 oss
+cloud_provider = "volcengine"  # ark
+object_storage_provider = "oss"  # s3 r2 oss
 model_providers = ["dashscope", "openai", "gemini", "anthropic", "volcengine", "google", "deepseek"]
+
 [app]
 name = "Kayn API"
 port = 8000
@@ -120,24 +121,24 @@ bucket_name = "bucket-name-here"
 region = "cn-hangzhou"
 access_key_id = "****"
 access_key_secret = "****"
-endpoint = "" # 可选 OSS 服务 endpoint；为空时 SDK 根据 region 选择。
-cdn = "" # 可选图片访问域名，例如 https://cdn.example.com；为空时使用 OSS 公网域名。
+endpoint = ""  # 可选 OSS 服务 endpoint；为空时 SDK 根据 region 选择。
+cdn = ""  # 可选图片访问域名，例如 https://cdn.example.com；为空时使用 OSS 公网域名。
 prefix = "agent/creative"
-imageStyle = "" # x-oss-process=style/webp x-oss-process=style/png
+imageStyle = ""  # x-oss-process=style/webp x-oss-process=style/png
 thumbnail_image_style = "x-oss-process=image/resize,w_320"
-role_arn = "****" # 角色ARN
+role_arn = "****"  # 角色ARN
 
 [providers.dashscope]
 api_key = "****"
 base_url = "https://dashscope.aliyuncs.com/compatible-mode/v1"
 model = "model-id-here"
 
-[providers.ark] # 火山引擎
+[providers.ark]  # 火山引擎
 api_key = "****"
 base_url = "https://ark.cn-beijing.volces.com/api/v3"
 model = "model-id-here"
 
-[providers.gemini] # Google AI Studio
+[providers.gemini]  # Google AI Studio
 api_key = "****"
 vertex_api_key = "****"
 base_url = "https://generativelanguage.googleapis.com/v1beta/openai"
@@ -145,7 +146,7 @@ model = "gemini-3.5-flash"
 image_model = "gemini-3.1-flash-image"
 models = [
     "gemini-3-pro",
-    'gemini-3-flash',
+    "gemini-3-flash",
     "gemini-flash",
     "gemini-3-pro-image",
     "gemini-3.1-flash-lite-image",
@@ -154,7 +155,7 @@ models = [
 ]
 temperature = 1
 
-[providers.openai] # OpenAI
+[providers.openai]  # OpenAI
 api_key = "****"
 base_url = "https://api.openai.com/v1"
 model = "gpt-5.5-nano"
@@ -170,7 +171,7 @@ api_key = "****"
 base_url = "https://api.evolink.ai/v1"
 model = "gpt-image-2"
 
-[providers.laozhang] # Gemini 的可选渠道；请求仍使用 Google 原生参数
+[providers.laozhang]  # Gemini 的可选渠道；请求仍使用 Google 原生参数
 api_key = "****"
 base_url = "https://api.laozhang.ai/v1beta"
 
@@ -206,6 +207,5 @@ access_key = ""
 secret_key = ""
 service_id = ""
 region = "cn-north-1"
-domain = "" # 只填写已配置的 CDN 主机名，不带 https:// 或路径
-template = "" # 控制台中的原图处理模板，需保留 PNG 透明通道
-
+domain = ""  # 只填写已配置的 CDN 主机名，不带 https:// 或路径
+template = ""  # 控制台中的原图处理模板，需保留 PNG 透明通道

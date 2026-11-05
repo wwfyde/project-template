@@ -1,20 +1,48 @@
 [project]
-name = "project-template" # NOT "my-app"
+name = "project-template"  # NOT "my-app"
 version = "0.1.0"
 requires-python = ">=3.14"
 dependencies = [
-  # api
-  "api",
-  "use-extension",
+    # api
+    "api",
+    "use-extension",
 ]
+
+[dependency-groups]
+dev = [
+    "coverage>=7.15.2",
+    "ipython>=9.12.0",
+    "pyrefly>=1.1.1",
+    "pytest>=9.0.2",
+    "pytest-asyncio>=1.3.0",
+    "ruff>=0.15.12",
+    "rust-just>=1.57.0",
+    "tombi>=1.10.0",
+    "ty>=0.0.87",
+]
+
+[tool.ruff]
+target-version = "py314"
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.ruff.lint]
+select = ["ANN"]
+
+[tool.tombi.format.rules]
+indent-style = "space"
+indent-sub-tables = false
+indent-table-key-value-pairs = false
+indent-width = 4
+line-width = 100
 
 [tool.uv]
 package = false
 override-dependencies = [
-  # "numpy==1.26.4",
-  "websockets>=16.0",
+    # "numpy==1.26.4",
+    "websockets>=16.0",
 ]
-
 
 [tool.uv.workspace]
 members = [
@@ -29,23 +57,3 @@ members = [
 api = { workspace = true }
 use-extension = { workspace = true }
 my-python-extension = { workspace = true }
-
-[tool.ruff]
-target-version = "py314"
-
-[tool.ruff.format]
-quote-style = "double"
-[tool.ruff.lint]
-select = ["ANN"]
-
-[dependency-groups]
-dev = [
-  "coverage>=7.15.2",
-  "ipython>=9.12.0",
-  "pyrefly>=1.1.1",
-  "pytest>=9.0.2",
-  "pytest-asyncio>=1.3.0",
-  "ruff>=0.15.12",
-  "rust-just>=1.57.0",
-  "ty>=0.0.87",
-]
