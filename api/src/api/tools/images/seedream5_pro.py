@@ -11,8 +11,8 @@ from PIL import Image
 
 from api.core import settings
 from api.images.source_access import get_image_reference, guard_image_source
-from api.utils.object_storage.aliyun_oss import upload_image
 from api.tools.types import ImageToolResponse
+from api.utils.object_storage.aliyun_oss import upload_image
 
 IMAGE_MODEL = "doubao-seedream-5-0-pro-260628"
 MAX_REFERENCE_IMAGES = 10
@@ -142,7 +142,7 @@ def image_create_with_seedream5_pro(
                 image_model=IMAGE_MODEL,
                 content=f"工具调用失败, Seedream 5.0 Pro 最多支持传入 {MAX_REFERENCE_IMAGES} 张参考图",
                 success=False,
-                input_params={"image_size": normalized_image_size, "size": size},
+                # input_params={"image_size": normalized_image_size, "size": size},
             )
 
         new_urls = []
@@ -249,7 +249,7 @@ def image_create_with_seedream5_pro(
             success=True,
             images=uploaded_urls,
             usage=usage,
-            input_params={"image_size": normalized_image_size, "size": size},
+            # input_params={"image_size": normalized_image_size, "size": size},
         )
     except Exception:
         return ImageToolResponse(
@@ -258,5 +258,5 @@ def image_create_with_seedream5_pro(
             error="image_tool_failed",
             images=[],
             success=False,
-            input_params={"image_size": normalized_image_size, "size": size},
+            # input_params={"image_size": normalized_image_size, "size": size},
         )

@@ -1,7 +1,22 @@
 import uuid
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_serializer
+from pydantic import BaseModel, ConfigDict, Field, field_serializer
+
+from api.tools.images.types import GeminiImageGenerationParams
+from api.tools.images.types import GeminiImageModel as GeminiImageModel
+
+__all__ = [
+    "GPTModel",
+    "GPTImageModel",
+    "GeminiImageModel",
+    "ToolResponse",
+    "ImageInfo",
+    "SeedreamUsage",
+    "GPTImageGenerationParams",
+    "GeminiImageGenerationParams",
+    "ImageToolResponse",
+]
 
 type GPTModel = Literal[
     "gpt-6.1-sol",
@@ -11,12 +26,6 @@ type GPTImageModel = Literal[
     "gpt-image-2",
     "gpt-image-2.5-sunburst",
     "gpt-image-2.5-flare",
-]
-type GeminiImageModel = Literal[
-    "gemini-3.1-flash-lite-image",
-    "gemini-3.1-flash-image",
-    "gemini-nano-banana-2.1",
-    "gemini-3-pro-image",
 ]
 
 
@@ -63,10 +72,40 @@ class SeedreamUsage:
     total_tokens: int
 
 
+class GPTImageGenerationParams(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    prompt: str | None = Field(
+        default=None, description="改写后的生成提示词；未返回时使用原始提示词"
+    )
+    images: list[str] | None = Field(
+        default=None, description="工具返回的输入图片引用；未返回时为空"
+    )
+    model: GPTImageModel | None = None
+    action: str | None = None
+    size: str | None = None
+    quality: str | None = None
+    background: str | None = None
+    output_format: str | None = None
+    output_compression: int | None = None
+    input_fidelity: str | None = None
+    moderation: str | None = None
+    partial_images: int | None = None
+    input_image_mask: dict[str, str] | None = None
+    id: str | None = None
+    type: str | None = None
+    status: str | None = None
+    error: dict | None = None
+    calls: list["GPTImageGenerationParams"] | None = None
+
+
 class ImageToolResponse(BaseModel):
     image_model: str | None = None
     content: str = Field()
-    input_params: dict | None = None
+    generation_params: GPTImageGenerationParams | GeminiImageGenerationParams | None = (
+        None
+    )
+    instructions: str | None = None
     success: bool = True
     error: str | None = None
     images: list[dict] | None = None

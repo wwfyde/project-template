@@ -23,7 +23,7 @@ from pytest import MonkeyPatch
 
 from api.schemas.ai_tools import GPTImageRequest
 from api.tools.images import gpt
-from api.tools.types import ImageInfo
+from api.tools.types import GPTImageGenerationParams, ImageInfo
 
 
 def image_bytes(image_format: str = "PNG") -> bytes:
@@ -161,6 +161,19 @@ async def test_generation_filters_parameters_and_uploads_requested_format(
     assert result.images == [
         api_env.upload.return_value.model_dump(mode="json", exclude_none=True)
     ]
+    assert result.instructions == "draw a cup"
+    assert isinstance(result.generation_params, GPTImageGenerationParams)
+    assert result.generation_params.model_dump(exclude_none=True) == {
+        "prompt": "draw a cup",
+        "model": "gpt-image-2.5-sunburst",
+        "action": "generate",
+        "size": "1024x1024",
+        "quality": "high",
+        "background": "opaque",
+        "output_format": "jpeg",
+        "output_compression": 70,
+        "moderation": "low",
+    }
 
 
 @pytest.mark.asyncio
@@ -180,6 +193,8 @@ async def test_auto_selects_endpoint_from_materialized_images(
     assert [request.url.path for request in api_env.requests] == [
         "/v1/images/edits" if has_images else "/v1/images/generations"
     ]
+    assert isinstance(result.generation_params, GPTImageGenerationParams)
+    assert result.generation_params.action == ("edit" if has_images else "generate")
 
 
 @pytest.mark.asyncio
@@ -257,6 +272,12 @@ async def test_edit_resolves_all_input_forms_and_native_mask_without_mutation(
     assert fields["input_fidelity"] == b"high"
     assert fields["moderation"] == b"low"
     assert "action" not in fields and "partial_images" not in fields
+    assert isinstance(result.generation_params, GPTImageGenerationParams)
+    assert result.generation_params.input_fidelity == "high"
+    assert result.generation_params.moderation == "low"
+    metadata = result.generation_params.model_dump(exclude_none=True)
+    assert "mask" not in metadata and "partial_images" not in metadata
+    assert encoded not in result.generation_params.model_dump_json()
     pil_image.close()
 
 
@@ -310,4 +331,100 @@ async def test_no_image_result_preserves_usage(api_env: ImageAPIEnvironment) -> 
     assert result.error == "no_image_returned"
     assert result.images == []
     assert result.usage == api_env.response["usage"]
+    assert result.instructions == "draw"
+    assert isinstance(result.generation_params, GPTImageGenerationParams)
+    assert result.generation_params.prompt == "draw"
+    assert result.generation_params.action == "generate"
+    assert result.generation_params.model == "gpt-image-2.5-flare"
+    assert result.generation_params.calls is None
     api_env.upload.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("revised_prompt", [None, "", "A blue ceramic cup"])
+async def test_returned_metadata_overrides_request_and_maps_revised_prompt(
+    api_env: ImageAPIEnvironment, revised_prompt: str | None
+) -> None:
+    encoded = base64.b64encode(image_bytes()).decode()
+    api_env.response.update(
+        {
+            "quality": "high",
+            "size": "1536x1024",
+            "background": "transparent",
+            "output_format": "png",
+            "output_compression": 0,
+            "cached": False,
+            "data": [
+                {
+                    "b64_json": encoded,
+                    "revised_prompt": revised_prompt,
+                    "url": "https://result.example/image.png",
+                }
+            ],
+        }
+    )
+    result = await gpt.image_create_with_image_api(
+        prompt="draw a cup",
+        model="gpt-image-2",
+        image_param=gpt.ImageParam(
+            quality="low",
+            size="1024x1024",
+            background="opaque",
+            output_compression=80,
+        ),
+    )
+    expected_prompt = "draw a cup" if revised_prompt is None else revised_prompt
+    parameters = result.generation_params
+    assert isinstance(parameters, GPTImageGenerationParams)
+    assert parameters.prompt == expected_prompt
+    assert parameters.model == "gpt-image-2"
+    assert parameters.action == "generate"
+    assert parameters.quality == "high"
+    assert parameters.size == "1536x1024"
+    assert parameters.background == "transparent"
+    assert parameters.output_compression == 0
+    serialized = json.loads(result.model_dump_json(exclude_none=True))
+    metadata = serialized["generation_params"]
+    assert serialized["instructions"] == "draw a cup"
+    assert metadata["prompt"] == expected_prompt
+    assert metadata["cached"] is False
+    assert (
+        not {"revised_prompt", "b64_json", "url", "data", "usage", "created"}
+        & metadata.keys()
+    )
+    assert encoded not in json.dumps(metadata)
+
+
+@pytest.mark.asyncio
+async def test_multiple_images_keep_independent_prompts_and_shared_metadata(
+    api_env: ImageAPIEnvironment,
+) -> None:
+    encoded = base64.b64encode(image_bytes()).decode()
+    api_env.response.update(
+        {
+            "quality": "high",
+            "data": [
+                {"b64_json": encoded, "revised_prompt": "First image"},
+                {"b64_json": encoded, "revised_prompt": ""},
+                {"b64_json": encoded},
+            ],
+        }
+    )
+    result = await gpt.image_create_with_image_api(prompt="draw three images")
+    assert result.instructions == "draw three images"
+    parameters = result.generation_params
+    assert isinstance(parameters, GPTImageGenerationParams)
+    calls = parameters.calls
+    assert calls is not None and len(calls) == 3
+    assert [call.prompt for call in calls] == ["First image", "", "draw three images"]
+    assert all(call.quality == "high" and call.action == "generate" for call in calls)
+    assert all(call.model == "gpt-image-2.5-flare" for call in calls)
+    assert all(call.calls is None for call in calls)
+    assert calls[0] is not calls[1] and calls[1] is not calls[2]
+    assert api_env.upload.await_count == 3
+    serialized = result.model_dump(mode="json", exclude_none=True)
+    assert set(serialized["generation_params"]) == {"calls"}
+    assert all(
+        not {"revised_prompt", "b64_json", "url"} & call.keys()
+        for call in serialized["generation_params"]["calls"]
+    )

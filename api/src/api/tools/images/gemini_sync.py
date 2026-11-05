@@ -3,7 +3,7 @@ from collections.abc import Generator
 from contextlib import contextmanager
 from io import BytesIO
 from pathlib import Path
-from typing import Literal, cast, get_args
+from typing import Literal, get_args
 from urllib.parse import urlsplit
 
 import httpx2
@@ -16,6 +16,7 @@ from PIL import Image
 
 from api.core import settings
 from api.core.storage import parse_data_url_to_bytes
+from api.tools.images.types import GeminiImageGenerationParams
 from api.tools.types import GeminiImageModel, ImageToolResponse
 from api.utils.object_storage import upload_image_sync
 
@@ -23,7 +24,6 @@ logger = logging.getLogger(__name__)
 
 type GeminiProvider = Literal["google", "laozhang"]
 type ImageSize = Literal["1K", "2K", "4K"]
-type ImageMimeType = Literal["image/png", "image/jpeg", "image/webp"]
 
 
 class _GeminiToolError(Exception):
@@ -157,7 +157,7 @@ def handle_gemini_image_response(
             metadata = upload_image_sync(
                 filename,
                 image_bytes,
-                mime_type=cast(ImageMimeType, mime_type),
+                mime_type=mime_type,
                 prefix="creative/gemini",
                 rename=False,
             )
@@ -195,7 +195,7 @@ def _prepare_request(
     image_urls: str | list[str] | None,
     aspect_ratio: str | None,
     image_size: ImageSize | None,
-) -> tuple[list[str | types.Part], types.GenerateContentConfig]:
+) -> tuple[types.ContentListUnionDict, types.GenerateContentConfig]:
     if model not in get_args(GeminiImageModel.__value__):
         raise _GeminiToolError("unsupported_model", "不支持当前 Gemini 图片模型")
     if model == "gemini-3.1-flash-lite-image":
@@ -207,27 +207,29 @@ def _prepare_request(
     sources = _image_inputs(image_urls)
     if len(sources) > 14:
         raise _GeminiToolError("too_many_images", "当前模型最多支持 14 张参考图")
+    image_config = types.ImageConfig(
+        aspect_ratio=None if aspect_ratio == "auto" else aspect_ratio,
+        image_size=image_size,
+    )
     config = types.GenerateContentConfig(
-        response_modalities=["TEXT", "IMAGE"],
-        image_config=types.ImageConfig(
-            aspect_ratio=None if aspect_ratio == "auto" else aspect_ratio,
-            image_size=image_size,
-        ),
+        response_modalities=["TEXT", "IMAGE"], image_config=image_config
     )
     if model in {"gemini-3.1-flash-image", "gemini-nano-banana-2.1"}:
         config.temperature = 1
         config.top_p = 0.95
         config.safety_settings = [
-            types.SafetySetting(category=category, threshold="OFF")
+            types.SafetySetting(
+                category=category, threshold=types.HarmBlockThreshold.OFF
+            )
             for category in (
-                "HARM_CATEGORY_HATE_SPEECH",
-                "HARM_CATEGORY_DANGEROUS_CONTENT",
-                "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-                "HARM_CATEGORY_HARASSMENT",
+                types.HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+                types.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+                types.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+                types.HarmCategory.HARM_CATEGORY_HARASSMENT,
             )
         ]
         config.thinking_config = types.ThinkingConfig(thinking_level=ThinkingLevel.HIGH)
-        config.image_config.image_size = image_size or "2K"
+        image_config.image_size = image_size or "2K"
     return [prompt, *[_image_part(source) for source in sources]], config
 
 
@@ -263,16 +265,29 @@ def image_create_with_gemini(
     image_size: ImageSize | None = None,
     provider: GeminiProvider = "google",
 ) -> ImageToolResponse:
+    generation_params: GeminiImageGenerationParams | None = None
     try:
         contents, config = _prepare_request(
             prompt, model, image_urls, aspect_ratio, image_size
+        )
+        config_params = config.model_dump(mode="json", exclude_none=True)
+        config_params.update(config_params.pop("image_config", {}))
+        generation_params = GeminiImageGenerationParams(
+            prompt=prompt,
+            images=_image_inputs(image_urls) or None,
+            model=model,
+            provider=provider,
+            **config_params,
         )
         with _create_client(provider) as client:
             response = client.models.generate_content(
                 model=model, contents=contents, config=config
             )
+        generation_params.model_version = response.model_version
         result = handle_gemini_image_response(response)
         result.image_model = result.image_model or model
-        return result
     except Exception as error:
-        return _request_failure(model, provider, error)
+        result = _request_failure(model, provider, error)
+    result.generation_params = generation_params
+    result.instructions = prompt
+    return result

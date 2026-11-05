@@ -1,6 +1,7 @@
 """Responses image inputs are prepared without external network or model calls."""
 
 import base64
+import json
 from collections.abc import Callable, Iterable, Iterator
 from io import BytesIO
 from types import SimpleNamespace
@@ -9,11 +10,14 @@ from unittest.mock import AsyncMock, Mock
 import httpx2
 import pytest
 from openai.types.responses import ResponseInputImageParam
+from openai.types.responses.response_output_item import ImageGenerationCall
+from openai.types.responses.tool import ImageGeneration as ResponseImageGeneration
 from openai.types.responses.tool_param import ImageGenerationInputImageMask
 from PIL import Image, UnidentifiedImageError
 from pytest import MonkeyPatch
 
 from api.tools.images import gpt
+from api.tools.types import GPTImageGenerationParams, ImageInfo
 
 
 def png() -> bytes:
@@ -31,7 +35,9 @@ def responses_create(monkeypatch: MonkeyPatch) -> AsyncMock:
     monkeypatch.setattr(gpt, "model_config", SimpleNamespace(model="test-main-model"))
     monkeypatch.setattr(gpt.settings, "proxy_url", None)
     create = AsyncMock(
-        return_value=SimpleNamespace(usage=None, output=[], output_text="")
+        return_value=SimpleNamespace(
+            usage=None, output=[], output_text="", tools=[], model="response-main-model"
+        )
     )
     client = SimpleNamespace(responses=SimpleNamespace(create=create))
     monkeypatch.setattr(gpt, "get_openai_client", lambda: client)
@@ -296,3 +302,236 @@ async def test_single_iterable_image_values_are_not_split(
         if kind == "native"
         else {"type": "input_image", "detail": "auto", "image_url": data_url()}
     ]
+
+
+@pytest.mark.asyncio
+async def test_generation_params_prefer_output_then_echoed_tool_then_sent_tool(
+    monkeypatch: MonkeyPatch, responses_create: AsyncMock
+) -> None:
+    responses_create.return_value.tools = [
+        ResponseImageGeneration(
+            type="image_generation",
+            model="gpt-image-2.5-sunburst",
+            quality="medium",
+            size="1024x1536",
+            background=None,
+            output_compression=50,
+            partial_images=0,
+        )
+    ]
+    responses_create.return_value.output = [
+        ImageGenerationCall.model_validate(
+            {
+                "id": "call-success",
+                "type": "image_generation_call",
+                "status": "completed",
+                "result": base64.b64encode(png()).decode(),
+                "model": "gpt-image-2.5-flare",
+                "quality": "high",
+                "size": None,
+                "background": None,
+                "action": "auto",
+                "output_compression": 0,
+                "cached": False,
+                "revised_prompt": "",
+            }
+        )
+    ]
+    upload = AsyncMock(
+        return_value=ImageInfo(
+            id="uploaded",
+            filename="generated.png",
+            url="https://cdn.example/image.png",
+            mime_type="image/png",
+        )
+    )
+    monkeypatch.setattr(gpt, "upload_image", upload)
+    result = await gpt.image_create_with_gpt_image(
+        prompt="draw",
+        image_param=gpt.ImageParam(
+            model="gpt-image-2",
+            action="generate",
+            quality="low",
+            background="transparent",
+            output_compression=80,
+            partial_images=2,
+        ),
+    )
+    parameters = result.generation_params
+    assert isinstance(parameters, GPTImageGenerationParams)
+    assert parameters.id == "call-success"
+    assert parameters.type == "image_generation_call"
+    assert parameters.status == "completed"
+    assert parameters.model == "gpt-image-2.5-flare"
+    assert parameters.quality == "high"
+    assert parameters.size == "1024x1536"
+    assert parameters.background == "transparent"
+    assert parameters.action == "auto"
+    assert parameters.output_format == "png"
+    assert parameters.output_compression == 0
+    assert parameters.partial_images == 0
+    assert parameters.prompt == ""
+    dumped = parameters.model_dump(exclude_none=True)
+    assert dumped["cached"] is False
+    assert "revised_prompt" not in dumped
+    assert "result" not in dumped
+    assert result.instructions == "draw"
+    upload.assert_awaited_once_with("generated.png", png(), prefix="creative/gpt")
+
+
+@pytest.mark.asyncio
+async def test_failed_call_keeps_error_and_falls_back_to_image_tool_model(
+    monkeypatch: MonkeyPatch, responses_create: AsyncMock
+) -> None:
+    error = {
+        "code": "moderation_blocked",
+        "type": "image_generation_error",
+        "message": "Blocked",
+    }
+    responses_create.return_value.tools = [
+        ResponseImageGeneration(type="image_generation", model="gpt-image-2.5-sunburst")
+    ]
+    responses_create.return_value.output = [
+        ImageGenerationCall.model_validate(
+            {
+                "id": "call-failed",
+                "type": "image_generation_call",
+                "status": "failed",
+                "result": None,
+                "model": None,
+                "error": error,
+            }
+        )
+    ]
+    upload = AsyncMock()
+    monkeypatch.setattr(gpt, "upload_image", upload)
+    result = await gpt.image_create_with_gpt_image(prompt="draw")
+    assert result.success is False
+    assert isinstance(result.generation_params, GPTImageGenerationParams)
+    assert result.generation_params.id == "call-failed"
+    assert result.generation_params.status == "failed"
+    assert result.generation_params.model == "gpt-image-2.5-sunburst"
+    assert result.generation_params.error == error
+    assert result.generation_params.prompt == "draw"
+    assert result.instructions == "draw"
+    assert "result" not in result.generation_params.model_dump(exclude_none=True)
+    upload.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_multiple_calls_keep_separate_resolved_generation_params(
+    monkeypatch: MonkeyPatch, responses_create: AsyncMock
+) -> None:
+    responses_create.return_value.tools = [
+        ResponseImageGeneration(
+            type="image_generation", model="gpt-image-2.5-sunburst", quality="medium"
+        )
+    ]
+    responses_create.return_value.output = [
+        ImageGenerationCall.model_validate(
+            {
+                "id": "first-call",
+                "type": "image_generation_call",
+                "status": "completed",
+                "result": base64.b64encode(png()).decode(),
+                "model": "gpt-image-2",
+                "quality": "high",
+                "revised_prompt": "First image",
+            }
+        ),
+        ImageGenerationCall.model_validate(
+            {
+                "id": "second-call",
+                "type": "image_generation_call",
+                "status": "completed",
+                "result": base64.b64encode(png()).decode(),
+                "quality": None,
+            }
+        ),
+    ]
+    upload = AsyncMock(
+        return_value=ImageInfo(
+            id="uploaded",
+            filename="generated.png",
+            url="https://cdn.example/image.png",
+            mime_type="image/png",
+        )
+    )
+    monkeypatch.setattr(gpt, "upload_image", upload)
+    result = await gpt.image_create_with_gpt_image(prompt="draw two images")
+    assert isinstance(result.generation_params, GPTImageGenerationParams)
+    assert set(result.generation_params.model_dump(exclude_none=True)) == {"calls"}
+    assert result.generation_params.calls is not None
+    first, second = result.generation_params.calls
+    assert isinstance(first, GPTImageGenerationParams)
+    assert isinstance(second, GPTImageGenerationParams)
+    assert (first.id, second.id) == ("first-call", "second-call")
+    assert (first.model, second.model) == (
+        "gpt-image-2",
+        "gpt-image-2.5-sunburst",
+    )
+    assert (first.quality, second.quality) == ("high", "medium")
+    assert first.prompt == "First image"
+    assert second.prompt == "draw two images"
+    serialized = json.loads(result.model_dump_json(exclude_none=True))
+    assert serialized["instructions"] == "draw two images"
+    calls = serialized["generation_params"]["calls"]
+    assert [call["prompt"] for call in calls] == ["First image", "draw two images"]
+    assert all("revised_prompt" not in call and "result" not in call for call in calls)
+    assert upload.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_no_call_returns_sent_generation_params_including_mask(
+    responses_create: AsyncMock,
+) -> None:
+    responses_create.return_value.tools = None
+    parameters = gpt.ImageParam(
+        model="gpt-image-2", action="auto", output_compression=0, partial_images=0
+    )
+    mask = ImageGenerationInputImageMask(file_id="file-mask")
+    result = await gpt.image_create_with_gpt_image(
+        prompt="edit",
+        images=ResponseInputImageParam(
+            type="input_image", detail="auto", file_id="file-reference"
+        ),
+        mask=mask,
+        model="gpt-image-2.5-sunburst",
+        image_param=parameters,
+    )
+    assert isinstance(result.generation_params, GPTImageGenerationParams)
+    assert result.generation_params.model_dump(exclude_none=True) == {
+        **parameters.model_dump(exclude_none=True),
+        "prompt": "edit",
+        "input_image_mask": mask,
+    }
+    assert result.generation_params.model == "gpt-image-2"
+    assert result.instructions == "edit"
+    assert result.error == "no_image_returned"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("rewrite_state", ["present", "null", "missing"])
+async def test_prompt_rewrite_and_original_instructions_serialize_separately(
+    responses_create: AsyncMock, rewrite_state: str
+) -> None:
+    original = "Original request"
+    output: dict[str, object] = {
+        "id": "call-rewrite",
+        "type": "image_generation_call",
+        "status": "completed",
+    }
+    if rewrite_state != "missing":
+        output["revised_prompt"] = (
+            "Rewritten prompt" if rewrite_state == "present" else None
+        )
+    responses_create.return_value.output = [ImageGenerationCall.model_validate(output)]
+    result = await gpt.image_create_with_gpt_image(prompt=original)
+    assert isinstance(result.generation_params, GPTImageGenerationParams)
+    expected = "Rewritten prompt" if rewrite_state == "present" else original
+    assert result.generation_params.prompt == expected
+    assert result.instructions == original
+    serialized = json.loads(result.model_dump_json(exclude_none=True))
+    assert serialized["generation_params"]["prompt"] == expected
+    assert serialized["instructions"] == original
+    assert "revised_prompt" not in serialized["generation_params"]

@@ -16,7 +16,6 @@ from api.tools.types import ImageInfo
 type MimeType = Literal["image/png", "image/jpeg", "image/webp"]
 
 
-@lru_cache
 def get_oss_client() -> AsyncClient:
     oss_config = settings.oss
     if oss_config is None:
@@ -66,15 +65,16 @@ async def upload_image(
         storage_key = f"{storage_prefix.strip('/')}/{upload_name}"
         original_address = f"{oss_config.bucket_name}.oss-{oss_config.region or 'cn-hangzhou'}.aliyuncs.com"
 
-        result = await get_oss_client().put_object(
-            oss.PutObjectRequest(
-                bucket=oss_config.bucket_name,
-                key=storage_key,
-                body=data,
-                content_type=mime_type,
-                content_length=len(data),
+        async with get_oss_client() as client:
+            result = await client.put_object(
+                oss.PutObjectRequest(
+                    bucket=oss_config.bucket_name,
+                    key=storage_key,
+                    body=data,
+                    content_type=mime_type,
+                    content_length=len(data),
+                )
             )
-        )
         if not result.etag:
             raise RuntimeError("Aliyun OSS upload did not return an ETag")
 

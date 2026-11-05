@@ -23,7 +23,7 @@ from pydantic import MISSING, BaseModel, Field
 
 from api.core import settings
 from api.tools.images.utils import decode_data_url
-from api.tools.types import GPTImageModel, ImageToolResponse
+from api.tools.types import GPTImageGenerationParams, GPTImageModel, ImageToolResponse
 from api.utils.object_storage import upload_image
 
 model_config = settings.providers.openai
@@ -176,9 +176,34 @@ async def image_create_with_gpt_image(
         tool_choice={"type": "image_generation"},
     )
     usage = response.usage.model_dump(exclude_none=True) if response.usage else None
+    tool_params = {
+        "prompt": prompt,
+        **{key: value for key, value in tool.items() if key != "type"},
+    }
+    for response_tool in response.tools or []:
+        if response_tool.type == "image_generation":
+            tool_params.update(
+                response_tool.model_dump(
+                    exclude={"type"}, exclude_none=True, exclude_unset=True
+                )
+            )
+            break
+    if "revised_prompt" in tool_params:
+        tool_params["prompt"] = tool_params.pop("revised_prompt")
+    call_params: list[GPTImageGenerationParams] = []
     uploaded_images: list[dict] = []
     for output in response.output:
-        if not isinstance(output, ImageGenerationCall) or not output.result:
+        if not isinstance(output, ImageGenerationCall):
+            continue
+        output_params = output.model_dump(
+            exclude={"result"}, exclude_none=True, exclude_unset=True
+        )
+        if "revised_prompt" in output_params:
+            output_params["prompt"] = output_params.pop("revised_prompt")
+        call_params.append(
+            GPTImageGenerationParams.model_validate({**tool_params, **output_params})
+        )
+        if not output.result:
             continue
         metadata = await upload_image(
             "generated.png",
@@ -186,6 +211,12 @@ async def image_create_with_gpt_image(
             prefix="creative/gpt",
         )
         uploaded_images.append(metadata.model_dump(mode="json", exclude_none=True))
+
+    generation_params = GPTImageGenerationParams.model_validate(tool_params)
+    if len(call_params) == 1:
+        generation_params = call_params[0]
+    elif call_params:
+        generation_params = GPTImageGenerationParams(calls=call_params)
 
     return ImageToolResponse(
         image_model=image_model,
@@ -195,6 +226,8 @@ async def image_create_with_gpt_image(
         error=None if uploaded_images else "no_image_returned",
         images=uploaded_images,
         usage=usage,
+        generation_params=generation_params,
+        instructions=prompt,
     )
 
 
@@ -303,8 +336,33 @@ async def image_create_with_image_api(
 
     usage = response.usage.model_dump(exclude_none=True) if response.usage else None
     output_format = response.output_format or image_param.output_format
+    generation_values = {
+        "prompt": prompt,
+        "model": model,
+        "action": action,
+        "moderation": image_param.moderation,
+        **{key: value for key, value in params.items() if key != "mask"},
+        **response.model_dump(
+            exclude={"data", "usage", "created"},
+            exclude_none=True,
+            exclude_unset=True,
+        ),
+    }
+    if "revised_prompt" in generation_values:
+        generation_values["prompt"] = generation_values.pop("revised_prompt")
+    image_params: list[GPTImageGenerationParams] = []
     uploaded_images: list[dict] = []
     for image in response.data or []:
+        output_params = image.model_dump(
+            exclude={"b64_json", "url"}, exclude_none=True, exclude_unset=True
+        )
+        if "revised_prompt" in output_params:
+            output_params["prompt"] = output_params.pop("revised_prompt")
+        image_params.append(
+            GPTImageGenerationParams.model_validate(
+                {**generation_values, **output_params}
+            )
+        )
         if not image.b64_json:
             continue
         metadata = await upload_image(
@@ -314,6 +372,12 @@ async def image_create_with_image_api(
         )
         uploaded_images.append(metadata.model_dump(mode="json", exclude_none=True))
 
+    generation_params = GPTImageGenerationParams.model_validate(generation_values)
+    if len(image_params) == 1:
+        generation_params = image_params[0]
+    elif image_params:
+        generation_params = GPTImageGenerationParams(calls=image_params)
+
     return ImageToolResponse(
         image_model=model,
         content="" if uploaded_images else "模型未返回图片，请调整提示词后重试",
@@ -321,6 +385,8 @@ async def image_create_with_image_api(
         error=None if uploaded_images else "no_image_returned",
         images=uploaded_images,
         usage=usage,
+        generation_params=generation_params,
+        instructions=prompt,
     )
 
 

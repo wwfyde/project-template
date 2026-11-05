@@ -2,7 +2,7 @@
 
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Path, Query
 
 from api.routes.images import ImageRoute
 from api.schemas.ai_tools import (
@@ -25,7 +25,8 @@ from api.tools.images import (
     seedream5_pro,
 )
 from api.tools.images.gpt import ImageParam
-from api.tools.types import ImageToolResponse
+from api.tools.images.types import GeminiImageModel
+from api.tools.types import GPTImageModel, ImageToolResponse
 
 ai_tools_router = APIRouter(
     prefix="/ai-tools/images",
@@ -33,7 +34,31 @@ ai_tools_router = APIRouter(
     route_class=ImageRoute,
 )
 
+
 # Sync routes run in FastAPI's worker pool; tools can use asyncio.run for OSS.
+@ai_tools_router.post("/gemini/{model_name}", response_model=ImageToolResponse)
+async def gemini_31_flash_lite_image(
+    model_name: Annotated[GeminiImageModel, Path()],
+    payload: Gemini31FlashLiteImageRequest,
+    provider: Annotated[Literal["google", "laozhang"], Query()] = "google",
+) -> ImageToolResponse:
+    try:
+        return await gemini.image_create_with_gemini(
+            prompt=payload.prompt,
+            model=model_name,
+            image_urls=payload.image_urls,
+            aspect_ratio=payload.aspect_ratio,
+            image_size=payload.image_size,
+            provider=provider,
+        )
+    except Exception:
+        return ImageToolResponse(
+            image_model=model_name,
+            success=False,
+            error="image_tool_failed",
+            content="Image generation or upload failed.",
+            images=[],
+        )
 
 
 @ai_tools_router.post(
@@ -310,6 +335,35 @@ async def gpt_image_25_sunburst(
     except Exception:
         return ImageToolResponse(
             image_model="gpt-image-2.5-sunburst",
+            success=False,
+            error="image_tool_failed",
+            content="Image generation or upload failed.",
+            images=[],
+        )
+
+
+@ai_tools_router.post("/gpt/{model_name}", response_model=ImageToolResponse)
+async def gpt_image_by_model(
+    model_name: Annotated[GPTImageModel, Path()],
+    payload: GPTImageRequest,
+    provider: Annotated[Literal["openai", "evolink"], Query()] = "openai",
+) -> ImageToolResponse:
+    try:
+        return await gpt.image_create_with_gpt_image(
+            prompt=payload.prompt,
+            images=payload.image_urls,
+            mask=payload.mask_url,
+            model=model_name,
+            image_param=ImageParam(
+                action=payload.action,
+                quality=payload.quality,
+                background=payload.background,
+                output_format=payload.output_format,
+            ),
+        )
+    except Exception:
+        return ImageToolResponse(
+            image_model=model_name,
             success=False,
             error="image_tool_failed",
             content="Image generation or upload failed.",
