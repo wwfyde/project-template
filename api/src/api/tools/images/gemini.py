@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import Literal, get_args
 
 import httpx2
-import requests
 import uuid_utils as uuid
 from google import genai
 from google.genai.types import (
@@ -101,7 +100,7 @@ def _image_part(source: str) -> Part:
     if source.startswith("data:"):
         content = decode_data_url(source)
     elif source.startswith(("https://", "http://")):
-        response = requests.get(source, timeout=175)
+        response = httpx2.get(source, timeout=175)
         response.raise_for_status()
         content = response.content
     else:

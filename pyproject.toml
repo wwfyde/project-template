@@ -28,7 +28,7 @@ target-version = "py314"
 quote-style = "double"
 
 [tool.ruff.lint]
-select = ["ANN"]
+select = ["ANN", "E", "F", "I"]
 
 [tool.tombi.format.rules]
 indent-style = "space"
@@ -50,7 +50,7 @@ members = [
     "python-extension-with-rust",
     "python/use-extension",
     "my-python-extension",
-    "mylib",
+    "mylib"
 ]
 
 [tool.uv.sources]

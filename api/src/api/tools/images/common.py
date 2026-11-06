@@ -1,18 +1,27 @@
 from io import BytesIO
+from typing import TypeIs
 
 import httpx2
 import uuid_utils
 from PIL import Image
 
-from api.tools.types import ImageInfo
+from api.tools.types import ImageInfo, MimeType
 
-allowed_mime_types = [
-    "image/png",
-    "image/jpeg",
-    "image/webp",
-    "image/heic",
-    "image/heif",
-]
+
+def get_mime_type(pil_format: str | None) -> MimeType:
+    match (pil_format or "png").lower():
+        case "png":
+            return "image/png"
+        case "jpeg" | "jpg":
+            return "image/jpeg"
+        case "webp":
+            return "image/webp"
+        case other:
+            raise ValueError(f"Unsupported image format: {other}")
+
+
+def is_mime_type(value: str) -> TypeIs[MimeType]:
+    return value in MimeType
 
 
 def get_image_info(url: str) -> ImageInfo:
@@ -26,11 +35,16 @@ def get_image_info(url: str) -> ImageInfo:
     filename = f"{id}.{img_format.replace('jpeg', 'jpg')}"
     # metadata = {"mime_type": f"image/{img_format}"}
 
+    mime_type = f"image/{img_format}"
+
+    if not is_mime_type(mime_type):
+        raise ValueError(f"Unsupported image format: {img_format}")
+
     return ImageInfo(
         url=url,
         width=width,
         height=height,
         id=id,
         filename=filename,
-        mime_type=f"image/{img_format}",  # noqa  # ty: ignore
+        mime_type=mime_type,
     )

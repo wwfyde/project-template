@@ -13,6 +13,7 @@ __all__ = [
     "GPTImageGenerationParams",
     "GeminiImageGenerationParams",
     "ImageToolResponse",
+    "MimeType",
 ]
 
 type GPTModel = Literal[
@@ -23,6 +24,14 @@ type GPTImageModel = Literal[
     "gpt-image-2",
     "gpt-image-2.5-sunburst",
     "gpt-image-2.5-flare",
+]
+
+type MimeType = Literal[
+    "image/png",
+    "image/jpeg",
+    "image/webp",
+    "image/heic",
+    "image/heif",
 ]
 
 
@@ -37,8 +46,8 @@ class ImageInfo(BaseModel):
     filename: str
     original_filename: str | None = None
     file_size: int | None = None
-    mime_type: Literal["image/png", "image/jpeg", "image/webp"]
-    image_format: Literal["png", "jpg", "webp"] | None = None
+    mime_type: MimeType
+    image_format: Literal["png", "jpg", "webp", "heic", "heif"] | None = None
     width: int | None = None
     height: int | None = None
     content: str | None = None

@@ -7,13 +7,13 @@ requires-python = ">=3.14"
 authors = [{ name = "wwfyde", email = "wwfyde@gmail.com" }]
 dependencies = [
     "alembic>=1.20.0",
-    "alibabacloud-oss-v2>=1.4.0",
+    "alibabacloud-oss-v2>=1.4.1",
     "anthropic>=2.5.0",
     "claude-agent-sdk>=0.2.126",
     "dashscope>=1.26.4",
     "fastapi>=0.162.0",
     "fastapi-redis-sdk[otel]>=0.9.1",  # https://redis.github.io/fastapi-redis-sdk/latest/
-    "google-genai[httpx2]>=2.34.0",
+    "google-genai>=3.0.0",
     "httpx2[http2,socks]>=2.16.0",
     "langchain>=1.3.2",
     "langchain-openai>=1.2.2",
@@ -49,7 +49,13 @@ api = "api:main"
 dev = "api.commands:dev"
 
 [dependency-groups]
-dev = ["pyrefly>=1.1.1", "pytest>=9.0.2", "pytest-asyncio>=1.3.0", "ruff>=0.14.14", "ty>=0.0.88"]
+dev = [
+    "pyrefly>=1.1.1",
+    "pytest>=9.0.2",
+    "pytest-asyncio>=1.3.0",
+    "ruff>=0.14.14",
+    "ty==0.0.98",
+]
 
 [build-system]
 requires = ["uv_build>=0.11.6,<0.12.0"]

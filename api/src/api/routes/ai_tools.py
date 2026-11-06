@@ -36,23 +36,23 @@ ai_tools_router = APIRouter(
 
 
 # Sync routes run in FastAPI's worker pool; tools can use asyncio.run for OSS.
-@ai_tools_router.post("/gemini/{model_name}", response_model=ImageToolResponse)
+@ai_tools_router.post("/gemini/{model_id}", response_model=ImageToolResponse)
 async def gemini_31_flash_lite_image(
-    model_name: Annotated[GeminiImageModel, Path()],
+    model_id: Annotated[GeminiImageModel, Path()],
     payload: Gemini31FlashLiteImageRequest,
     provider: Annotated[Literal["google", "laozhang"], Query()] = "google",
 ) -> ImageToolResponse:
     try:
         return await gemini.image_create_with_gemini(
             prompt=payload.prompt,
-            model=model_name,
+            model=model_id,
             image_urls=payload.image_urls,
             aspect_ratio=payload.aspect_ratio,
             image_size=payload.image_size,
         )
     except Exception:
         return ImageToolResponse(
-            image_model=model_name,
+            image_model=model_id,
             success=False,
             error="image_tool_failed",
             content="Image generation or upload failed.",
@@ -336,9 +336,9 @@ async def gpt_image_25_sunburst(
         )
 
 
-@ai_tools_router.post("/gpt/{model_name}", response_model=ImageToolResponse)
+@ai_tools_router.post("/gpt/{model_id}", response_model=ImageToolResponse)
 async def gpt_image_by_model(
-    model_name: Annotated[GPTImageModel, Path()],
+    model_id: Annotated[GPTImageModel, Path()],
     payload: GPTImageRequest,
     provider: Annotated[Literal["openai", "evolink"], Query()] = "openai",
 ) -> ImageToolResponse:
@@ -347,7 +347,7 @@ async def gpt_image_by_model(
             prompt=payload.prompt,
             images=payload.image_urls,
             mask=payload.mask_url,
-            model=model_name,
+            model=model_id,
             image_param=ImageParam(
                 action=payload.action,
                 quality=payload.quality,
@@ -357,7 +357,7 @@ async def gpt_image_by_model(
         )
     except Exception:
         return ImageToolResponse(
-            image_model=model_name,
+            image_model=model_id,
             success=False,
             error="image_tool_failed",
             content="Image generation or upload failed.",
