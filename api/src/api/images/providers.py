@@ -56,9 +56,7 @@ def _upstream_status(status: int) -> None:
         )
     if status < 200 or status >= 300:
         # Never expose response bodies: they may contain credentials, prompts, or image data.
-        raise ImageFailure(
-            "provider_failed", "The image provider could not complete the edit", 502
-        )
+        raise ImageFailure("provider_failed", "The image provider could not complete the edit", 502)
 
 
 def _check_request(info: ProviderInfo, request: ProviderInput) -> None:
@@ -75,9 +73,7 @@ def _check_request(info: ProviderInfo, request: ProviderInput) -> None:
             422,
         )
     if request.model not in info.models:
-        raise ImageFailure(
-            "unsupported_model", "The selected model is not enabled", 422
-        )
+        raise ImageFailure("unsupported_model", "The selected model is not enabled", 422)
     if request.operation == "erase" and not request.mask:
         raise ImageFailure("mask_required", "Erase requires a mask", 422)
 
@@ -137,9 +133,7 @@ class HTTPImageProvider:
                 raise _invalid_response()
             return result
         except TimeoutError, httpx2.TimeoutException:
-            raise ImageFailure(
-                "provider_timeout", "The image provider timed out", 504
-            ) from None
+            raise ImageFailure("provider_timeout", "The image provider timed out", 504) from None
         except httpx2.HTTPError:
             raise ImageFailure(
                 "provider_failed", "Could not connect to the image provider", 502
@@ -251,18 +245,14 @@ class SeedreamImageProvider(HTTPImageProvider):
 class _BoundedSDKSession:
     """Use the official SDK's signing/upload logic with bounded HTTP responses."""
 
-    def __init__(
-        self, client: httpx2.Client, deadline: float, cancelled: threading.Event
-    ) -> None:
+    def __init__(self, client: httpx2.Client, deadline: float, cancelled: threading.Event) -> None:
         self.client, self.deadline, self.cancelled = client, deadline, cancelled
 
     def _request(self, method: str, url: str, **kwargs: object) -> httpx2.Response:
         remaining = self.deadline - time.monotonic()
         if remaining <= 0 or self.cancelled.is_set():
             raise TimeoutError()
-        kwargs.pop(
-            "timeout", None
-        )  # The SDK supplies a requests-specific timeout tuple.
+        kwargs.pop("timeout", None)  # The SDK supplies a requests-specific timeout tuple.
         if isinstance(kwargs.get("data"), (str, bytes)):
             kwargs["content"] = kwargs.pop("data")
         with self.client.stream(method, url, timeout=remaining, **kwargs) as response:
@@ -279,9 +269,7 @@ class _BoundedSDKSession:
                 for key, value in response.headers.items()
                 if key not in {"content-encoding", "content-length"}
             }
-            return httpx2.Response(
-                response.status_code, headers=headers, content=bytes(content)
-            )
+            return httpx2.Response(response.status_code, headers=headers, content=bytes(content))
 
     def get(self, url: str, **kwargs: object) -> httpx2.Response:
         return self._request("GET", url, **kwargs)
@@ -319,9 +307,7 @@ class VeImageXProvider:
     async def edit(self, request: ProviderInput) -> bytes:
         _check_request(self.info, request)
         if len(request.image) > 10 * 1024 * 1024:
-            raise ImageFailure(
-                "provider_input_limit", "veImageX accepts images up to 10 MB", 422
-            )
+            raise ImageFailure("provider_input_limit", "veImageX accepts images up to 10 MB", 422)
         with Image.open(BytesIO(request.image)) as source:
             if min(source.size) > 4320 or max(source.size) > 7680:
                 raise ImageFailure(
@@ -335,9 +321,7 @@ class VeImageXProvider:
         except ImageFailure:
             raise
         except TimeoutError, httpx2.TimeoutException:
-            raise ImageFailure(
-                "provider_timeout", "The image provider timed out", 504
-            ) from None
+            raise ImageFailure("provider_timeout", "The image provider timed out", 504) from None
         except Exception:
             # The upstream SDK includes request/response details in its exceptions.
             raise ImageFailure(
@@ -419,9 +403,7 @@ class VeImageXProvider:
 
 
 class LocalImageProvider:
-    info = ProviderInfo(
-        id="local", label="Local", configured=True, operations=["markup", "resize"]
-    )
+    info = ProviderInfo(id="local", label="Local", configured=True, operations=["markup", "resize"])
 
     async def edit(self, request: ProviderInput) -> bytes:
         raise ImageFailure(
@@ -463,9 +445,7 @@ def build_providers(settings: "Settings") -> dict[ProviderId, ImageProvider]:
         preferred = getattr(config, "image_model", None)
         if preferred and preferred not in models:
             models.append(preferred)
-        configured = bool(
-            config and config.base_url and config.api_key.get_secret_value()
-        )
+        configured = bool(config and config.base_url and config.api_key.get_secret_value())
         reason = None if configured else "Provider credentials are not configured"
         if provider_id == "gemini" and getattr(config, "use_vertexai", False):
             configured, reason = (

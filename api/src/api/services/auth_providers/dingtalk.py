@@ -30,9 +30,7 @@ class DingTalkProvider:
         )
         return f"{AUTHORIZE_URL}?{query}"
 
-    async def authenticate(
-        self, code: str, *, nonce: str, code_verifier: str
-    ) -> ProviderIdentity:
+    async def authenticate(self, code: str, *, nonce: str, code_verifier: str) -> ProviderIdentity:
         try:
             async with httpx2.AsyncClient(
                 timeout=self._config.timeout_seconds, follow_redirects=False
@@ -49,15 +47,11 @@ class DingTalkProvider:
                 response.raise_for_status()
                 token_payload = response.json()
                 token = (
-                    token_payload.get("accessToken")
-                    if isinstance(token_payload, dict)
-                    else None
+                    token_payload.get("accessToken") if isinstance(token_payload, dict) else None
                 )
                 if not isinstance(token, str) or not token:
                     raise AuthProviderError("DingTalk returned no access token")
-                response = await client.get(
-                    ME_URL, headers={"x-acs-dingtalk-access-token": token}
-                )
+                response = await client.get(ME_URL, headers={"x-acs-dingtalk-access-token": token})
                 response.raise_for_status()
                 profile = response.json()
                 if not isinstance(profile, dict):

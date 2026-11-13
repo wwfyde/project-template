@@ -110,9 +110,11 @@ mod tests {
             .await
             .unwrap();
         let schema = Schema::new(db.get_database_backend());
-        db.execute(&schema.create_table_from_entity(user::Entity))
-            .await
-            .unwrap();
+        db.execute(&crate::repositories::orm::user::user_table_for_tests(
+            db.get_database_backend(),
+        ))
+        .await
+        .unwrap();
         db.execute(&schema.create_table_from_entity(item::Entity))
             .await
             .unwrap();

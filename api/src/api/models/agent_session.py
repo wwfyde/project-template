@@ -25,9 +25,7 @@ class AgentSessionRecord(Base):
 
 class AgentTurnRecord(Base):
     __tablename__ = "agent_turn"
-    __table_args__ = (
-        Index("ix_agent_turn_session_created_at", "session_id", "created_at", "id"),
-    )
+    __table_args__ = (Index("ix_agent_turn_session_created_at", "session_id", "created_at", "id"),)
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
     session_id: Mapped[str] = mapped_column(
@@ -38,6 +36,4 @@ class AgentTurnRecord(Base):
     document: Mapped[dict[str, Any]] = mapped_column(
         JSON().with_variant(JSONB(), "postgresql"), nullable=False
     )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

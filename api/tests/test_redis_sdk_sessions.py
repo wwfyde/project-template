@@ -139,9 +139,7 @@ def client(app: FastAPI) -> Iterator[TestClient]:
         yield client
 
 
-def test_first_read_does_not_create_session(
-    client: TestClient, store: MemorySessionStore
-) -> None:
+def test_first_read_does_not_create_session(client: TestClient, store: MemorySessionStore) -> None:
     response = client.get(SESSION_PATH)
 
     assert response.status_code == 200
@@ -285,9 +283,7 @@ def test_failed_session_load_rejects_gate_as_unavailable(
     client: TestClient, store: MemorySessionStore, monkeypatch: MonkeyPatch
 ) -> None:
     client.put(SESSION_PATH, json=PREFERENCES)
-    monkeypatch.setattr(
-        store, "_read", AsyncMock(side_effect=RedisConnectionError("test outage"))
-    )
+    monkeypatch.setattr(store, "_read", AsyncMock(side_effect=RedisConnectionError("test outage")))
 
     gated = client.get(SESSION_PATH + "/required")
 
@@ -302,9 +298,7 @@ def test_failed_session_load_rejects_gate_as_unavailable(
 def test_automatic_save_failure_does_not_report_a_successful_write(
     app: FastAPI, store: MemorySessionStore, monkeypatch: MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(
-        store, "_write", AsyncMock(side_effect=RedisConnectionError("test outage"))
-    )
+    monkeypatch.setattr(store, "_write", AsyncMock(side_effect=RedisConnectionError("test outage")))
 
     with TestClient(app, raise_server_exceptions=False) as client:
         response = client.put(SESSION_PATH, json=PREFERENCES)
@@ -320,9 +314,7 @@ def test_failed_rotation_can_revoke_old_session_before_creation_fails(
 ) -> None:
     client.put(SESSION_PATH, json=PREFERENCES)
     old_id = client.cookies[COOKIE_NAME]
-    monkeypatch.setattr(
-        store, "_write", AsyncMock(side_effect=RedisConnectionError("test outage"))
-    )
+    monkeypatch.setattr(store, "_write", AsyncMock(side_effect=RedisConnectionError("test outage")))
 
     response = client.post(SESSION_PATH + "/rotate")
 

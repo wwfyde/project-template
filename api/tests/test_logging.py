@@ -119,9 +119,7 @@ def test_native_body_attributes_trace_and_exception_survive_console_formatting(
 
 
 def test_console_formatter_does_not_modify_shared_record() -> None:
-    record = logging.LogRecord(
-        "api", logging.INFO, __file__, 1, "event %s", ("x",), None
-    )
+    record = logging.LogRecord("api", logging.INFO, __file__, 1, "event %s", ("x",), None)
     original = record.__dict__.copy()
     formatter = ConsoleFormatter("%(asctime)s %(trace_id)s %(message)s")
 

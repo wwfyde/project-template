@@ -67,9 +67,7 @@ async def _list_conversations_from_db(
                 .limit(1)
             )
             latest_result = await session.execute(latest_stmt)
-            items.append(
-                _read_conversation(conversation, latest_result.scalar_one_or_none())
-            )
+            items.append(_read_conversation(conversation, latest_result.scalar_one_or_none()))
         return items
 
 
@@ -89,8 +87,7 @@ async def _get_conversation_from_db(conversation_id: str) -> ConversationDetail:
         )
         data = ConversationDetail.model_validate(conversation)
         data.messages = [
-            MessageRead.model_validate(message)
-            for message in messages_result.scalars().all()
+            MessageRead.model_validate(message) for message in messages_result.scalars().all()
         ]
         return data
 
@@ -116,9 +113,7 @@ async def list_conversations(
     return sorted(items, key=lambda item: item.updated_at, reverse=True)[:limit]
 
 
-@conversations_router.post(
-    "", response_model=ConversationRead, status_code=status.HTTP_201_CREATED
-)
+@conversations_router.post("", response_model=ConversationRead, status_code=status.HTTP_201_CREATED)
 async def create_conversation(
     payload: ConversationCreate,
     request: Request,
@@ -178,9 +173,7 @@ async def get_conversation(conversation_id: str) -> ConversationDetail:
 
     conversation = _memory_conversations.get(conversation_id)
     if not conversation:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Conversation not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conversation not found")
     return ConversationDetail(
         **conversation.model_dump(), messages=_memory_messages[conversation_id]
     )
@@ -209,17 +202,13 @@ async def update_conversation(
 
     conversation = _memory_conversations.get(conversation_id)
     if not conversation:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Conversation not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conversation not found")
     next_data = conversation.model_copy(update=updates)
     _memory_conversations[conversation_id] = next_data
     return next_data
 
 
-@conversations_router.delete(
-    "/{conversation_id}", status_code=status.HTTP_204_NO_CONTENT
-)
+@conversations_router.delete("/{conversation_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_conversation(conversation_id: str) -> Response:
     if settings.repo_type == "postgres":
         from api.core.db import AsyncSessionLocal
@@ -238,26 +227,20 @@ async def delete_conversation(conversation_id: str) -> Response:
             return Response(status_code=status.HTTP_204_NO_CONTENT)
 
     if conversation_id not in _memory_conversations:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Conversation not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conversation not found")
     _memory_conversations.pop(conversation_id)
     _memory_messages.pop(conversation_id, None)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-@conversations_router.get(
-    "/{conversation_id}/messages", response_model=list[MessageRead]
-)
+@conversations_router.get("/{conversation_id}/messages", response_model=list[MessageRead])
 async def list_messages(conversation_id: str) -> list[MessageRead]:
     if settings.repo_type == "postgres":
         detail = await _get_conversation_from_db(conversation_id)
         return detail.messages
 
     if conversation_id not in _memory_conversations:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Conversation not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conversation not found")
     return _memory_messages[conversation_id]
 
 
@@ -270,11 +253,7 @@ async def create_message(
     conversation_id: str, payload: MessageCreate, user: CurrentUserDep
 ) -> MessageRead:
     message_id = payload.id or str(uuid.uuid7())
-    text = (
-        payload.text or payload.content
-        if isinstance(payload.content, str)
-        else payload.text
-    )
+    text = payload.text or payload.content if isinstance(payload.content, str) else payload.text
 
     if settings.repo_type == "postgres":
         from api.core.db import AsyncSessionLocal
@@ -312,9 +291,7 @@ async def create_message(
 
     conversation = _memory_conversations.get(conversation_id)
     if not conversation:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Conversation not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conversation not found")
     message = MessageRead(
         id=message_id,
         conversation_id=conversation_id,

@@ -4,6 +4,7 @@ from typing import Annotated, Literal
 
 from fastapi import APIRouter, Path, Query
 
+from api.images.source_access import http_image_sources
 from api.routes.images import ImageRoute
 from api.schemas.ai_tools import (
     Gemini3ProImageRequest,
@@ -15,6 +16,7 @@ from api.schemas.ai_tools import (
     Seedream45Request,
     Seedream50LiteRequest,
     Seedream50ProRequest,
+    Seedream55Request,
 )
 from api.tools.images import (
     gemini,
@@ -25,8 +27,7 @@ from api.tools.images import (
     seedream5_pro,
 )
 from api.tools.images.gpt import ImageParam
-from api.tools.images.types import GeminiImageModel
-from api.tools.types import GPTImageModel, ImageToolResponse
+from api.tools.types import GeminiImageModel, GPTImageModel, ImageToolResponse
 
 ai_tools_router = APIRouter(
     prefix="/ai-tools/images",
@@ -46,7 +47,7 @@ async def gemini_31_flash_lite_image(
         return await gemini.image_create_with_gemini(
             prompt=payload.prompt,
             model=model_id,
-            image_urls=payload.image_urls,
+            image=payload.image_urls,
             aspect_ratio=payload.aspect_ratio,
             image_size=payload.image_size,
         )
@@ -60,9 +61,7 @@ async def gemini_31_flash_lite_image(
         )
 
 
-@ai_tools_router.post(
-    "/gemini/gemini-3.1-flash-lite-image", response_model=ImageToolResponse
-)
+@ai_tools_router.post("/gemini/gemini-3.1-flash-lite-image", response_model=ImageToolResponse)
 async def gemini_31_flash_lite_image(
     payload: Gemini31FlashLiteImageRequest,
     provider: Annotated[Literal["google", "laozhang"], Query()] = "google",
@@ -71,7 +70,7 @@ async def gemini_31_flash_lite_image(
         return await gemini.image_create_with_gemini(
             prompt=payload.prompt,
             model="gemini-3.1-flash-lite-image",
-            image_urls=payload.image_urls,
+            image=payload.image_urls,
             aspect_ratio=payload.aspect_ratio,
             image_size=payload.image_size,
         )
@@ -94,7 +93,7 @@ async def gemini_3_pro_image(
         return await gemini.image_create_with_gemini(
             prompt=payload.prompt,
             model="gemini-3-pro-image",
-            image_urls=payload.image_urls,
+            image=payload.image_urls,
             aspect_ratio=payload.aspect_ratio,
             image_size=payload.image_size,
         )
@@ -108,9 +107,7 @@ async def gemini_3_pro_image(
         )
 
 
-@ai_tools_router.post(
-    "/gemini/gemini-3.1-flash-image", response_model=ImageToolResponse
-)
+@ai_tools_router.post("/gemini/gemini-3.1-flash-image", response_model=ImageToolResponse)
 async def gemini_31_flash_image(
     payload: Gemini31FlashImageRequest,
     provider: Annotated[Literal["google", "laozhang"], Query()] = "google",
@@ -119,7 +116,7 @@ async def gemini_31_flash_image(
         return await gemini.image_create_with_gemini(
             prompt=payload.prompt,
             model="gemini-3.1-flash-image",
-            image_urls=payload.image_urls,
+            image=payload.image_urls,
             aspect_ratio=payload.aspect_ratio,
             image_size=payload.image_size,
         )
@@ -133,9 +130,7 @@ async def gemini_31_flash_image(
         )
 
 
-@ai_tools_router.post(
-    "/gemini/gemini-nano-banana-2.1", response_model=ImageToolResponse
-)
+@ai_tools_router.post("/gemini/gemini-nano-banana-2.1", response_model=ImageToolResponse)
 async def gemini_nano_banana_21(
     payload: GeminiNanoBanana21Request,
 ) -> ImageToolResponse:
@@ -143,7 +138,7 @@ async def gemini_nano_banana_21(
         return await gemini.image_create_with_gemini(
             prompt=payload.prompt,
             model="gemini-nano-banana-2.1",
-            image_urls=payload.image_urls,
+            image=payload.image_urls,
             aspect_ratio=payload.aspect_ratio,
             image_size=payload.image_size,
         )
@@ -157,20 +152,20 @@ async def gemini_nano_banana_21(
         )
 
 
-@ai_tools_router.post(
-    "/seedream/doubao-seedream-4-0-250828", response_model=ImageToolResponse
-)
-def seedream_40(
+@ai_tools_router.post("/seedream/doubao-seedream-4-0-250828", response_model=ImageToolResponse)
+async def seedream_40(
     payload: Seedream40Request,
     provider: Annotated[Literal["volcengine"], Query()] = "volcengine",
 ) -> ImageToolResponse:
     try:
-        return seedream.image_create_with_seedream(
-            prompt=payload.prompt,
-            image_urls=payload.image_urls,
-            aspect_ratio=payload.aspect_ratio,
-            image_size=payload.image_size,
-        )
+        with http_image_sources():
+            return await seedream.image_create_with_seedream(
+                prompt=payload.prompt,
+                model="doubao-seedream-4-0-250828",
+                image=payload.image_urls,
+                aspect_ratio=payload.aspect_ratio,
+                image_size=payload.image_size,
+            )
     except Exception:
         return ImageToolResponse(
             image_model="doubao-seedream-4-0-250828",
@@ -181,9 +176,31 @@ def seedream_40(
         )
 
 
-@ai_tools_router.post(
-    "/seedream/doubao-seedream-4-5-251128", response_model=ImageToolResponse
-)
+@ai_tools_router.post("/seedream/doubao-seedream-5-5-261028", response_model=ImageToolResponse)
+async def seedream_55(
+    payload: Seedream55Request,
+    provider: Annotated[Literal["volcengine"], Query()] = "volcengine",
+) -> ImageToolResponse:
+    try:
+        with http_image_sources():
+            return await seedream.image_create_with_seedream(
+                prompt=payload.prompt,
+                model="doubao-seedream-5-5-261028",
+                image=payload.image_urls,
+                aspect_ratio=payload.aspect_ratio,
+                image_size=payload.image_size,
+            )
+    except Exception:
+        return ImageToolResponse(
+            image_model="doubao-seedream-5-5-261028",
+            success=False,
+            error="image_tool_failed",
+            content="Image generation or upload failed.",
+            images=[],
+        )
+
+
+@ai_tools_router.post("/seedream/doubao-seedream-4-5-251128", response_model=ImageToolResponse)
 def seedream_45(
     payload: Seedream45Request,
     provider: Annotated[Literal["volcengine"], Query()] = "volcengine",
@@ -205,9 +222,7 @@ def seedream_45(
         )
 
 
-@ai_tools_router.post(
-    "/seedream/doubao-seedream-5-0-260128", response_model=ImageToolResponse
-)
+@ai_tools_router.post("/seedream/doubao-seedream-5-0-260128", response_model=ImageToolResponse)
 def seedream_50_lite(
     payload: Seedream50LiteRequest,
     provider: Annotated[Literal["volcengine"], Query()] = "volcengine",
@@ -229,9 +244,7 @@ def seedream_50_lite(
         )
 
 
-@ai_tools_router.post(
-    "/seedream/doubao-seedream-5-0-pro-260628", response_model=ImageToolResponse
-)
+@ai_tools_router.post("/seedream/doubao-seedream-5-0-pro-260628", response_model=ImageToolResponse)
 def seedream_50_pro(
     payload: Seedream50ProRequest,
     provider: Annotated[Literal["volcengine"], Query()] = "volcengine",
@@ -261,7 +274,7 @@ async def gpt_image_2(
     try:
         return await gpt.image_create_with_gpt_image(
             prompt=payload.prompt,
-            images=payload.image_urls,
+            image=payload.image_urls,
             mask=payload.mask_url,
             model="gpt-image-2",
             image_param=ImageParam(
@@ -289,7 +302,7 @@ async def gpt_image_2_5_flare(
     try:
         return await gpt.image_create_with_gpt_image(
             prompt=payload.prompt,
-            images=payload.image_urls,
+            image=payload.image_urls,
             mask=payload.mask_url,
             image_param=ImageParam(
                 action=payload.action,
@@ -316,7 +329,7 @@ async def gpt_image_25_sunburst(
     try:
         return await gpt.image_create_with_gpt_image(
             prompt=payload.prompt,
-            images=payload.image_urls,
+            image=payload.image_urls,
             mask=payload.mask_url,
             model="gpt-image-2.5-sunburst",
             image_param=ImageParam(
@@ -345,7 +358,7 @@ async def gpt_image_by_model(
     try:
         return await gpt.image_create_with_gpt_image(
             prompt=payload.prompt,
-            images=payload.image_urls,
+            image=payload.image_urls,
             mask=payload.mask_url,
             model=model_id,
             image_param=ImageParam(

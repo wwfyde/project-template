@@ -55,9 +55,7 @@ async def get_optional_auth_user(
     account_id = session.get("account_id")
     deadline = session.get("login_expires_at")
     if deadline is not None and (
-        type(deadline) not in (int, float)
-        or not math.isfinite(deadline)
-        or deadline <= time.time()
+        type(deadline) not in (int, float) or not math.isfinite(deadline) or deadline <= time.time()
     ):
         return None
     if (
@@ -66,17 +64,10 @@ async def get_optional_auth_user(
         or not isinstance(account_id, str)
     ):
         return None
-    if not any(
-        item.id == provider and item.enabled
-        for item in get_auth_providers(settings.auth)
-    ):
+    if not any(item.id == provider and item.enabled for item in get_auth_providers(settings.auth)):
         return None
     user = await users.get(user_id, provider)
-    if (
-        user is None
-        or not user.is_active
-        or user.auth_version != session.get("auth_version")
-    ):
+    if user is None or not user.is_active or user.auth_version != session.get("auth_version"):
         return None
     account = await users.account(user.id, account_id)
     if account is None:
@@ -89,9 +80,7 @@ async def get_optional_auth_user(
     ):
         claimed = request.headers.getlist(name)
         if claimed and claimed != [expected]:
-            raise HTTPException(
-                403, "Identity header does not match the authenticated session"
-            )
+            raise HTTPException(403, "Identity header does not match the authenticated session")
     bind_identity(user.id, account.id)
     request.state.authenticated = True
     return public_user(user, provider, account)
@@ -100,9 +89,7 @@ async def get_optional_auth_user(
 OptionalUserDep = Annotated[AuthUser | None, Depends(get_optional_auth_user)]
 
 
-def verify_csrf(
-    request: Request, session: dict[str, object], settings: SettingsDep
-) -> None:
+def verify_csrf(request: Request, session: dict[str, object], settings: SettingsDep) -> None:
     if request.method in {"GET", "HEAD", "OPTIONS"}:
         return
     expected, actual = (
@@ -127,9 +114,7 @@ async def require_auth_user(
     settings: SettingsDep,
 ) -> AuthUser:
     if user is None:
-        raise HTTPException(
-            401, "Not authenticated", headers={"Cache-Control": "no-store"}
-        )
+        raise HTTPException(401, "Not authenticated", headers={"Cache-Control": "no-store"})
     verify_csrf(request, session, settings)
     return user
 
@@ -137,9 +122,7 @@ async def require_auth_user(
 CurrentUserDep = Annotated[AuthUser, Depends(require_auth_user)]
 
 
-async def authorize_resource(
-    request: Request, user: CurrentUserDep, users: UsersDep
-) -> None:
+async def authorize_resource(request: Request, user: CurrentUserDep, users: UsersDep) -> None:
     for parameter, kind in (
         ("conversation_id", "conversation"),
         ("session_id", "agent_session"),

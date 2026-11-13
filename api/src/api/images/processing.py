@@ -23,9 +23,7 @@ def encode_png(image: Image.Image, config: ImageConfig) -> bytes:
 
 def decode_image(content: bytes, config: ImageConfig) -> Image.Image:
     if not content or len(content) > config.max_upload_bytes:
-        raise ImageFailure(
-            "image_too_large", "Image is empty or exceeds the byte limit.", 413
-        )
+        raise ImageFailure("image_too_large", "Image is empty or exceeds the byte limit.", 413)
     try:
         with warnings.catch_warnings():
             warnings.simplefilter("error", Image.DecompressionBombWarning)
@@ -39,10 +37,7 @@ def decode_image(content: bytes, config: ImageConfig) -> Image.Image:
                         "Upload a single-frame PNG, JPEG or WebP image.",
                         415,
                     )
-                if (
-                    source.width * source.height > config.max_pixels
-                    or max(source.size) > 8192
-                ):
+                if source.width * source.height > config.max_pixels or max(source.size) > 8192:
                     raise ImageFailure(
                         "image_too_large",
                         "Image dimensions exceed the pixel limit.",
@@ -55,9 +50,7 @@ def decode_image(content: bytes, config: ImageConfig) -> Image.Image:
             "image_too_large", "Image dimensions exceed the pixel limit.", 413
         ) from error
     except (UnidentifiedImageError, OSError, ValueError) as error:
-        raise ImageFailure(
-            "invalid_image", "Image could not be decoded.", 422
-        ) from error
+        raise ImageFailure("invalid_image", "Image could not be decoded.", 422) from error
 
 
 def normalize_image(content: bytes, config: ImageConfig) -> tuple[bytes, int, int]:
@@ -91,9 +84,7 @@ def _font(
     return ImageFont.load_default(size=size)
 
 
-def local_edit(
-    content: bytes, request: EditRequest, config: ImageConfig
-) -> tuple[bytes, int, int]:
+def local_edit(content: bytes, request: EditRequest, config: ImageConfig) -> tuple[bytes, int, int]:
     image = decode_image(content, config)
     if request.operation == "resize":
         assert request.width is not None and request.height is not None
@@ -111,9 +102,7 @@ def local_edit(
             canvas = Image.new(
                 "RGBA",
                 size,
-                request.background
-                if request.background != "transparent"
-                else (0, 0, 0, 0),
+                request.background if request.background != "transparent" else (0, 0, 0, 0),
             )
             canvas.alpha_composite(
                 fitted, ((size[0] - fitted.width) // 2, (size[1] - fitted.height) // 2)
@@ -157,9 +146,7 @@ def local_edit(
 def validate_mask(content: bytes, size: tuple[int, int], config: ImageConfig) -> bytes:
     mask = decode_image(content, config)
     if mask.size != size:
-        raise ImageFailure(
-            "invalid_mask", "Mask dimensions must match the source image.", 422
-        )
+        raise ImageFailure("invalid_mask", "Mask dimensions must match the source image.", 422)
     if mask.getchannel("A").getextrema()[0] != 255:
         raise ImageFailure(
             "invalid_mask",
@@ -184,8 +171,7 @@ def finish_provider_edit(
         # Even reference-mask providers cannot change pixels outside the selection.
         edited = Image.composite(edited, original, selection)
     elif (
-        edited.getchannel("A").getextrema()[0] == 255
-        or edited.getchannel("A").getextrema()[1] == 0
+        edited.getchannel("A").getextrema()[0] == 255 or edited.getchannel("A").getextrema()[1] == 0
     ):
         raise ImageFailure(
             "invalid_transparency",

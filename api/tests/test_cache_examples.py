@@ -62,9 +62,7 @@ def db() -> MagicMock:
 
 
 @pytest.fixture
-def client(
-    monkeypatch: MonkeyPatch, redis: MagicMock, db: MagicMock
-) -> Iterator[TestClient]:
+def client(monkeypatch: MonkeyPatch, redis: MagicMock, db: MagicMock) -> Iterator[TestClient]:
     monkeypatch.setattr(cache.settings.app, "env", "local")
     monkeypatch.setattr(cache.settings, "repo_type", "postgres")
 
@@ -190,16 +188,12 @@ def test_update_invalidates_only_after_commit_and_preserves_committed_result(
     db.execute.return_value = query_result(snapshot(title="Renamed"))
     redis.delete.side_effect = invalidate
 
-    response = client.patch(
-        f"/cache/conversations/{IDENTIFIERS[0]}", json={"title": "Renamed"}
-    )
+    response = client.patch(f"/cache/conversations/{IDENTIFIERS[0]}", json={"title": "Renamed"})
 
     assert response.status_code == 200
     assert response.json()["title"] == "Renamed"
     assert events == ["commit", "invalidate"]
-    assert (
-        response.headers["X-Cache-Invalidated"] == str(not invalidation_fails).lower()
-    )
+    assert response.headers["X-Cache-Invalidated"] == str(not invalidation_fails).lower()
     redis.delete.assert_awaited_once_with(cache._conversation_key(IDENTIFIERS[0]))
 
 
@@ -209,9 +203,7 @@ def test_failed_commit_keeps_existing_cache(
     db.begin.return_value.__aexit__.side_effect = RuntimeError("commit failed")
 
     with pytest.raises(RuntimeError, match="commit failed"):
-        client.patch(
-            f"/cache/conversations/{IDENTIFIERS[0]}", json={"title": "Renamed"}
-        )
+        client.patch(f"/cache/conversations/{IDENTIFIERS[0]}", json={"title": "Renamed"})
 
     redis.delete.assert_not_awaited()
 
@@ -256,9 +248,7 @@ def test_batch_deduplicates_and_queries_only_misses_in_one_sql_statement(
     assert writes[cache._conversation_key(missing)].args[1] == "null"
     assert 30 <= writes[cache._conversation_key(missing)].kwargs["ex"] <= 35
     assert 300 <= writes[cache._conversation_key(found)].kwargs["ex"] <= 360
-    assert all(
-        call.kwargs == {"transaction": False} for call in redis.pipeline.call_args_list
-    )
+    assert all(call.kwargs == {"transaction": False} for call in redis.pipeline.call_args_list)
 
 
 def test_hot_cache_lock_contention_does_not_fall_through_to_database(
@@ -314,9 +304,7 @@ def test_hot_cache_database_failure_releases_lock_without_filling_cache(
     redis.delete.assert_not_awaited()
 
 
-def test_rate_limit_rejection_exposes_retry_delay(
-    client: TestClient, redis: MagicMock
-) -> None:
+def test_rate_limit_rejection_exposes_retry_delay(client: TestClient, redis: MagicMock) -> None:
     redis.eval.return_value = [0, 5, 1201]
 
     response = client.post("/cache/rate-limit/demo")
@@ -326,9 +314,7 @@ def test_rate_limit_rejection_exposes_retry_delay(
     assert response.headers["X-RateLimit-Remaining"] == "0"
 
 
-def test_rate_limit_success_reports_remaining_budget(
-    client: TestClient, redis: MagicMock
-) -> None:
+def test_rate_limit_success_reports_remaining_budget(client: TestClient, redis: MagicMock) -> None:
     redis.eval.return_value = [1, 2, 59_000]
 
     response = client.post("/cache/rate-limit/demo")
@@ -355,9 +341,7 @@ def test_rate_limit_refuses_counter_without_expiration(
     assert "TTL" in response.json()["detail"]
 
 
-def test_rate_limit_is_unavailable_when_redis_fails(
-    client: TestClient, redis: MagicMock
-) -> None:
+def test_rate_limit_is_unavailable_when_redis_fails(client: TestClient, redis: MagicMock) -> None:
     redis.eval.side_effect = RedisConnectionError("offline")
 
     assert client.post("/cache/rate-limit/demo").status_code == 503

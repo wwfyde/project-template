@@ -102,9 +102,7 @@ class AuthConfig(BaseModel):
         description="Accepted for old configs; new users receive a personal account.",
     )
     allow_signup: bool = True
-    session_key_prefix: str = Field(
-        default="project-template:auth", min_length=1, max_length=128
-    )
+    session_key_prefix: str = Field(default="project-template:auth", min_length=1, max_length=128)
     frontend_url: str = "http://localhost:5173"
     oauth_state_ttl_seconds: int = Field(default=600, ge=60, le=1800)
     reauth_max_age_seconds: int = Field(default=300, ge=60, le=1800)
@@ -136,12 +134,8 @@ class AuthConfig(BaseModel):
     @field_validator("session_key_prefix")
     @classmethod
     def validate_session_key_prefix(cls, value: str) -> str:
-        if not value.strip() or any(
-            ord(char) < 33 or ord(char) == 127 for char in value
-        ):
-            raise ValueError(
-                "session_key_prefix cannot contain whitespace or control characters"
-            )
+        if not value.strip() or any(ord(char) < 33 or ord(char) == 127 for char in value):
+            raise ValueError("session_key_prefix cannot contain whitespace or control characters")
         return value
 
     @field_validator("providers")

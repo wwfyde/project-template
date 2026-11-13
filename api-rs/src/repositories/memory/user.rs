@@ -1,4 +1,6 @@
-use crate::models::user::{User, UserId, UserPage, UserQuery, UserRepository, UserSort};
+use crate::models::user::{
+    Uid, User, UserId, UserPage, UserQuery, UserRepository, UserSort, UserWrite,
+};
 use crate::repositories::{
     RepositoryError, normalized_user_keyword, required_email, user_query_offset, validate_user_ids,
 };
@@ -11,28 +13,80 @@ use tokio::sync::RwLock;
 
 #[derive(Clone, Default)]
 pub struct InMemoryUserRepository {
-    data: Arc<RwLock<Vec<User>>>,
+    data: Arc<RwLock<UserState>>,
+}
+
+struct UserState {
+    users: Vec<User>,
+    next_uid: Option<i64>,
+}
+
+impl Default for UserState {
+    fn default() -> Self {
+        Self {
+            users: Vec::new(),
+            next_uid: Some(1),
+        }
+    }
+}
+
+impl UserState {
+    fn allocate_uid(&mut self) -> Result<Uid> {
+        let value = self
+            .next_uid
+            .ok_or_else(|| anyhow::anyhow!("user UID sequence exhausted"))?;
+        let uid = Uid::try_from(value)?;
+        self.next_uid = value.checked_add(1);
+        Ok(uid)
+    }
+}
+
+fn conflicts(existing: &User, input: &UserWrite, email: &str) -> bool {
+    existing.email.as_deref() == Some(email)
+        || input
+            .username
+            .as_deref()
+            .is_some_and(|username| existing.username.as_deref() == Some(username))
+}
+
+fn persisted_user(input: &UserWrite, uid: Uid, created_at: chrono::DateTime<chrono::Utc>) -> User {
+    User {
+        id: input.id.clone(),
+        uid,
+        email: input.email.clone(),
+        nickname: input.nickname.clone(),
+        username: input.username.clone(),
+        hashed_password: input.hashed_password.clone(),
+        is_active: input.is_active,
+        locale: input.locale,
+        is_superuser: input.is_superuser,
+        created_at,
+        updated_at: input.updated_at,
+    }
 }
 
 #[async_trait]
 impl UserRepository for InMemoryUserRepository {
     async fn find_all(&self) -> Result<Vec<User>> {
-        let mut users = self.data.read().await.clone();
+        let mut users = self.data.read().await.users.clone();
         users.sort_by_key(|user| user.id.0);
         Ok(users)
     }
 
-    async fn insert(&self, user: &User) -> Result<User> {
+    async fn insert(&self, user: &UserWrite) -> Result<User> {
         let email = required_email(user)?;
         let mut data = self.data.write().await;
         if data
+            .users
             .iter()
-            .any(|existing| existing.id == user.id || existing.email.as_deref() == Some(email))
+            .any(|existing| existing.id == user.id || conflicts(existing, user, email))
         {
             return Err(RepositoryError::Conflict.into());
         }
-        data.push(user.clone());
-        Ok(user.clone())
+        let uid = data.allocate_uid()?;
+        let inserted = persisted_user(user, uid, user.created_at);
+        data.users.push(inserted.clone());
+        Ok(inserted)
     }
 
     async fn find_many(&self, ids: &[UserId]) -> Result<Vec<User>> {
@@ -45,6 +99,7 @@ impl UserRepository for InMemoryUserRepository {
             .data
             .read()
             .await
+            .users
             .iter()
             .filter(|user| ids.contains(&user.id.0))
             .cloned()
@@ -58,6 +113,7 @@ impl UserRepository for InMemoryUserRepository {
             .data
             .read()
             .await
+            .users
             .iter()
             .find(|user| user.id == id)
             .cloned())
@@ -68,47 +124,58 @@ impl UserRepository for InMemoryUserRepository {
             .data
             .read()
             .await
+            .users
             .iter()
             .find(|user| user.email.as_deref() == Some(email))
             .cloned())
     }
 
-    async fn update(&self, user: &User) -> Result<User> {
+    async fn update(&self, user: &UserWrite) -> Result<User> {
         let email = required_email(user)?;
         let mut data = self.data.write().await;
         let index = data
+            .users
             .iter()
             .position(|existing| existing.id == user.id)
             .ok_or_else(|| anyhow::Error::new(RepositoryError::NotFound))?;
         if data
+            .users
             .iter()
-            .any(|existing| existing.id != user.id && existing.email.as_deref() == Some(email))
+            .any(|existing| existing.id != user.id && conflicts(existing, user, email))
         {
             return Err(RepositoryError::Conflict.into());
         }
-        let mut updated = user.clone();
-        updated.created_at = data[index].created_at;
-        data[index] = updated.clone();
+        let original = &data.users[index];
+        let updated = persisted_user(user, original.uid.clone(), original.created_at);
+        data.users[index] = updated.clone();
         Ok(updated)
     }
 
-    async fn save(&self, user: &User) -> Result<User> {
+    async fn save(&self, user: &UserWrite) -> Result<User> {
         let email = required_email(user)?;
         let mut data = self.data.write().await;
-        let index = data.iter().position(|existing| existing.id == user.id);
-        if data
+        let index = data
+            .users
             .iter()
-            .any(|existing| existing.id != user.id && existing.email.as_deref() == Some(email))
+            .position(|existing| existing.id == user.id);
+        if data
+            .users
+            .iter()
+            .any(|existing| existing.id != user.id && conflicts(existing, user, email))
         {
             return Err(RepositoryError::Conflict.into());
         }
-        let mut saved = user.clone();
-        if let Some(index) = index {
-            saved.created_at = data[index].created_at;
-            data[index] = saved.clone();
+        let saved = if let Some(index) = index {
+            let original = &data.users[index];
+            let saved = persisted_user(user, original.uid.clone(), original.created_at);
+            data.users[index] = saved.clone();
+            saved
         } else {
-            data.push(saved.clone());
-        }
+            let uid = data.allocate_uid()?;
+            let saved = persisted_user(user, uid, user.created_at);
+            data.users.push(saved.clone());
+            saved
+        };
         Ok(saved)
     }
 
@@ -120,6 +187,7 @@ impl UserRepository for InMemoryUserRepository {
             .data
             .read()
             .await
+            .users
             .iter()
             .filter(|user| {
                 query
@@ -161,14 +229,21 @@ impl UserRepository for InMemoryUserRepository {
     async fn delete_by_id(&self, id: UserId) -> Result<()> {
         let mut data = self.data.write().await;
         let index = data
+            .users
             .iter()
             .position(|user| user.id == id)
             .ok_or_else(|| anyhow::Error::new(RepositoryError::NotFound))?;
-        data.remove(index);
+        data.users.remove(index);
         Ok(())
     }
 
     async fn exists_by_id(&self, id: UserId) -> Result<bool> {
-        Ok(self.data.read().await.iter().any(|user| user.id == id))
+        Ok(self
+            .data
+            .read()
+            .await
+            .users
+            .iter()
+            .any(|user| user.id == id))
     }
 }

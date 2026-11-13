@@ -33,9 +33,7 @@ PROVIDER_REGISTRY: dict[str, ProviderRegistration] = {
         lambda config: DingTalkProvider(config.dingtalk),
         lambda config: config.dingtalk.ready,
     ),
-    "password": ProviderRegistration(
-        "password", None, lambda config: config.password.enabled
-    ),
+    "password": ProviderRegistration("password", None, lambda config: config.password.enabled),
     "phone": ProviderRegistration("otp", None, lambda config: False, implemented=False),
 }
 
@@ -43,9 +41,7 @@ PROVIDER_REGISTRY: dict[str, ProviderRegistration] = {
 def validate_provider_configuration(config: AuthConfig) -> None:
     unknown = set(config.providers) - PROVIDER_REGISTRY.keys()
     if unknown:
-        raise ValueError(
-            f"Unknown authentication providers: {', '.join(sorted(unknown))}"
-        )
+        raise ValueError(f"Unknown authentication providers: {', '.join(sorted(unknown))}")
 
 
 def get_auth_providers(config: AuthConfig) -> list[AuthProviderSummary]:

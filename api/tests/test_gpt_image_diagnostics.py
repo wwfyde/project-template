@@ -99,9 +99,7 @@ def test_gpt_edit_500_has_safe_correlated_diagnostics(
         "error_type": "server_error",
         "error_param": "image",
     }
-    records = [
-        record for record in caplog.records if record.name == "api.tools.images.gpt"
-    ]
+    records = [record for record in caplog.records if record.name == "api.tools.images.gpt"]
     assert len(records) == 1
     record = records[0]
     required = set(expected) | {"elapsed_ms", "error_message"}
@@ -119,9 +117,7 @@ def test_gpt_edit_500_has_safe_correlated_diagnostics(
         assert isinstance(elapsed, (int, float)) and not isinstance(elapsed, bool)
         assert math.isfinite(elapsed) and elapsed >= 0
         assert isinstance(diagnostic["error_message"], str)
-        assert diagnostic["error_message"].startswith(
-            "Renderer is temporarily unavailable."
-        )
+        assert diagnostic["error_message"].startswith("Renderer is temporarily unavailable.")
         assert len(diagnostic["error_message"]) <= 512
 
     exposed = json.dumps(record.__dict__, default=str)
@@ -168,9 +164,7 @@ def test_sdk_internal_server_error_retains_actual_upstream_status(
     assert diagnostics["exception_type"] == "InternalServerError"
     assert diagnostics["status"] == status
     assert diagnostics["upstream_request_id"] == f"req-provider-{status}"
-    record = next(
-        record for record in caplog.records if record.name == "api.tools.images.gpt"
-    )
+    record = next(record for record in caplog.records if record.name == "api.tools.images.gpt")
     assert record.status == status
     assert record.exception_type == "InternalServerError"
 
@@ -202,13 +196,9 @@ def test_non_json_upstream_failure_never_exposes_body(
     assert diagnostics["error_type"] is None
     assert diagnostics["error_param"] is None
     assert "without a structured error message" in diagnostics["error_message"]
-    record = next(
-        record for record in caplog.records if record.name == "api.tools.images.gpt"
-    )
+    record = next(record for record in caplog.records if record.name == "api.tools.images.gpt")
     rendered = ConsoleFormatter("%(levelname)s %(message)s").format(record)
-    exposed = (
-        rendered + result.model_dump_json() + json.dumps(record.__dict__, default=str)
-    )
+    exposed = rendered + result.model_dump_json() + json.dumps(record.__dict__, default=str)
     for private in (
         KEY,
         "RAW_PRIVATE_BODY",
@@ -248,16 +238,12 @@ def test_unsafe_error_identifiers_are_omitted_from_diagnostics_and_console(
         result = gpt.image_create_with_gpt_image_2_5_flare("draw a cup")
     name = "upstream_request_id" if field == "request_id" else "error_" + field
     diagnostics = result.data["diagnostics"]
-    record = next(
-        record for record in caplog.records if record.name == "api.tools.images.gpt"
-    )
+    record = next(record for record in caplog.records if record.name == "api.tools.images.gpt")
     assert diagnostics.get(name) is None
     assert getattr(record, name, None) is None
     assert diagnostics["exception_type"] == "InternalServerError"
     rendered = ConsoleFormatter("%(levelname)s %(message)s").format(record)
-    exposed = (
-        rendered + result.model_dump_json() + json.dumps(record.__dict__, default=str)
-    )
+    exposed = rendered + result.model_dump_json() + json.dumps(record.__dict__, default=str)
     assert KEY not in exposed
     assert unsafe not in exposed
     assert "CONTROL_VALUE" not in exposed
@@ -285,9 +271,7 @@ def test_real_request_context_preserves_local_and_upstream_request_ids(
         ),
     )
     app = FastAPI()
-    app.add_middleware(
-        RequestContextMiddleware, config=RequestContextConfig(log_requests=False)
-    )
+    app.add_middleware(RequestContextMiddleware, config=RequestContextConfig(log_requests=False))
 
     @app.post("/gpt-diagnostics")
     def generate() -> ImageToolResponse:
@@ -298,9 +282,7 @@ def test_real_request_context_preserves_local_and_upstream_request_ids(
     try:
         with caplog.at_level(logging.WARNING, logger="api.tools.images.gpt"):
             with TestClient(app) as client:
-                response = client.post(
-                    "/gpt-diagnostics", headers={"Request-ID": local_id}
-                )
+                response = client.post("/gpt-diagnostics", headers={"Request-ID": local_id})
     finally:
         gpt.logger.removeFilter(request_filter)
 
@@ -309,15 +291,13 @@ def test_real_request_context_preserves_local_and_upstream_request_ids(
     diagnostics = response.json()["data"]["diagnostics"]
     assert diagnostics["local_request_id"] == local_id
     assert diagnostics["upstream_request_id"] == upstream_id
-    record = next(
-        record for record in caplog.records if record.name == "api.tools.images.gpt"
-    )
+    record = next(record for record in caplog.records if record.name == "api.tools.images.gpt")
     assert record.request_id == local_id
     assert record.local_request_id == local_id
     assert record.upstream_request_id == upstream_id
-    rendered = ConsoleFormatter(
-        "%(levelname)s request_id=%(request_id)s %(message)s"
-    ).format(record)
+    rendered = ConsoleFormatter("%(levelname)s request_id=%(request_id)s %(message)s").format(
+        record
+    )
     assert f"request_id={local_id}" in rendered
     assert f'"upstream_request_id":"{upstream_id}"' in rendered
     assert KEY not in rendered
@@ -358,19 +338,13 @@ def test_nested_json_escaped_private_values_are_redacted_before_truncation(
 
     mock_sdk_transport(monkeypatch, handler)
     with caplog.at_level(logging.WARNING, logger="api.tools.images.gpt"):
-        result = gpt.image_create_with_gpt_image_2_5_flare(
-            prompt, image_urls=[signed_url]
-        )
-    record = next(
-        record for record in caplog.records if record.name == "api.tools.images.gpt"
-    )
+        result = gpt.image_create_with_gpt_image_2_5_flare(prompt, image_urls=[signed_url])
+    record = next(record for record in caplog.records if record.name == "api.tools.images.gpt")
     diagnostics = result.data["diagnostics"]
     assert len(diagnostics["error_message"]) <= 512
     assert diagnostics["error_message"].startswith("Provider failed;")
     rendered = ConsoleFormatter("%(levelname)s %(message)s").format(record)
-    exposed = (
-        rendered + result.model_dump_json() + json.dumps(record.__dict__, default=str)
-    )
+    exposed = rendered + result.model_dump_json() + json.dumps(record.__dict__, default=str)
     for private in (
         KEY,
         "PRIVATE_ESCAPED_PROMPT",

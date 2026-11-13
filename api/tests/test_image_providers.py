@@ -92,9 +92,7 @@ async def test_gpt_native_mask_translates_white_selection_to_transparent(
             + request.content
         )
         fields = {
-            part.get_param("name", header="content-disposition"): part.get_payload(
-                decode=True
-            )
+            part.get_param("name", header="content-disposition"): part.get_payload(decode=True)
             for part in message.iter_parts()
         }
         assert fields["model"] == b"gpt-image-2.5-sunburst"
@@ -103,9 +101,7 @@ async def test_gpt_native_mask_translates_white_selection_to_transparent(
         assert converted.mode == "RGBA"
         assert converted.getpixel((0, 0))[3] == 0
         assert converted.getpixel((1, 1))[3] == 255
-        return httpx2.Response(
-            200, json={"data": [{"b64_json": base64.b64encode(png()).decode()}]}
-        )
+        return httpx2.Response(200, json={"data": [{"b64_json": base64.b64encode(png()).decode()}]})
 
     mock_async(monkeypatch, handler)
     provider = build_providers(settings())["gpt"]
@@ -120,9 +116,7 @@ async def test_gpt_cutout_requests_transparent_png(
     def handler(request: httpx2.Request) -> httpx2.Response:
         assert b'name="background"\r\n\r\ntransparent' in request.content
         assert b'name="mask"' not in request.content
-        return httpx2.Response(
-            200, json={"data": [{"b64_json": base64.b64encode(png()).decode()}]}
-        )
+        return httpx2.Response(200, json={"data": [{"b64_json": base64.b64encode(png()).decode()}]})
 
     mock_async(monkeypatch, handler)
     provider = build_providers(settings())["gpt"]
@@ -171,18 +165,14 @@ async def test_reference_mask_payloads_and_decoding(
         assert base64.b64decode(payload["image"][1].split(",", 1)[1]) == png("white")
         assert payload["response_format"] == "b64_json"
         assert "sequential_image_generation" not in payload
-        return httpx2.Response(
-            200, json={"data": [{"b64_json": base64.b64encode(png()).decode()}]}
-        )
+        return httpx2.Response(200, json={"data": [{"b64_json": base64.b64encode(png()).decode()}]})
 
     mock_async(monkeypatch, handler)
     provider = build_providers(settings())[provider_id]
     assert await provider.edit(edit_input(provider)) == png()
     assert provider.info.mask_mode == "reference"
     with pytest.raises(ImageFailure, match="does not support"):
-        await provider.edit(
-            edit_input(provider, operation="remove_background", mask=None)
-        )
+        await provider.edit(edit_input(provider, operation="remove_background", mask=None))
 
 
 @pytest.mark.asyncio
@@ -190,9 +180,7 @@ async def test_gemini_compatible_base_url_uses_native_image_endpoint(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     def handler(request: httpx2.Request) -> httpx2.Response:
-        assert (
-            request.url.path == "/v1beta/models/gemini-3.1-flash-image:generateContent"
-        )
+        assert request.url.path == "/v1beta/models/gemini-3.1-flash-image:generateContent"
         return httpx2.Response(
             200,
             json={
@@ -388,9 +376,7 @@ async def test_native_veimagex_sdk_upload_segment_and_download(
         else:
             assert request.url.host == "images.example.com"
             assert "authorization" not in request.headers
-            return httpx2.Response(
-                200, content=png(), headers={"Content-Type": "image/png"}
-            )
+            return httpx2.Response(200, content=png(), headers={"Content-Type": "image/png"})
         return httpx2.Response(200, json={"ResponseMetadata": {}, "Result": result})
 
     client = httpx2.Client

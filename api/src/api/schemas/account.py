@@ -56,9 +56,7 @@ class ProfileUpdate(BaseModel):
             or not value.strip()
             or any(unicodedata.category(char) in {"Cc", "Cs"} for char in value)
         ):
-            raise ValueError(
-                "Display name must be nonempty text without control characters"
-            )
+            raise ValueError("Display name must be nonempty text without control characters")
         return value.strip()
 
     @field_validator("avatar_url")
@@ -77,9 +75,7 @@ class PasswordUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
     username: str | None = Field(default=None, min_length=3, max_length=64)
     password: SecretStr = Field(min_length=12, max_length=1024)
-    current_password: SecretStr | None = Field(
-        default=None, min_length=1, max_length=1024
-    )
+    current_password: SecretStr | None = Field(default=None, min_length=1, max_length=1024)
 
 
 class PasswordReauthentication(BaseModel):

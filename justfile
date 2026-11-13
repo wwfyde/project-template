@@ -7,8 +7,10 @@ api $port=env_var_or_default("API_PORT", "8000"):
     @case "$port" in ''|*[!0-9]*) echo 'API_PORT 必须是 1–65535 的整数' >&2; exit 1;; esac; [ "$port" -ge 1 ] && [ "$port" -le 65535 ] || { echo 'API_PORT 必须是 1–65535 的整数' >&2; exit 1; }
     uv run uvicorn api.main:app --reload --port {{ port }}
 
+[arg("port", long, short="p")]
 [working-directory('api-rs')]
-api-rs:
+api-rs $port=env_var_or_default("API_PORT", "8000"):
+    cargo run -- --port {{ port }}
 
 # 启动前端；--port/-p 优先于 WEB_PORT，端口占用时直接报错。
 [arg("port", long, short="p")]

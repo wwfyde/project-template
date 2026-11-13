@@ -37,9 +37,7 @@ class Gemini3ProImageRequest(BaseModel):
 
     prompt: str
     image_urls: str | list[str] | None = None
-    aspect_ratio: (
-        Literal["1:1", "2:3", "3:2", "3:4", "4:3", "9:16", "16:9", "21:9"] | None
-    ) = None
+    aspect_ratio: Literal["1:1", "2:3", "3:2", "3:4", "4:3", "9:16", "16:9", "21:9"] | None = None
     image_size: Literal["1K", "2K", "4K"] | None = None
 
 
@@ -129,6 +127,15 @@ class Seedream50ProRequest(BaseModel):
     image_urls: str | list[str] | None = None
     aspect_ratio: str | None = None
     image_size: Literal["1K", "2K", "4K"] | None = "2K"
+
+
+class Seedream55Request(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True, hide_input_in_errors=True)
+
+    prompt: str
+    image_urls: str | list[str] | None = None
+    aspect_ratio: str | None = None
+    image_size: Literal["1K", "1.5K", "2K"] | None = "2K"
 
 
 class GPTImageRequest(BaseModel):

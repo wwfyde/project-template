@@ -1,7 +1,8 @@
 import logging
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from api.core import  settings
+from api.core import settings
+
 logger = logging.getLogger(__name__)
 engine = create_async_engine(
     settings.postgres_dsn,

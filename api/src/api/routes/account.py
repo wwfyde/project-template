@@ -57,8 +57,7 @@ def _version(session: SessionDep) -> int:
 
 def _password_enabled(settings: SettingsDep) -> None:
     if not any(
-        item.id == "password" and item.enabled
-        for item in get_auth_providers(settings.auth)
+        item.id == "password" and item.enabled for item in get_auth_providers(settings.auth)
     ):
         raise HTTPException(
             503,
@@ -107,9 +106,7 @@ async def _read_account(
             )
             for item in snapshot.identities
         ],
-        reauthentication=reauthentication_status(
-            session, settings.auth.reauth_max_age_seconds
-        ),
+        reauthentication=reauthentication_status(session, settings.auth.reauth_max_age_seconds),
     )
 
 
@@ -140,9 +137,7 @@ async def update_profile(
         )
     except AccountError as exc:
         raise account_http_error(exc) from exc
-    logger.info(
-        "Account profile updated", extra={"otel.event.name": "account.profile_updated"}
-    )
+    logger.info("Account profile updated", extra={"otel.event.name": "account.profile_updated"})
     return await _read_account(user, session, settings, accounts)
 
 
@@ -179,9 +174,7 @@ async def _start_oauth(
     try:
         provider = get_oauth_provider(provider_id, settings.auth)
     except AuthProviderUnavailable as exc:
-        raise HTTPException(
-            503, {"code": "provider_unavailable", "message": str(exc)}
-        ) from exc
+        raise HTTPException(503, {"code": "provider_unavailable", "message": str(exc)}) from exc
     browser = session.get("oauth_browser")
     if not isinstance(browser, str):
         browser = secrets.token_urlsafe(32)
@@ -217,9 +210,7 @@ async def _start_oauth(
     return AuthorizationStart(authorization_url=url)
 
 
-@account_router.post(
-    "/identities/{provider_id}/start", response_model=AuthorizationStart
-)
+@account_router.post("/identities/{provider_id}/start", response_model=AuthorizationStart)
 async def link_start(
     provider_id: str,
     user: CurrentUserDep,
@@ -229,14 +220,10 @@ async def link_start(
     accounts: AccountStoreDep,
     redis: AsyncRedisDep,
 ) -> AuthorizationStart:
-    return await _start_oauth(
-        "link", provider_id, user, session, state, settings, accounts, redis
-    )
+    return await _start_oauth("link", provider_id, user, session, state, settings, accounts, redis)
 
 
-@account_router.post(
-    "/reauth/oauth/{provider_id}/start", response_model=AuthorizationStart
-)
+@account_router.post("/reauth/oauth/{provider_id}/start", response_model=AuthorizationStart)
 async def reauthenticate_oauth(
     provider_id: str,
     user: CurrentUserDep,
@@ -266,9 +253,7 @@ async def reauthenticate_password(
 ) -> AuthSessionResponse:
     _password_enabled(settings)
     current = await _read_account(user, session, settings, accounts)
-    credential = next(
-        (item for item in current.identities if item.provider == "password"), None
-    )
+    credential = next((item for item in current.identities if item.provider == "password"), None)
     if credential is None or credential.username is None:
         raise HTTPException(
             403,
@@ -278,11 +263,7 @@ async def reauthenticate_password(
     verified = await passwords.authenticate(
         credential.username, payload.password.get_secret_value()
     )
-    if (
-        verified is None
-        or verified.id != user.id
-        or verified.auth_version != _version(session)
-    ):
+    if verified is None or verified.id != user.id or verified.auth_version != _version(session):
         raise HTTPException(
             403,
             {
@@ -331,9 +312,7 @@ async def update_password(
         (item.username for item in current.identities if item.provider == "password"),
         None,
     )
-    await limit_password_attempts(
-        request, username or payload.username or user.id, redis, settings
-    )
+    await limit_password_attempts(request, username or payload.username or user.id, redis, settings)
     deadline = login_deadline(session, state, store)
     verified_at = session["authenticated_at"]
     try:
@@ -368,9 +347,7 @@ async def update_password(
     return AccountMutationResponse()
 
 
-@account_router.delete(
-    "/identities/{identity_id}", response_model=AccountMutationResponse
-)
+@account_router.delete("/identities/{identity_id}", response_model=AccountMutationResponse)
 async def unlink_identity(
     identity_id: str,
     request: Request,
@@ -383,9 +360,7 @@ async def unlink_identity(
 ) -> AccountMutationResponse:
     require_recent_authentication(session, settings.auth.reauth_max_age_seconds)
     current = await _read_account(user, session, settings, accounts)
-    identity = next(
-        (item for item in current.identities if item.id == identity_id), None
-    )
+    identity = next((item for item in current.identities if item.id == identity_id), None)
     if identity is None:
         raise HTTPException(
             404, {"code": "identity_not_linked", "message": "Identity was not found"}

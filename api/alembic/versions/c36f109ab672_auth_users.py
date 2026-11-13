@@ -43,9 +43,7 @@ def upgrade() -> None:
         ),
         sa.Column("provider", sa.String(80), nullable=False),
         sa.Column("subject", sa.String(255), nullable=False),
-        sa.UniqueConstraint(
-            "provider", "subject", name="uq_auth_identity_provider_subject"
-        ),
+        sa.UniqueConstraint("provider", "subject", name="uq_auth_identity_provider_subject"),
     )
     op.create_index("ix_auth_identity_user_id", "auth_identity", ["user_id"])
     op.create_table(
@@ -60,12 +58,8 @@ def upgrade() -> None:
         ),
         sa.Column("tenant_id", sa.String(128), nullable=False),
     )
-    op.create_index(
-        "ix_auth_resource_owner_user_id", "auth_resource_owner", ["user_id"]
-    )
-    op.create_index(
-        "ix_auth_resource_owner_tenant_id", "auth_resource_owner", ["tenant_id"]
-    )
+    op.create_index("ix_auth_resource_owner_user_id", "auth_resource_owner", ["user_id"])
+    op.create_index("ix_auth_resource_owner_tenant_id", "auth_resource_owner", ["tenant_id"])
 
 
 def downgrade() -> None:

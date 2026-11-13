@@ -18,6 +18,4 @@ def create_image_service(settings: Settings) -> ImageService:
         raise ImageFailure(
             "unsupported_store", "Images support in-memory or postgres storage.", 503
         )
-    return ImageService(
-        store=store, providers=build_providers(settings), config=settings.images
-    )
+    return ImageService(store=store, providers=build_providers(settings), config=settings.images)

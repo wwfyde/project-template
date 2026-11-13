@@ -76,26 +76,16 @@ class Project(Base):
 class Conversation(Base):
     __tablename__ = "conversation"
 
-    id: Mapped[str] = mapped_column(
-        String, primary_key=True, default=lambda: str(uuid.uuid7())
-    )
-    title: Mapped[str] = mapped_column(
-        String(240), nullable=False, default="新对话", index=True
-    )
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid7()))
+    title: Mapped[str] = mapped_column(String(240), nullable=False, default="新对话", index=True)
     endpoint: Mapped[str | None] = mapped_column(String(80), nullable=True, index=True)
     model: Mapped[str | None] = mapped_column(String(160), nullable=True)
-    mode: Mapped[str] = mapped_column(
-        String(32), nullable=False, default="agent", index=True
-    )
+    mode: Mapped[str] = mapped_column(String(32), nullable=False, default="agent", index=True)
     user_id: Mapped[str | None] = mapped_column(Text, nullable=True, index=True)
-    is_archived: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=False, index=True
-    )
+    is_archived: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, index=True)
     is_pinned: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     meta: Mapped[dict | None] = mapped_column(JSON, nullable=True)
-    deleted_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
@@ -129,12 +119,8 @@ class Message(Base):
         Index("ix_message_parent_message_id", "parent_message_id"),
     )
 
-    id: Mapped[str] = mapped_column(
-        String, primary_key=True, default=lambda: str(uuid.uuid7())
-    )
-    user_id: Mapped[UUID] = mapped_column(
-        Uuid(as_uuid=True), nullable=False, index=True
-    )
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid7()))
+    user_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False, index=True)
     conversation_id: Mapped[str] = mapped_column(
         String,
         ForeignKey("conversation.id", ondelete="CASCADE"),
@@ -144,16 +130,12 @@ class Message(Base):
     parent_message_id: Mapped[str | None] = mapped_column(String, nullable=True)
     role: Mapped[str] = mapped_column(String(32), nullable=False)
     sender: Mapped[str | None] = mapped_column(String(120), nullable=True)
-    message: Mapped[dict | None] = mapped_column(
-        JSONB, nullable=True, comment="结构化消息"
-    )
+    message: Mapped[dict | None] = mapped_column(JSONB, nullable=True, comment="结构化消息")
     content: Mapped[str | None] = mapped_column(Text, nullable=True)
     text: Mapped[str | None] = mapped_column(Text, nullable=True)
     model: Mapped[str | None] = mapped_column(String(160), nullable=True)
     endpoint: Mapped[str | None] = mapped_column(String(80), nullable=True)
-    is_created_by_user: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=False
-    )
+    is_created_by_user: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     unfinished: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     cancelled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -169,9 +151,7 @@ class Message(Base):
     )
 
     conversation: Mapped[Conversation] = relationship(back_populates="messages")
-    openai_responses: Mapped[list["OpenaiResponse"]] = relationship(
-        back_populates="message"
-    )
+    openai_responses: Mapped[list["OpenaiResponse"]] = relationship(back_populates="message")
 
 
 class OpenaiResponse(Base):
@@ -197,19 +177,13 @@ class OpenaiResponse(Base):
         nullable=True,
         index=True,
     )
-    previous_response_id: Mapped[str | None] = mapped_column(
-        String, nullable=True, index=True
-    )
-    openai_conversation_id: Mapped[str | None] = mapped_column(
-        String, nullable=True, index=True
-    )
+    previous_response_id: Mapped[str | None] = mapped_column(String, nullable=True, index=True)
+    openai_conversation_id: Mapped[str | None] = mapped_column(String, nullable=True, index=True)
 
     object: Mapped[str] = mapped_column(String(32), nullable=False, default="response")
     status: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
     model: Mapped[str] = mapped_column(String(160), nullable=False, index=True)
-    api_created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
+    api_created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     api_completed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
@@ -223,33 +197,23 @@ class OpenaiResponse(Base):
     top_p: Mapped[float | None] = mapped_column(Float, nullable=True)
     top_logprobs: Mapped[int | None] = mapped_column(Integer, nullable=True)
     prompt_cache_key: Mapped[str | None] = mapped_column(Text, nullable=True)
-    prompt_cache_retention: Mapped[str | None] = mapped_column(
-        String(32), nullable=True
-    )
+    prompt_cache_retention: Mapped[str | None] = mapped_column(String(32), nullable=True)
     safety_identifier: Mapped[str | None] = mapped_column(Text, nullable=True)
     service_tier: Mapped[str | None] = mapped_column(String(32), nullable=True)
     truncation: Mapped[str | None] = mapped_column(String(32), nullable=True)
     user: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     error: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
-    incomplete_details: Mapped[dict[str, Any] | None] = mapped_column(
-        JSONB, nullable=True
-    )
-    instructions: Mapped[str | list[dict[str, Any]] | None] = mapped_column(
-        JSONB, nullable=True
-    )
+    incomplete_details: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    instructions: Mapped[str | list[dict[str, Any]] | None] = mapped_column(JSONB, nullable=True)
     response_metadata: Mapped[dict[str, Any] | None] = mapped_column(
         "metadata", JSONB, nullable=True
     )
     prompt: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     reasoning: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     text: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
-    tool_choice: Mapped[str | dict[str, Any] | None] = mapped_column(
-        JSONB, nullable=True
-    )
-    tools: Mapped[list[dict[str, Any]]] = mapped_column(
-        JSONB, nullable=False, default=list
-    )
+    tool_choice: Mapped[str | dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    tools: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, nullable=False, default=list)
     usage: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     raw_response: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
 
@@ -313,9 +277,7 @@ class OpenaiResponse(Base):
             top_p=payload.get("top_p"),
             top_logprobs=payload.get("top_logprobs"),
             prompt_cache_key=_optional_string(payload.get("prompt_cache_key")),
-            prompt_cache_retention=_optional_string(
-                payload.get("prompt_cache_retention")
-            ),
+            prompt_cache_retention=_optional_string(payload.get("prompt_cache_retention")),
             safety_identifier=_optional_string(payload.get("safety_identifier")),
             service_tier=_optional_string(payload.get("service_tier")),
             truncation=_optional_string(payload.get("truncation")),
@@ -353,9 +315,7 @@ class ResponseItem(Base):
         Index("ix_response_item_response_type", "response_id", "type"),
     )
 
-    id: Mapped[str] = mapped_column(
-        String, primary_key=True, default=lambda: str(uuid.uuid7())
-    )
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid7()))
     response_id: Mapped[str] = mapped_column(
         String,
         ForeignKey("openai_response.id", ondelete="CASCADE"),

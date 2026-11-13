@@ -56,12 +56,8 @@ def example_env(monkeypatch: MonkeyPatch) -> ExampleEnvironment:
         return resource_id == OWNED_ID
 
     users = MagicMock(owns=AsyncMock(side_effect=owns))
-    redis_resolver = AsyncMock(
-        side_effect=AssertionError("Redis resolved before authorization")
-    )
-    db_resolver = AsyncMock(
-        side_effect=AssertionError("Database resolved before authorization")
-    )
+    redis_resolver = AsyncMock(side_effect=AssertionError("Redis resolved before authorization"))
+    db_resolver = AsyncMock(side_effect=AssertionError("Database resolved before authorization"))
     cache_resolver = AsyncMock(
         side_effect=AssertionError("Cache backend resolved before authorization")
     )
@@ -124,9 +120,7 @@ def test_foreign_resource_returns_not_found_before_cache_or_database_resolution(
     response = example_client.request(method, BASE_PATH + suffix, json=payload)
     assert response.status_code == 404
     assert response.json() == {"detail": "Resource not found"}
-    example_env.users.owns.assert_awaited_once_with(
-        "conversation", OTHER_ID, example_env.user
-    )
+    example_env.users.owns.assert_awaited_once_with("conversation", OTHER_ID, example_env.user)
     example_env.assert_no_service_access()
 
 
@@ -201,9 +195,7 @@ def test_session_teaching_endpoints_cannot_modify_authentication_session(
     example_env.assert_no_service_access()
 
 
-@pytest.mark.parametrize(
-    "suffix", [f"/conversations/{OWNED_ID}", "/sdk/session/rotate"]
-)
+@pytest.mark.parametrize("suffix", [f"/conversations/{OWNED_ID}", "/sdk/session/rotate"])
 def test_production_hides_examples_before_resource_or_service_access(
     example_client: TestClient,
     example_env: ExampleEnvironment,
@@ -232,8 +224,6 @@ def test_owned_cache_hit_remains_available_after_authorization(
     response = example_client.get(BASE_PATH + f"/conversations/{OWNED_ID}")
     assert response.status_code == 200
     assert response.json()["id"] == OWNED_ID
-    example_env.users.owns.assert_awaited_once_with(
-        "conversation", OWNED_ID, example_env.user
-    )
+    example_env.users.owns.assert_awaited_once_with("conversation", OWNED_ID, example_env.user)
     redis.get.assert_awaited_once()
     example_env.db_resolver.return_value.execute.assert_not_awaited()

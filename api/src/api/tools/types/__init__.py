@@ -21,11 +21,14 @@ type GPTModel = Literal[
     "gpt-6.1-terra",
 ]
 type GPTImageModel = Literal[
-    "gpt-image-2",
-    "gpt-image-2.5-sunburst",
+    "gpt-image-2.6-flare",
+    "gpt-image-2.6-sunburst",
     "gpt-image-2.5-flare",
+    "gpt-image-2.5-sunburst",
+    "gpt-image-2",
 ]
-
+type SeedreamModel = Literal["doubao-seedream-5-0-pro-260628",]
+SEED_MODEL_MAP = {}
 type MimeType = Literal[
     "image/png",
     "image/jpeg",
@@ -33,6 +36,35 @@ type MimeType = Literal[
     "image/heic",
     "image/heif",
 ]
+
+type GeminiImageModel = Literal[
+    "gemini-3.1-flash-lite-image",
+    "gemini-3.1-flash-image",
+    "gemini-nano-banana-2.1",
+    "gemini-3-pro-image",
+]
+
+type SeedreamImageModel = Literal[
+    "doubao-seedream-5-5-261028",
+    "doubao-seedream-5-0-pro-260628",
+    "doubao-seedream-5-0-flash-260915",
+    "doubao-seedream-4-5-251128",
+    "doubao-seedream-4-0-250828",
+]
+type ModelProvider = Literal[
+    "google",
+    "openai",
+    "anthropic",
+    "deepseek",
+    "volcengine",
+]
+
+
+class ModelSPec(BaseModel):
+    id: str
+    provider: str
+    name: str
+    version: str
 
 
 class ToolResponse(BaseModel):
@@ -84,7 +116,7 @@ class GPTImageGenerationParams(BaseModel):
     prompt: str | None = Field(
         default=None, description="改写后的生成提示词；未返回时使用原始提示词"
     )
-    images: list[str] | None = Field(
+    image: list[str] | None = Field(
         default=None, description="工具返回的输入图片引用；未返回时为空"
     )
     model: GPTImageModel | None = None
@@ -108,23 +140,13 @@ class GPTImageGenerationParams(BaseModel):
 class ImageToolResponse(BaseModel):
     image_model: str | None = None
     content: str = Field()
-    generation_params: GPTImageGenerationParams | GeminiImageGenerationParams | None = (
-        None
-    )
+    generation_params: GPTImageGenerationParams | GeminiImageGenerationParams | None = None
     instructions: str | None = None
     success: bool = True
     error: str | None = None
     images: list[dict] | None = None
     usage: dict | None = None
     data: dict | None = None
-
-
-type GeminiImageModel = Literal[
-    "gemini-3.1-flash-lite-image",
-    "gemini-3.1-flash-image",
-    "gemini-nano-banana-2.1",
-    "gemini-3-pro-image",
-]
 
 
 class GeminiImageGenerationParams(BaseModel):
@@ -135,7 +157,7 @@ class GeminiImageGenerationParams(BaseModel):
     model: GeminiImageModel
     model_version: str | None = None
     prompt: str | None = None
-    images: list[str] | None = Field(
+    image: list[str] | None = Field(
         default=None, description="提交的参考图片 URL、data URL 或文件路径"
     )
 

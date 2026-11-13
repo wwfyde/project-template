@@ -1,6 +1,8 @@
 use super::map_error;
 use crate::entities::user::{ActiveModel, COLUMN, Column, Entity, Model};
-use crate::models::user::{User, UserId, UserPage, UserQuery, UserRepository, UserSort};
+use crate::models::user::{
+    Uid, User, UserId, UserPage, UserQuery, UserRepository, UserSort, UserWrite,
+};
 use crate::repositories::{
     RepositoryError, user_query_offset, user_search_pattern, validate_user_ids,
 };
@@ -14,18 +16,23 @@ use sea_orm::{
 };
 use std::sync::Arc;
 
-impl From<Model> for User {
-    fn from(model: Model) -> Self {
-        Self {
+impl TryFrom<Model> for User {
+    type Error = anyhow::Error;
+
+    fn try_from(model: Model) -> Result<Self> {
+        Ok(Self {
             id: UserId(model.id),
+            uid: Uid::try_from(model.uid)?,
             email: Some(model.email),
+            nickname: model.nickname,
             username: model.username,
             hashed_password: model.hashed_password,
             is_active: model.is_active,
+            locale: model.locale.parse()?,
             is_superuser: model.is_superuser,
             created_at: model.created_at.into(),
             updated_at: model.updated_at.map(|datetime| datetime.into()),
-        }
+        })
     }
 }
 
@@ -46,25 +53,29 @@ impl UserRepository for SeaOrmUserRepository {
             .order_by_asc(COLUMN.id)
             .all(&*self.db)
             .await
-            .map(|users| users.into_iter().map(User::from).collect())
-            .map_err(map_error)
+            .map_err(map_error)?
+            .into_iter()
+            .map(User::try_from)
+            .collect()
     }
 
-    async fn insert(&self, user: &User) -> Result<User> {
+    async fn insert(&self, user: &UserWrite) -> Result<User> {
         insert_model(user)?
             .insert(&*self.db)
             .await
-            .map(User::from)
             .map_err(map_error)
+            .and_then(User::try_from)
     }
 
-    async fn save(&self, user: &User) -> Result<User> {
+    async fn save(&self, user: &UserWrite) -> Result<User> {
         Entity::insert(insert_model(user)?)
             .on_conflict(
                 OnConflict::column(Column::Id)
                     .update_columns([
                         Column::Email,
                         Column::Username,
+                        Column::Nickname,
+                        Column::Locale,
                         Column::HashedPassword,
                         Column::IsActive,
                         Column::IsSuperuser,
@@ -74,8 +85,8 @@ impl UserRepository for SeaOrmUserRepository {
             )
             .exec_with_returning(&*self.db)
             .await
-            .map(User::from)
             .map_err(map_error)
+            .and_then(User::try_from)
     }
 
     async fn find_many(&self, ids: &[UserId]) -> Result<Vec<User>> {
@@ -88,16 +99,19 @@ impl UserRepository for SeaOrmUserRepository {
             .order_by_asc(COLUMN.id)
             .all(&*self.db)
             .await
-            .map(|users| users.into_iter().map(User::from).collect())
-            .map_err(map_error)
+            .map_err(map_error)?
+            .into_iter()
+            .map(User::try_from)
+            .collect()
     }
 
     async fn find_by_id(&self, id: UserId) -> Result<Option<User>> {
         Entity::find_by_id(id.0)
             .one(&*self.db)
             .await
-            .map(|user| user.map(User::from))
-            .map_err(map_error)
+            .map_err(map_error)?
+            .map(User::try_from)
+            .transpose()
     }
 
     async fn exists_by_id(&self, id: UserId) -> Result<bool> {
@@ -111,8 +125,9 @@ impl UserRepository for SeaOrmUserRepository {
         Entity::find_by_email(email)
             .one(&*self.db)
             .await
-            .map(|user| user.map(User::from))
-            .map_err(map_error)
+            .map_err(map_error)?
+            .map(User::try_from)
+            .transpose()
     }
 
     async fn search(&self, query: &UserQuery) -> Result<UserPage> {
@@ -172,8 +187,8 @@ impl UserRepository for SeaOrmUserRepository {
             .await
             .map_err(map_error)?
             .into_iter()
-            .map(User::from)
-            .collect();
+            .map(User::try_from)
+            .collect::<Result<Vec<_>>>()?;
         transaction.commit().await.map_err(map_error)?;
 
         Ok(UserPage {
@@ -184,12 +199,14 @@ impl UserRepository for SeaOrmUserRepository {
         })
     }
 
-    async fn update(&self, user: &User) -> Result<User> {
+    async fn update(&self, user: &UserWrite) -> Result<User> {
         let email = crate::repositories::required_email(user)?;
         let active_model = ActiveModel {
             id: Set(user.id.0),
             email: Set(email.to_owned()),
             username: Set(user.username.clone()),
+            nickname: Set(user.nickname.clone()),
+            locale: Set(user.locale.as_str().to_owned()),
             hashed_password: Set(user.hashed_password.clone()),
             is_active: Set(user.is_active),
             is_superuser: Set(user.is_superuser),
@@ -199,8 +216,8 @@ impl UserRepository for SeaOrmUserRepository {
         active_model
             .update(&*self.db)
             .await
-            .map(User::from)
             .map_err(map_error)
+            .and_then(User::try_from)
     }
 
     async fn delete_by_id(&self, id: UserId) -> Result<()> {
@@ -215,18 +232,45 @@ impl UserRepository for SeaOrmUserRepository {
     }
 }
 
-fn insert_model(user: &User) -> Result<ActiveModel> {
+fn insert_model(user: &UserWrite) -> Result<ActiveModel> {
     let email = crate::repositories::required_email(user)?;
     Ok(ActiveModel {
         id: Set(user.id.0),
         email: Set(email.to_owned()),
         username: Set(user.username.clone()),
+        nickname: Set(user.nickname.clone()),
+        locale: Set(user.locale.as_str().to_owned()),
         hashed_password: Set(user.hashed_password.clone()),
         is_active: Set(user.is_active),
         is_superuser: Set(user.is_superuser),
         created_at: Set(user.created_at.into()),
         updated_at: Set(user.updated_at.map(|datetime| datetime.into())),
+        ..Default::default()
     })
+}
+
+#[cfg(test)]
+pub(crate) fn user_table_for_tests(backend: DbBackend) -> sea_orm::sea_query::TableCreateStatement {
+    use sea_orm::sea_query::Table;
+    use sea_orm::{EntityName, Iterable, Schema};
+
+    let schema = Schema::new(backend);
+    let mut table = Table::create();
+    table.table(Entity.table_ref());
+    for column in Column::iter() {
+        let mut definition = schema.get_column_def::<Entity>(column);
+        if matches!(column, Column::Uid) && backend == DbBackend::Sqlite {
+            // SQLite cannot generate an identity for a non-primary-key column.
+            // Positive random values simulate identity only for SQLite tests;
+            // real identity sequence behavior is tested against PostgreSQL.
+            definition.extra("CHECK (uid > 0)");
+            definition.default(Expr::cust(
+                "((random() & 9223372036854775807) % 9223372036854775807) + 1",
+            ));
+        }
+        table.col(definition);
+    }
+    table
 }
 
 #[cfg(test)]
@@ -244,7 +288,10 @@ mod tests {
         let model = Model {
             id: Uuid::now_v7(),
             email: "user@example.com".into(),
+            uid: 1,
             username: Some("tester".into()),
+            nickname: Some("昵称".into()),
+            locale: "ja-JP".into(),
             hashed_password: Some("hashed".into()),
             is_active: Some(true),
             is_superuser: Some(false),
@@ -252,9 +299,20 @@ mod tests {
             updated_at: None,
         };
 
-        let domain_user = User::from(model.clone());
+        for invalid_uid in [-1, 0] {
+            let mut invalid = model.clone();
+            invalid.uid = invalid_uid;
+            assert!(User::try_from(invalid).is_err());
+        }
+        let mut invalid = model.clone();
+        invalid.locale = "unsupported".into();
+        assert!(User::try_from(invalid).is_err());
+        let domain_user = User::try_from(model.clone()).unwrap();
         assert_eq!(domain_user.id, UserId(model.id));
         assert_eq!(domain_user.email, Some(model.email));
+        assert_eq!(domain_user.uid, Uid(1));
+        assert_eq!(domain_user.nickname, model.nickname);
+        assert_eq!(domain_user.locale, crate::models::Locale::JaJp);
         assert_eq!(domain_user.username, model.username);
         assert_eq!(domain_user.hashed_password, model.hashed_password);
         assert_eq!(domain_user.is_active, model.is_active);

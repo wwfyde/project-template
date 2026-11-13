@@ -47,9 +47,7 @@ def provider_config(monkeypatch: MonkeyPatch) -> None:
         monkeypatch.setattr(
             settings.providers,
             provider,
-            LLMConfig(
-                base_url=f"https://{provider}.example/v1", api_key=SecretStr(KEY)
-            ),
+            LLMConfig(base_url=f"https://{provider}.example/v1", api_key=SecretStr(KEY)),
         )
 
 
@@ -118,9 +116,7 @@ def test_openai_tool_uses_model_credentials_and_oss_metadata(
     assert isinstance(result, ImageToolResponse)
     assert result.success, result
     assert result.image_model == model
-    assert result.images == [
-        image_info.model_dump(exclude_unset=True, exclude_none=True)
-    ]
+    assert result.images == [image_info.model_dump(exclude_unset=True, exclude_none=True)]
     assert result.usage["total_tokens"] == 3
     payload = json.loads(requests[0].content)
     assert payload == {
@@ -170,16 +166,12 @@ def test_openai_reference_images_become_multipart_bytes(
         "make the cup blue", image_urls=reference, aspect_ratio="2048x1152"
     )
     assert result.success, result
-    assert [request.method for request in requests] == (
-        ["POST"] if inline else ["GET", "POST"]
-    )
+    assert [request.method for request in requests] == (["POST"] if inline else ["GET", "POST"])
     upload.assert_awaited_once()
 
 
 @pytest.mark.parametrize("suffix", ["2", "2_5_flare", "2_5_sunburst"])
-def test_openai_entry_point_selects_evolink_function(
-    monkeypatch: MonkeyPatch, suffix: str
-) -> None:
+def test_openai_entry_point_selects_evolink_function(monkeypatch: MonkeyPatch, suffix: str) -> None:
     expected = ImageToolResponse(image_model="selected-model", content="", images=[])
     function = Mock(return_value=expected)
     monkeypatch.setattr(gpt_evolink, f"image_create_with_gpt_image_{suffix}", function)
@@ -247,9 +239,7 @@ def test_evolink_tool_polls_downloads_and_uses_oss_metadata(
     )
     assert result.success, result
     assert result.image_model == model
-    assert result.images == [
-        image_info.model_dump(exclude_unset=True, exclude_none=True)
-    ]
+    assert result.images == [image_info.model_dump(exclude_unset=True, exclude_none=True)]
     assert post.call_args.args == ("https://evolink.example/v1/images/generations",)
     assert post.call_args.kwargs["headers"]["Authorization"] == f"Bearer {KEY}"
     assert post.call_args.kwargs["json"] == {
@@ -268,9 +258,7 @@ def test_evolink_tool_polls_downloads_and_uses_oss_metadata(
         timeout=60,
         proxies=None,
     )
-    download.assert_called_once_with(
-        "https://result.example/image.png", timeout=180, proxy=None
-    )
+    download.assert_called_once_with("https://result.example/image.png", timeout=180, proxy=None)
     upload.assert_awaited_once_with("generated.png", png(), prefix="creative/gpt")
 
 
@@ -307,9 +295,9 @@ def encoded_image(
     image_format: str = "PNG", *, alpha: bool = False, size: tuple[int, int] = (8, 6)
 ) -> bytes:
     output = BytesIO()
-    Image.new(
-        "RGBA" if alpha else "RGB", size, (20, 40, 60, 0) if alpha else (20, 40, 60)
-    ).save(output, format=image_format)
+    Image.new("RGBA" if alpha else "RGB", size, (20, 40, 60, 0) if alpha else (20, 40, 60)).save(
+        output, format=image_format
+    )
     return output.getvalue()
 
 
@@ -317,9 +305,7 @@ def data_url(content: bytes, image_format: str = "png") -> str:
     return f"data:image/{image_format};base64," + base64.b64encode(content).decode()
 
 
-@pytest.mark.parametrize(
-    "suffix,quality", [("2_5_flare", "xhigh"), ("2_5_sunburst", "max")]
-)
+@pytest.mark.parametrize("suffix,quality", [("2_5_flare", "xhigh"), ("2_5_sunburst", "max")])
 @pytest.mark.parametrize("image_format", ["jpeg", "webp", "png"])
 def test_extended_output_options_and_actual_uploaded_format(
     monkeypatch: MonkeyPatch,
@@ -370,9 +356,7 @@ def test_extended_output_options_and_actual_uploaded_format(
     assert body["moderation"] == "low"
     assert body["safety_identifier"] == "hashed-user-id"
     extension = "jpg" if image_format == "jpeg" else image_format
-    upload.assert_awaited_once_with(
-        f"generated.{extension}", output, prefix="creative/gpt"
-    )
+    upload.assert_awaited_once_with(f"generated.{extension}", output, prefix="creative/gpt")
     assert result.images == [
         metadata.model_dump(mode="json", exclude_unset=True, exclude_none=True)
     ]
@@ -474,9 +458,7 @@ def test_invalid_mask_is_rejected_before_model_call(
     provider_config: None,
     kind: str,
 ) -> None:
-    mock_sdk_transport(
-        monkeypatch, lambda request: pytest.fail("Unexpected HTTP request")
-    )
+    mock_sdk_transport(monkeypatch, lambda request: pytest.fail("Unexpected HTTP request"))
     model = Mock(side_effect=AssertionError("Model was invoked"))
     monkeypatch.setattr(gpt, "OpenAI", model)
     content = (
@@ -510,9 +492,7 @@ def test_invalid_reference_data_is_classified_as_input_failure(
     provider_config: None,
     reference: str,
 ) -> None:
-    mock_sdk_transport(
-        monkeypatch, lambda request: pytest.fail("Unexpected HTTP request")
-    )
+    mock_sdk_transport(monkeypatch, lambda request: pytest.fail("Unexpected HTTP request"))
     result = gpt.image_create_with_gpt_image_2("draw", image_urls=reference)
     assert result.error == "invalid_image_input"
     assert result.success is False
@@ -633,9 +613,7 @@ def test_upload_failure_retains_usage_and_effective_parameters(
     provider_config: None,
 ) -> None:
     mock_sdk_transport(monkeypatch, lambda request: generated_response())
-    monkeypatch.setattr(
-        gpt, "upload_image", AsyncMock(side_effect=RuntimeError("private OSS key"))
-    )
+    monkeypatch.setattr(gpt, "upload_image", AsyncMock(side_effect=RuntimeError("private OSS key")))
     result = gpt.image_create_with_gpt_image_2("draw", size="1024x1024")
     assert result.error == "image_upload_failed"
     assert result.usage["total_tokens"] == 3
@@ -661,9 +639,7 @@ def test_evolink_rejects_unsupported_extended_parameters_without_dispatch(
 ) -> None:
     tool = Mock(side_effect=AssertionError("Evolink was invoked"))
     monkeypatch.setattr(gpt_evolink, "image_create_with_gpt_image_2_5_flare", tool)
-    result = gpt.image_create_with_gpt_image_2_5_flare(
-        "draw", provider="evolink", **parameters
-    )
+    result = gpt.image_create_with_gpt_image_2_5_flare("draw", provider="evolink", **parameters)
     assert result.error == "unsupported_provider_parameter"
     assert result.success is False
     tool.assert_not_called()
@@ -675,9 +651,7 @@ def test_http_mask_source_guard_cannot_access_local_addresses(
 ) -> None:
     from api.images.source_access import http_image_sources
 
-    mock_sdk_transport(
-        monkeypatch, lambda request: pytest.fail("Unexpected HTTP request")
-    )
+    mock_sdk_transport(monkeypatch, lambda request: pytest.fail("Unexpected HTTP request"))
     reference = data_url(png())
     with http_image_sources(reference):
         result = gpt.image_create_with_gpt_image_2(
@@ -735,11 +709,7 @@ def test_invalid_output_format_and_excess_bytes_never_reach_oss(
     )
     upload = AsyncMock()
     monkeypatch.setattr(gpt, "upload_image", upload)
-    assert (
-        gpt.image_create_with_gpt_image_2("draw").error == "provider_invalid_response"
-    )
+    assert gpt.image_create_with_gpt_image_2("draw").error == "provider_invalid_response"
     monkeypatch.setattr(gpt, "MAX_IMAGE_BYTES", 10)
-    assert (
-        gpt.image_create_with_gpt_image_2("draw").error == "provider_invalid_response"
-    )
+    assert gpt.image_create_with_gpt_image_2("draw").error == "provider_invalid_response"
     upload.assert_not_awaited()

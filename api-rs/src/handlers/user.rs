@@ -1,4 +1,4 @@
-use crate::models::user::{User, UserId};
+use crate::models::user::{User, UserId, UserWrite};
 use crate::repositories::orm::SeaOrmUserRepository;
 pub(crate) use crate::schemas::user::{CreateUser, UserResponse};
 use crate::services::user::UserService;
@@ -10,7 +10,7 @@ use http::StatusCode;
 use std::sync::Arc;
 use uuid::Uuid;
 
-use crate::services::auth_extractor::AuthUser;
+use crate::services::auth_extractor::{ApiKeyAuth, AuthUser};
 
 /// 通过这种方式为API添加文档注释
 #[utoipa::path(
@@ -45,22 +45,23 @@ pub async fn get_users(
     path = "/users",
     tags = ["user"],
     summary = "新建用户",
+    description = "使用 X-Api-Key 创建用户，无需先登录或提供 Bearer JWT。",
     request_body = CreateUser,
     responses(
         (status = 201, description = "Created user", body = UserResponse),
-        (status = 401, description = "Unauthorized"),
+        (status = 401, description = "Unauthorized - API key missing or invalid"),
+        (status = 409, description = "Email or username already exists"),
         (status = 500, description = "Internal server error")
     ),
     security(
-        ("api_key" = [], "jwt_auth" = [])
+        ("api_key" = [])
     )
 )]
 pub async fn create_user(
     // this argument tells axum to parse the request body
     // as JSON into a `CreateUser` type
     State(state): State<Arc<AppState>>,
-    _auth_user: AuthUser,
-
+    _api_key: ApiKeyAuth,
     Json(payload): Json<CreateUser>,
 ) -> Result<(StatusCode, Json<UserResponse>), StatusCode> {
     let repo = Arc::new(SeaOrmUserRepository::new(state.db.clone()));
@@ -77,12 +78,14 @@ pub async fn create_user(
                 tracing::error!(%error, "failed to hash password");
                 StatusCode::INTERNAL_SERVER_ERROR
             })?;
-    let new_user = User {
+    let new_user = UserWrite {
         id: UserId(Uuid::now_v7()),
         email: Some(payload.email),
+        nickname: payload.nickname,
         username: Some(payload.username),
         hashed_password: Some(hashed_password),
         is_active: Some(true),
+        locale: payload.locale,
         is_superuser: Some(false),
         created_at: now,
         updated_at: None,
@@ -148,5 +151,9 @@ pub async fn get_current_user(
         .auth
         .active_user_by_username(&state.db, &auth_user.username)
         .await?;
-    Ok(Json(UserResponse::from(User::from(user))))
+    let user = User::try_from(user).map_err(|error| {
+        tracing::error!(?error, "invalid stored user profile");
+        crate::error::AuthError::InternalServerError
+    })?;
+    Ok(Json(UserResponse::from(user)))
 }

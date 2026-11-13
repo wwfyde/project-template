@@ -47,9 +47,7 @@ async def establish_user_session(
             "provider": provider,
             "auth_version": user.auth_version,
             "csrf_token": secrets.token_urlsafe(32),
-            "authenticated_at": time.time()
-            if authenticated_at is None
-            else authenticated_at,
+            "authenticated_at": time.time() if authenticated_at is None else authenticated_at,
             "login_expires_at": time.time() + store.absolute_seconds
             if login_expires_at is None
             else login_expires_at,
@@ -61,9 +59,7 @@ async def establish_user_session(
         raise HTTPException(503, "Could not establish a login session") from exc
     bind_identity(user.id, account_id)
     request.state.authenticated = True
-    logger.info(
-        "Signed in", extra={"otel.event.name": "auth.login", "auth.provider": provider}
-    )
+    logger.info("Signed in", extra={"otel.event.name": "auth.login", "auth.provider": provider})
 
 
 async def auth_validation_error(request: Request, exc: Exception) -> JSONResponse:
@@ -92,9 +88,9 @@ class SessionAvailabilityMiddleware:
         async def tracked_send(message: Message) -> None:
             nonlocal started
             if message["type"] == "http.response.start":
-                if scope.get("path", "") == "/api/account" or scope.get(
-                    "path", ""
-                ).startswith(("/api/auth/", "/api/account/")):
+                if scope.get("path", "") == "/api/account" or scope.get("path", "").startswith(
+                    ("/api/auth/", "/api/account/")
+                ):
                     headers = MutableHeaders(scope=message)
                     headers["Cache-Control"] = "no-store"
                     headers["Referrer-Policy"] = "no-referrer"
@@ -126,9 +122,7 @@ def configure_auth_sessions(app: FastAPI, settings: Settings) -> None:
     if redis is None:
         raise ValueError("Authentication requires Redis")
     if redis.session_idle_ttl <= 0 or redis.session_absolute_ttl <= 0:
-        raise ValueError(
-            "Authentication requires positive idle and absolute session TTLs"
-        )
+        raise ValueError("Authentication requires positive idle and absolute session TTLs")
     if settings.app.env == "prod" and not redis.session_cookie_https_only:
         raise ValueError("Production authentication requires Secure session cookies")
     if redis.session_cookie_same_site != "lax":
@@ -144,6 +138,8 @@ def configure_auth_sessions(app: FastAPI, settings: Settings) -> None:
             for prefix in (HEADER_EXAMPLE_PREFIX, "/api/ai-tools/images")
         ):
             return True
+        if request.url.path == "/v1/skills" or request.url.path.startswith("/v1/skills/"):
+            return False
         return not request.url.path.startswith("/api/") or request.url.path in {
             "/api/health",
             "/api/hello",

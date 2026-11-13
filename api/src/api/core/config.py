@@ -173,9 +173,7 @@ class Settings(BaseSettings):
     # app_name: str = "ai-tools"
     project_name: str = "Api"
     repo_type: Literal["memory", "postgres", "mongodb", "mysql", "redis"] = "memory"
-    profile: Literal["web", "cli", "desktop", "app"] = Field(
-        default="web", title="执行环境"
-    )
+    profile: Literal["web", "cli", "desktop", "app"] = Field(default="web", title="执行环境")
     admin_users: list[str] = []
     app: AppConfig = Field(default_factory=AppConfig)
     agent: AgentConfig = Field(default_factory=AgentConfig)
@@ -219,13 +217,9 @@ class Settings(BaseSettings):
         }
         if self.auth.header.name.lower() in correlation_headers:
             raise ValueError("Authentication Header must not be a correlation header")
-        if self.app.env == "prod" and any(
-            item.enabled for item in get_auth_providers(self.auth)
-        ):
+        if self.app.env == "prod" and any(item.enabled for item in get_auth_providers(self.auth)):
             if not self.auth.frontend_url.startswith("https://"):
-                raise ValueError(
-                    "Production authentication requires an HTTPS frontend_url"
-                )
+                raise ValueError("Production authentication requires an HTTPS frontend_url")
             for provider in get_auth_providers(self.auth):
                 config = getattr(self.auth, provider.id, None)
                 if (
@@ -234,9 +228,7 @@ class Settings(BaseSettings):
                     and config is not None
                     and not config.redirect_uri.startswith("https://")
                 ):
-                    raise ValueError(
-                        "Production authentication requires HTTPS callback URLs"
-                    )
+                    raise ValueError("Production authentication requires HTTPS callback URLs")
         return self
 
     # ark: ArkConfig = None
@@ -353,9 +345,7 @@ if __name__ == "__main__":
     settings = get_settings()
     print(settings.redis_dsn)
     print(getattr(getattr(settings.providers, "volcengine", None), "image_model", None))
-    print(
-        settings.providers.volcengine.api_key if settings.providers.volcengine else None
-    )
+    print(settings.providers.volcengine.api_key if settings.providers.volcengine else None)
     print(project_dir := settings.project_dir)
     print(settings.proxy_url)
     # print(settings.play_some())

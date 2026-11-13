@@ -108,9 +108,7 @@ def _create_runtime(config: OtelConfig, environment: str) -> TelemetryRuntime:
         attributes["service.namespace"] = config.service_namespace
     resource = Resource.create(attributes)
     samplers = {
-        "parentbased_traceidratio": ParentBased(
-            TraceIdRatioBased(config.traces_sampler_arg)
-        ),
+        "parentbased_traceidratio": ParentBased(TraceIdRatioBased(config.traces_sampler_arg)),
         "parentbased_always_on": ParentBased(ALWAYS_ON),
         "traceidratio": TraceIdRatioBased(config.traces_sampler_arg),
         "always_on": ALWAYS_ON,
@@ -119,9 +117,7 @@ def _create_runtime(config: OtelConfig, environment: str) -> TelemetryRuntime:
     headers = parse_key_values(config.exporter_otlp_headers.get_secret_value())
     tracer_provider = TracerProvider(
         resource=resource,
-        sampler=samplers[config.traces_sampler]
-        if config.traces_enabled
-        else ALWAYS_OFF,
+        sampler=samplers[config.traces_sampler] if config.traces_enabled else ALWAYS_OFF,
     )
     if config.traces_enabled:
         tracer_provider.add_span_processor(
@@ -173,9 +169,7 @@ def _create_runtime(config: OtelConfig, environment: str) -> TelemetryRuntime:
         )
     logger_provider = None
     if config.logs_enabled:
-        logger_provider = LoggerProvider(
-            resource=resource, meter_provider=meter_provider
-        )
+        logger_provider = LoggerProvider(resource=resource, meter_provider=meter_provider)
         logger_provider.add_log_record_processor(
             BatchLogRecordProcessor(
                 OTLPLogExporter(
@@ -232,9 +226,7 @@ def setup_telemetry(
 ) -> None:
     if not config.active:
         if _runtime is not None:
-            raise RuntimeError(
-                "Restart the worker to disable its existing OTel providers"
-            )
+            raise RuntimeError("Restart the worker to disable its existing OTel providers")
         return
     runtime = _get_runtime(config, environment)
     if getattr(app.state, "otel_runtime", None) is not None:

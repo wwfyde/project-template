@@ -9,15 +9,14 @@ from unittest.mock import AsyncMock, Mock
 
 import httpx2
 import pytest
+from api.tools.images import gpt
+from api.tools.types import GPTImageGenerationParams, ImageInfo
 from openai.types.responses import ResponseInputImageParam
 from openai.types.responses.response_output_item import ImageGenerationCall
 from openai.types.responses.tool import ImageGeneration as ResponseImageGeneration
 from openai.types.responses.tool_param import ImageGenerationInputImageMask
 from PIL import Image, UnidentifiedImageError
 from pytest import MonkeyPatch
-
-from api.tools.images import gpt
-from api.tools.types import GPTImageGenerationParams, ImageInfo
 
 
 def png() -> bytes:
@@ -101,7 +100,7 @@ async def test_default_downloads_reference_urls_and_mask(
     original_reference, original_mask = reference.copy(), mask.copy()
     await gpt.image_create_with_gpt_image(
         prompt="edit",
-        images=["https://images.example/redirect", reference],
+        image=["https://images.example/redirect", reference],
         mask=mask,
     )
 
@@ -160,7 +159,7 @@ async def test_remote_mask_is_converted_for_plain_and_native_inputs(
     mask = ImageGenerationInputImageMask(image_url=mask_url)
     await gpt.image_create_with_gpt_image(
         prompt="edit",
-        images=inline,
+        image=inline,
         mask=mask if native_mask else mask_url,
     )
     assert responses_create.await_args is not None
@@ -178,12 +177,8 @@ async def test_data_urls_and_file_ids_bypass_download_and_base64_codecs(
     monkeypatch: MonkeyPatch, responses_create: AsyncMock, file_mask: bool
 ) -> None:
     inline = data_url()
-    native_inline = ResponseInputImageParam(
-        type="input_image", detail="high", image_url=inline
-    )
-    file_input = ResponseInputImageParam(
-        type="input_image", detail="low", file_id="file-reference"
-    )
+    native_inline = ResponseInputImageParam(type="input_image", detail="high", image_url=inline)
+    file_input = ResponseInputImageParam(type="input_image", detail="low", file_id="file-reference")
     mask = (
         ImageGenerationInputImageMask(file_id="file-mask")
         if file_mask
@@ -195,7 +190,7 @@ async def test_data_urls_and_file_ids_bypass_download_and_base64_codecs(
     monkeypatch.setattr(gpt.base64, "b64decode", unexpected)
     monkeypatch.setattr(gpt.base64, "b64encode", unexpected)
     await gpt.image_create_with_gpt_image(
-        prompt="edit", images=[inline, native_inline, file_input], mask=mask
+        prompt="edit", image=[inline, native_inline, file_input], mask=mask
     )
     assert responses_create.await_args is not None
     request = responses_create.await_args.kwargs
@@ -215,15 +210,11 @@ async def test_failed_download_never_invokes_responses(
 ) -> None:
     _, clients, _ = mock_downloads(
         monkeypatch,
-        lambda request: httpx2.Response(
-            404 if http_failure else 200, content=b"not an image"
-        ),
+        lambda request: httpx2.Response(404 if http_failure else 200, content=b"not an image"),
     )
-    with pytest.raises(
-        httpx2.HTTPStatusError if http_failure else UnidentifiedImageError
-    ):
+    with pytest.raises(httpx2.HTTPStatusError if http_failure else UnidentifiedImageError):
         await gpt.image_create_with_gpt_image(
-            prompt="edit", images="https://images.example/reference"
+            prompt="edit", image="https://images.example/reference"
         )
     responses_create.assert_not_awaited()
     assert len(clients) == 1 and clients[0].is_closed
@@ -235,9 +226,7 @@ async def test_iterable_inputs_preserve_order_and_consume_generator_once(
     responses_create: AsyncMock, use_generator: bool
 ) -> None:
     inline = data_url()
-    native = ResponseInputImageParam(
-        type="input_image", detail="high", file_id="file-reference"
-    )
+    native = ResponseInputImageParam(type="input_image", detail="high", file_id="file-reference")
     sources: tuple[gpt.ImageInput, ...] = (inline, native)
     consumed: list[gpt.ImageInput] = []
 
@@ -247,7 +236,7 @@ async def test_iterable_inputs_preserve_order_and_consume_generator_once(
             yield source
 
     images: Iterable[gpt.ImageInput] = generate() if use_generator else sources
-    await gpt.image_create_with_gpt_image(prompt="edit", images=images)
+    await gpt.image_create_with_gpt_image(prompt="edit", image=images)
 
     assert responses_create.await_args is not None
     assert responses_create.await_args.kwargs["input"][0]["content"][1:] == [
@@ -264,17 +253,15 @@ async def test_empty_generator_behaves_like_no_reference_images(
 ) -> None:
     images: Iterator[gpt.ImageInput] = (source for source in ())
     if with_mask:
-        with pytest.raises(
-            ValueError, match="image_mask requires at least one input image"
-        ):
+        with pytest.raises(ValueError, match="image_mask requires at least one input image"):
             await gpt.image_create_with_gpt_image(
                 prompt="draw",
-                images=images,
+                image=images,
                 mask=ImageGenerationInputImageMask(file_id="file-mask"),
             )
         responses_create.assert_not_awaited()
     else:
-        await gpt.image_create_with_gpt_image(prompt="draw", images=images)
+        await gpt.image_create_with_gpt_image(prompt="draw", image=images)
         assert responses_create.await_args is not None
         assert responses_create.await_args.kwargs["input"] == "draw"
 
@@ -284,9 +271,7 @@ async def test_empty_generator_behaves_like_no_reference_images(
 async def test_single_iterable_image_values_are_not_split(
     responses_create: AsyncMock, kind: str
 ) -> None:
-    native = ResponseInputImageParam(
-        type="input_image", detail="high", file_id="file-reference"
-    )
+    native = ResponseInputImageParam(type="input_image", detail="high", file_id="file-reference")
     source: gpt.ImageInput
     if kind == "str":
         source = data_url()
@@ -294,7 +279,7 @@ async def test_single_iterable_image_values_are_not_split(
         source = png()
     else:
         source = native
-    await gpt.image_create_with_gpt_image(prompt="edit", images=source)
+    await gpt.image_create_with_gpt_image(prompt="edit", image=source)
 
     assert responses_create.await_args is not None
     assert responses_create.await_args.kwargs["input"][0]["content"][1:] == [
@@ -492,9 +477,7 @@ async def test_no_call_returns_sent_generation_params_including_mask(
     mask = ImageGenerationInputImageMask(file_id="file-mask")
     result = await gpt.image_create_with_gpt_image(
         prompt="edit",
-        images=ResponseInputImageParam(
-            type="input_image", detail="auto", file_id="file-reference"
-        ),
+        image=ResponseInputImageParam(type="input_image", detail="auto", file_id="file-reference"),
         mask=mask,
         model="gpt-image-2.5-sunburst",
         image_param=parameters,
@@ -522,9 +505,7 @@ async def test_prompt_rewrite_and_original_instructions_serialize_separately(
         "status": "completed",
     }
     if rewrite_state != "missing":
-        output["revised_prompt"] = (
-            "Rewritten prompt" if rewrite_state == "present" else None
-        )
+        output["revised_prompt"] = "Rewritten prompt" if rewrite_state == "present" else None
     responses_create.return_value.output = [ImageGenerationCall.model_validate(output)]
     result = await gpt.image_create_with_gpt_image(prompt=original)
     assert isinstance(result.generation_params, GPTImageGenerationParams)

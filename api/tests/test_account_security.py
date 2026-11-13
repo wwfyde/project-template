@@ -8,9 +8,7 @@ from test_redis_sdk_sessions import MemorySessionStore
 from api.core import account_security as security
 
 
-@pytest.mark.parametrize(
-    "value", [None, "1000", True, float("nan"), float("inf"), 1001, 699]
-)
+@pytest.mark.parametrize("value", [None, "1000", True, float("nan"), float("inf"), 1001, 699])
 def test_invalid_or_stale_proof_cannot_authorize_changes(
     value: object, monkeypatch: pytest.MonkeyPatch
 ) -> None:

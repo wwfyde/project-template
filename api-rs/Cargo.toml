@@ -22,11 +22,17 @@ sea-orm = {
     features = [
         "macros",
         "runtime-tokio-rustls",
+        "schema-sync",
         "sqlx-postgres",
         "with-chrono",
         "with-json",
         "with-uuid",
     ]
+}
+sea-orm-migration = {
+    version = "2.0.4",
+    default-features = false,
+    features = ["cli", "runtime-tokio-rustls", "sqlx-postgres"]
 }
 sqlx = {
     version = "0.9",
@@ -41,7 +47,7 @@ sqlx = {
     ]
 }
 
-clap = { version = "4.4.5", features = ["derive", "env"] }
+clap = { version = "4", features = ["derive", "env"] }
 tracing-subscriber = "0.3.18"
 
 # openapi documentation
@@ -56,10 +62,10 @@ tracing = "0.1.41"
 
 chrono = "0.4.39"
 # utilities
-uuid = { version = "1.0", features = ["fast-rng", "serde", "v7"] }
+uuid = { version = "1", features = ["fast-rng", "serde", "v7"] }
 
 async-trait = "0.1.89"
-bcrypt = "0.18"
+bcrypt = "0.19"
 config = "0.15.6"
 dotenvy = "0.15"
 http = "1.3.1"

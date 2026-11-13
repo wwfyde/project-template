@@ -27,9 +27,7 @@ class GoogleProvider:
         self, *, state: str, nonce: str, code_verifier: str, interactive: bool = False
     ) -> str:
         challenge = (
-            base64.urlsafe_b64encode(
-                hashlib.sha256(code_verifier.encode("ascii")).digest()
-            )
+            base64.urlsafe_b64encode(hashlib.sha256(code_verifier.encode("ascii")).digest())
             .rstrip(b"=")
             .decode("ascii")
         )
@@ -48,9 +46,7 @@ class GoogleProvider:
         query = urlencode(parameters)
         return f"{AUTHORIZE_URL}?{query}"
 
-    async def authenticate(
-        self, code: str, *, nonce: str, code_verifier: str
-    ) -> ProviderIdentity:
+    async def authenticate(self, code: str, *, nonce: str, code_verifier: str) -> ProviderIdentity:
         try:
             async with httpx2.AsyncClient(
                 timeout=self._config.timeout_seconds, follow_redirects=False
@@ -68,24 +64,16 @@ class GoogleProvider:
                 )
                 response.raise_for_status()
                 payload = response.json()
-                if not isinstance(payload, dict) or not isinstance(
-                    payload.get("id_token"), str
-                ):
+                if not isinstance(payload, dict) or not isinstance(payload.get("id_token"), str):
                     raise AuthProviderError("Google returned no identity token")
                 token = payload["id_token"]
                 header = jwt.get_unverified_header(token)
-                if header.get("alg") != "RS256" or not isinstance(
-                    header.get("kid"), str
-                ):
-                    raise AuthProviderError(
-                        "Google identity token has an invalid signing key"
-                    )
+                if header.get("alg") != "RS256" or not isinstance(header.get("kid"), str):
+                    raise AuthProviderError("Google identity token has an invalid signing key")
 
                 keys_response = await client.get(JWKS_URL)
                 keys_response.raise_for_status()
-                signing_key = self._select_signing_key(
-                    keys_response.json(), header["kid"]
-                )
+                signing_key = self._select_signing_key(keys_response.json(), header["kid"])
 
             claims = jwt.decode(
                 token,
@@ -128,9 +116,7 @@ class GoogleProvider:
             raise AuthProviderError("Google identity token has an invalid signing key")
         return key
 
-    def _identity_from_claims(
-        self, claims: dict[str, Any], *, nonce: str
-    ) -> ProviderIdentity:
+    def _identity_from_claims(self, claims: dict[str, Any], *, nonce: str) -> ProviderIdentity:
         actual_nonce = claims.get("nonce")
         if (
             not nonce
@@ -146,12 +132,8 @@ class GoogleProvider:
             raise AuthProviderError("Google identity token has invalid timestamps")
         audience = claims.get("aud")
         authorized_party = claims.get("azp")
-        if (
-            authorized_party is not None and authorized_party != self._config.client_id
-        ) or (
-            isinstance(audience, list)
-            and len(audience) > 1
-            and authorized_party is None
+        if (authorized_party is not None and authorized_party != self._config.client_id) or (
+            isinstance(audience, list) and len(audience) > 1 and authorized_party is None
         ):
             raise AuthProviderError("Google identity token authorized party mismatch")
         subject = claims.get("sub")
@@ -161,11 +143,7 @@ class GoogleProvider:
             if field in claims and not isinstance(claims[field], str):
                 raise AuthProviderError("Google identity token has an invalid profile")
         email_verified = claims.get("email_verified")
-        email = (
-            claims.get("email")
-            if email_verified is True or email_verified == "true"
-            else None
-        )
+        email = claims.get("email") if email_verified is True or email_verified == "true" else None
         try:
             return ProviderIdentity(
                 provider="google",
@@ -175,6 +153,4 @@ class GoogleProvider:
                 email=email,
             )
         except ValidationError as exc:
-            raise AuthProviderError(
-                "Google identity token has an invalid profile"
-            ) from exc
+            raise AuthProviderError("Google identity token has an invalid profile") from exc

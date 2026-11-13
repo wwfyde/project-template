@@ -83,18 +83,14 @@ def test_environment_only_settings(monkeypatch: MonkeyPatch, tmp_path: Path) -> 
 def test_environment_overrides_toml(monkeypatch: MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.chdir(tmp_path)
     configure_database(monkeypatch)
-    (tmp_path / "config.toml").write_text(
-        '[postgres]\nhost = "local-database"\n', encoding="utf-8"
-    )
+    (tmp_path / "config.toml").write_text('[postgres]\nhost = "local-database"\n', encoding="utf-8")
 
     settings = Settings(_env_file=None)
 
     assert settings.postgres.host == "postgres"
 
 
-def test_connection_passwords_are_url_encoded(
-    monkeypatch: MonkeyPatch, tmp_path: Path
-) -> None:
+def test_connection_passwords_are_url_encoded(monkeypatch: MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.chdir(tmp_path)
     configure_database(monkeypatch)
     password = "p@ss:/?#%$ with spaces"
@@ -121,9 +117,7 @@ def test_redis_url_takes_precedence(monkeypatch: MonkeyPatch, tmp_path: Path) ->
 
 
 @pytest.mark.parametrize("source", ["environment", "dotenv", "toml"])
-def test_sentinel_settings_sources(
-    monkeypatch: MonkeyPatch, tmp_path: Path, source: str
-) -> None:
+def test_sentinel_settings_sources(monkeypatch: MonkeyPatch, tmp_path: Path, source: str) -> None:
     monkeypatch.chdir(tmp_path)
     configure_database(monkeypatch)
     for name in list(os.environ):
@@ -141,9 +135,7 @@ def test_sentinel_settings_sources(
     if source == "toml":
         (tmp_path / "config.toml").write_text(
             "[redis]\n"
-            + "\n".join(
-                f"{key} = {json.dumps(value)}" for key, value in values.items()
-            ),
+            + "\n".join(f"{key} = {json.dumps(value)}" for key, value in values.items()),
             encoding="utf-8",
         )
     else:
@@ -217,27 +209,18 @@ def test_conflicting_redis_modes_are_rejected() -> None:
     with pytest.raises(ValidationError, match="mutually exclusive"):
         RedisConfig(sentinel=True, cluster=True, sentinel_nodes=["sentinel-a"])
     with pytest.raises(ValidationError, match="not supported in sentinel mode"):
-        RedisConfig(
-            sentinel=True, sentinel_nodes=["sentinel-a"], url="redis://old-host"
-        )
+        RedisConfig(sentinel=True, sentinel_nodes=["sentinel-a"], url="redis://old-host")
     with pytest.raises(ValidationError, match="at least one"):
         RedisConfig(sentinel=True)
     with pytest.raises(ValidationError):
-        RedisConfig(
-            sentinel=True, sentinel_nodes=["sentinel-a"], sentinel_master_name=""
-        )
+        RedisConfig(sentinel=True, sentinel_nodes=["sentinel-a"], sentinel_master_name="")
 
 
 def test_url_only_redis_configuration() -> None:
-    assert (
-        RedisConfig(url="redis://cache.example:6379/2").url
-        == "redis://cache.example:6379/2"
-    )
+    assert RedisConfig(url="redis://cache.example:6379/2").url == "redis://cache.example:6379/2"
 
 
-def test_redis_config_does_not_reload_environment(
-    monkeypatch: MonkeyPatch, tmp_path: Path
-) -> None:
+def test_redis_config_does_not_reload_environment(monkeypatch: MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("REDIS_HOST", "environment-host")
     (tmp_path / ".env").write_text("REDIS_HOST=dotenv-host\n", encoding="utf-8")

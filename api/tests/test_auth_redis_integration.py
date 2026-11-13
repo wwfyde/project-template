@@ -16,9 +16,7 @@ from redis_fastapi.session_backend import RedisSessionStore, SessionState
 REDIS_URL = os.getenv("TEST_AUTH_REDIS_URL")
 pytestmark = [
     pytest.mark.asyncio,
-    pytest.mark.skipif(
-        not REDIS_URL, reason="Set TEST_AUTH_REDIS_URL to an isolated Redis >=7.4"
-    ),
+    pytest.mark.skipif(not REDIS_URL, reason="Set TEST_AUTH_REDIS_URL to an isolated Redis >=7.4"),
 ]
 
 

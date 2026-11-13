@@ -1,7 +1,9 @@
 import { imagesZhCN } from '../../features/images/model/translations'
+import { skillsZhCN } from '../../features/skills/model/translations'
 
 export const zhCN = {
   images: imagesZhCN,
+  skills: skillsZhCN,
   common: {
     appName: 'Project Template',
     languageSwitcherLabel: '切换语言',
@@ -19,6 +21,7 @@ export const zhCN = {
     adminLabel: '管理导航',
     dashboard: '仪表盘',
     assets: '资产',
+    skills: '技能',
     examples: '示例',
     examplesLabel: '示例导航',
     overview: '概览',

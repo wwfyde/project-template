@@ -10,7 +10,7 @@ use utoipa::ToSchema;
 #[derive(Error, Debug)]
 pub enum ApiError {
     #[error("SQL error: {0}")]
-    SQL(#[from] sea_orm::DbErr),
+    Sql(#[from] sea_orm::DbErr),
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]

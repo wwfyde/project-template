@@ -22,14 +22,10 @@ async def main() -> None:
     if not settings.otel.active:
         raise SystemExit("Enable OTEL_ENABLED before running this probe")
     if not (settings.redis.otel_enabled and settings.otel.postgres_enabled):
-        raise SystemExit(
-            "Enable Redis SDK and PostgreSQL tracing before running this probe"
-        )
+        raise SystemExit("Enable Redis SDK and PostgreSQL tracing before running this probe")
     async with app.router.lifespan_context(app):
         request = Request({"type": "http", "app": app})
-        backend = CacheBackend(
-            await get_async_redis(request), eviction_group="telemetry-smoke"
-        )
+        backend = CacheBackend(await get_async_redis(request), eviction_group="telemetry-smoke")
         key = str(uuid4())
         with trace.get_tracer("project-template.smoke").start_as_current_span(
             "deployment.telemetry.smoke"

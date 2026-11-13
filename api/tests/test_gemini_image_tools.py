@@ -11,20 +11,19 @@ from types import ModuleType, SimpleNamespace
 from unittest.mock import AsyncMock, Mock
 
 import pytest
-from google.genai import errors, types
-from PIL import Image
-from pydantic import ValidationError
-from pytest import MonkeyPatch
-
 from api.core.config import GoogleLLMConfig, LLMConfig
 from api.tools.images import gemini, gemini_sync
 from api.tools.images.types import GeminiImageGenerationParams, GeminiImageModel
+from api.tools.types import GeminiImageModel as LegacyGeminiImageModel
 from api.tools.types import (
     GPTImageGenerationParams,
     ImageInfo,
     ImageToolResponse,
 )
-from api.tools.types import GeminiImageModel as LegacyGeminiImageModel
+from google.genai import errors, types
+from PIL import Image
+from pydantic import ValidationError
+from pytest import MonkeyPatch
 
 
 def png() -> bytes:
@@ -98,9 +97,7 @@ def gemini_env(
         client = SimpleNamespace(
             models=SimpleNamespace(generate_content=Mock(return_value=response)),
             aio=SimpleNamespace(
-                models=SimpleNamespace(
-                    generate_content=AsyncMock(return_value=response)
-                ),
+                models=SimpleNamespace(generate_content=AsyncMock(return_value=response)),
                 aclose=AsyncMock(),
             ),
             close=Mock(),
@@ -122,14 +119,8 @@ def gemini_env(
         storage_key="creative/gemini/result.png",
         sha256=hashlib.sha256(image).hexdigest(),
     )
-    upload = (
-        AsyncMock(return_value=metadata)
-        if asynchronous
-        else Mock(return_value=metadata)
-    )
-    monkeypatch.setattr(
-        module, "upload_image" if asynchronous else "upload_image_sync", upload
-    )
+    upload = AsyncMock(return_value=metadata) if asynchronous else Mock(return_value=metadata)
+    monkeypatch.setattr(module, "upload_image" if asynchronous else "upload_image_sync", upload)
 
     def generate(
         prompt: str,
@@ -145,7 +136,7 @@ def gemini_env(
                 gemini.image_create_with_gemini(
                     prompt,
                     model=model,
-                    image_urls=image_urls,
+                    image=image_urls,
                     aspect_ratio=aspect_ratio,
                     image_size=image_size,
                     provider=provider,
@@ -194,9 +185,7 @@ def test_models_use_selected_client_and_oss_metadata(
     )
     assert isinstance(result, ImageToolResponse)
     assert result.success
-    assert result.images == [
-        gemini_env.metadata.model_dump(mode="json", exclude_none=True)
-    ]
+    assert result.images == [gemini_env.metadata.model_dump(mode="json", exclude_none=True)]
     assert result.content == "generated image"
     assert result.usage == {"total_token_count": 12}
     parameters = result.generation_params
@@ -205,7 +194,7 @@ def test_models_use_selected_client_and_oss_metadata(
     assert parameters.model_version == "gemini-test-image"
     assert parameters.provider == provider
     assert parameters.prompt == "draw a cat"
-    assert parameters.images is None
+    assert parameters.image is None
     assert parameters.aspect_ratio == "16:9"
     assert parameters.image_size == "1K"
     assert parameters.response_modalities == ["TEXT", "IMAGE"]
@@ -296,14 +285,14 @@ def test_data_url_and_local_references_are_not_downloaded(
     assert all(part.inline_data.data == gemini_env.image for part in parts)
     assert all(part.inline_data.mime_type == "image/png" for part in parts)
     assert isinstance(result.generation_params, GeminiImageGenerationParams)
-    assert result.generation_params.images == [data_url, str(absolute), "relative.png"]
+    assert result.generation_params.image == [data_url, str(absolute), "relative.png"]
     assert result.instructions == "edit"
     download.assert_not_called()
     # A single data URL string must retain its comma.
     single = gemini_env.generate("edit", image_urls=data_url)
     assert single.success
     assert isinstance(single.generation_params, GeminiImageGenerationParams)
-    assert single.generation_params.images == [data_url]
+    assert single.generation_params.image == [data_url]
 
 
 def test_remote_reference_is_downloaded_once_and_auto_ratio_is_omitted(
@@ -327,7 +316,7 @@ def test_remote_reference_is_downloaded_once_and_auto_ratio_is_omitted(
     assert request["config"].image_config.aspect_ratio is None
     assert request["config"].image_config.image_size == "2K"
     assert isinstance(result.generation_params, GeminiImageGenerationParams)
-    assert result.generation_params.images == [url]
+    assert result.generation_params.image == [url]
     assert result.generation_params.aspect_ratio is None
     assert result.generation_params.image_size == "2K"
     assert "image_config" not in result.generation_params.model_dump(exclude_none=True)
@@ -346,9 +335,7 @@ def test_thought_images_are_not_uploaded(
         "draw", provider="google" if gemini_env.asynchronous else "laozhang"
     )
     assert result.success
-    assert result.images == [
-        gemini_env.metadata.model_dump(mode="json", exclude_none=True)
-    ]
+    assert result.images == [gemini_env.metadata.model_dump(mode="json", exclude_none=True)]
     assert result.usage == {"total_token_count": 12}
     if gemini_env.asynchronous:
         gemini_env.upload.assert_awaited_once()
@@ -356,9 +343,7 @@ def test_thought_images_are_not_uploaded(
         gemini_env.upload.assert_called_once()
 
 
-@pytest.mark.parametrize(
-    "error_kind", ["provider", "input", "http", "upload", "unconfigured"]
-)
+@pytest.mark.parametrize("error_kind", ["provider", "input", "http", "upload", "unconfigured"])
 def test_async_errors_propagate_and_sync_errors_return_sanitized_response(
     gemini_env: GeminiEnvironment, monkeypatch: MonkeyPatch, error_kind: str
 ) -> None:
@@ -463,15 +448,11 @@ def test_flash_lite_rejects_unsupported_size_before_provider(
 ) -> None:
     if gemini_env.asynchronous:
         with pytest.raises(gemini.GeminiToolError) as raised:
-            gemini_env.generate(
-                "draw", model="gemini-3.1-flash-lite-image", image_size="4K"
-            )
+            gemini_env.generate("draw", model="gemini-3.1-flash-lite-image", image_size="4K")
         assert raised.value.code == "unsupported_image_size"
         gemini_env.factory.assert_not_called()
         return
-    result = gemini_env.generate(
-        "draw", model="gemini-3.1-flash-lite-image", image_size="4K"
-    )
+    result = gemini_env.generate("draw", model="gemini-3.1-flash-lite-image", image_size="4K")
     assert not result.success
     assert result.error == "unsupported_image_size"
     assert result.generation_params is None
@@ -605,9 +586,7 @@ def test_async_grounding_can_be_enabled_or_disabled(
     gemini_env: GeminiEnvironment, allow_grounding: bool, model: str
 ) -> None:
     result = asyncio.run(
-        gemini.image_create_with_gemini(
-            "draw", model=model, allow_grounding=allow_grounding
-        )
+        gemini.image_create_with_gemini("draw", model=model, allow_grounding=allow_grounding)
     )
 
     assert result.success
@@ -691,9 +670,7 @@ def test_generation_metadata_records_normalized_default_size(
 
 def test_gemini_metadata_covers_image_config_and_roundtrips_as_its_own_type() -> None:
     assert LegacyGeminiImageModel is GeminiImageModel
-    assert set(types.ImageConfig.model_fields) <= set(
-        GeminiImageGenerationParams.model_fields
-    )
+    assert set(types.ImageConfig.model_fields) <= set(GeminiImageGenerationParams.model_fields)
     assert GeminiImageGenerationParams.model_fields["model"].is_required()
     # Vertex-only fields are validated as stored metadata, never sent by these tests.
     config = types.ImageConfig.model_validate(
@@ -727,9 +704,7 @@ def test_gemini_metadata_covers_image_config_and_roundtrips_as_its_own_type() ->
             "cached": False,
         }
     )
-    response = ImageToolResponse(
-        content="done", generation_params=parameters, instructions="draw"
-    )
+    response = ImageToolResponse(content="done", generation_params=parameters, instructions="draw")
     restored = ImageToolResponse.model_validate_json(response.model_dump_json())
     assert isinstance(restored.generation_params, GeminiImageGenerationParams)
     assert restored.generation_params == parameters

@@ -171,8 +171,7 @@ async def oauth_callback(
     if error:
         return _redirect(
             settings,
-            "/login?"
-            + urlencode({"error": "oauth_denied", "redirect": attempt.return_to}),
+            "/login?" + urlencode({"error": "oauth_denied", "redirect": attempt.return_to}),
         )
     authorization_code = code or auth_code
     if not authorization_code:
@@ -185,19 +184,14 @@ async def oauth_callback(
             raise AuthProviderError("Provider identity mismatch")
     except AuthProviderError:
         # Neither provider response bodies nor callback URLs belong in logs.
-        logger.warning(
-            "OAuth authentication failed", extra={"auth.provider": provider_id}
-        )
+        logger.warning("OAuth authentication failed", extra={"auth.provider": provider_id})
         return _redirect(
             settings,
-            "/login?"
-            + urlencode({"error": "oauth_failed", "redirect": attempt.return_to}),
+            "/login?" + urlencode({"error": "oauth_failed", "redirect": attempt.return_to}),
         )
     user = await users.resolve(
         identity,
         allow_signup=settings.auth.allow_signup,
     )
-    await establish_user_session(
-        user, identity.provider, session, session_state, store, request
-    )
+    await establish_user_session(user, identity.provider, session, session_state, store, request)
     return _redirect(settings, attempt.return_to)

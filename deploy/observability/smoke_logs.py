@@ -63,9 +63,7 @@ def main() -> None:
                 raise RuntimeError("Synthetic log verification failure")
             except RuntimeError as error:
                 span.record_exception(error)
-                span.set_status(
-                    Status(StatusCode.ERROR, "Synthetic verification failure")
-                )
+                span.set_status(Status(StatusCode.ERROR, "Synthetic verification failure"))
                 logger.exception(
                     "Synthetic exception log verification",
                     extra={

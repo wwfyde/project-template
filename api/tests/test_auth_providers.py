@@ -97,9 +97,7 @@ def test_account_operations_request_interactive_google_account_selection() -> No
     provider = GoogleProvider(google_config())
     ordinary = parse_qs(
         urlsplit(
-            provider.build_authorize_url(
-                state="state", nonce=NONCE, code_verifier=VERIFIER
-            )
+            provider.build_authorize_url(state="state", nonce=NONCE, code_verifier=VERIFIER)
         ).query
     )
     account = parse_qs(
@@ -247,9 +245,7 @@ async def test_dingtalk_translates_only_valid_provider_identity(
     )
     provider = DingTalkProvider(DingTalkAuthConfig())
     if isinstance(profile["unionId"], str):
-        identity = await provider.authenticate(
-            "code", nonce=NONCE, code_verifier=VERIFIER
-        )
+        identity = await provider.authenticate("code", nonce=NONCE, code_verifier=VERIFIER)
         assert identity.subject == "union-123"
         assert identity.provider == "dingtalk"
     else:

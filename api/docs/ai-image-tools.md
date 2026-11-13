@@ -16,11 +16,12 @@
 | `/seedream/doubao-seedream-4-5-251128` | `volcengine` | — |
 | `/seedream/doubao-seedream-5-0-260128` | `volcengine` | — |
 | `/seedream/doubao-seedream-5-0-pro-260628` | `volcengine` | — |
+| `/seedream/doubao-seedream-5-5-261028` | `volcengine` | — |
 | `/gpt/gpt-image-2` | `openai` | `evolink` |
 | `/gpt/gpt-image-2.5-flare` | `openai` | `evolink` |
 | `/gpt/gpt-image-2.5-sunburst` | `openai` | `evolink` |
 
-例如 `/gpt/gpt-image-2.5-flare?provider=evolink` 调用对应 Evolink 工具，工具创建任务、轮询完成、下载结果并上传 OSS，然后返回统一图片结果。没有任意模型路由，也没有 Qwen HTTP 入口。
+例如 `/gpt/gpt-image-2.5-flare?provider=evolink` 调用对应 Evolink 工具，工具创建任务、轮询完成、下载结果并上传 OSS，然后返回统一图片结果。没有 Qwen HTTP 入口。
 
 ## 请求参数
 
@@ -39,7 +40,7 @@
 
 每个端点的请求模型在 [schemas/ai_tools.py](../src/api/schemas/ai_tools.py) 中独立声明，字段类型、Literal 枚举及默认值与对应工具函数保持一致。必填缺失、类型错误、Literal 不匹配或多余字段返回 `422`；业务约束由工具处理，可能返回 `success=false`。
 
-**图片引用：**路由按请求 Schema 校验参数类型，并将 `image_urls` 和 GPT 的 `mask_url` 原值交给对应工具，不再统一检查公网地址、DNS 或本地文件路径。非字符串图片引用仍返回 HTTP `422`。推荐多图使用数组；字符串拆分、URL/data URL/本地文件是否支持、重定向处理及图片大小和格式限制均以具体工具实现为准。
+**图片引用：**路由按请求 Schema 校验参数类型，并将 `image_urls` 和 GPT 的 `mask_url` 原值交给对应工具，不执行全局统一的来源预检查。Seedream 4.0 和 5.5 路由会在工具执行期间启用 HTTP 图片来源约束：仅接受图片 data URL 或公网 HTTP(S) URL，拒绝本地文件、私有地址及参考图重定向；DNS 验证在线程中执行，不阻塞事件循环。直接 Python 调用仍可使用本地文件。非字符串图片引用仍返回 HTTP `422`。推荐多图使用数组；字符串拆分、URL/data URL/本地文件是否支持、重定向处理及图片大小和格式限制均以具体工具实现为准。
 
 ### 比例、尺寸与默认值
 
@@ -51,6 +52,7 @@
 | Seedream 4.0 | string 或 null，由工具转换比例/宽高 | `1K/2K/4K` 或 null | `2K` |
 | Seedream 4.5 / 5.0 Lite | string 或 null，由工具转换比例/宽高 | `2K/4K` 或 null | `2K` |
 | Seedream 5.0 Pro | string 或 null，由工具转换比例/宽高 | `1K/2K/4K` 或 null | `2K`；当前函数将 4K 归一化为 2K |
+| Seedream 5.5 | string 或 null，由工具转换比例/宽高 | `1K/1.5K/2K` 或 null | `2K`；HTTP 请求传 4K 返回 `422` |
 | GPT Image 2 / 2.5 Flare / 2.5 Sunburst | string 或 null，由工具处理比例/宽高 | `1K/2K/4K` 或 null | null |
 
 A 组：`1:1, 2:3, 3:2, 3:4, 4:3, 9:16, 16:9, 21:9`。
@@ -58,6 +60,8 @@ A 组：`1:1, 2:3, 3:2, 3:4, 4:3, 9:16, 16:9, 21:9`。
 B 组：`auto, 1:1, 2:3, 3:2, 3:4, 4:3, 4:5, 5:4, 9:16, 16:9, 1:8, 8:1, 21:9`。
 
 这些是当前工具函数合同。HTTP 不接受厂商的 `contents`、`generationConfig`、`stream` 或 `watermark`；GPT 支持下述额外输出与编辑参数，Gemini 和 Seedream 不因此增加同名字段。底层 SDK 参数由工具构造。省略参数时使用本端点中与工具函数一致的默认值，显式 null 则按函数内部逻辑处理。
+
+Seedream 5.5 使用模型 `doubao-seedream-5-5-261028`，支持文生图和最多 10 张参考图的图生图。普通生成支持 `1K/1.5K/2K`，明确宽高时总像素范围为 921600–4624220，工具按模型约束转换尺寸。当前 HTTP 入口返回上传后的图片与用量，不新增图层拆分、富文本 OCR 或 `background` 参数。模型能力与限制见 [Seedream 5.5 官方文档](https://ark.volcengine.com/region:cn-beijing/docs/seedream-5-5)。
 
 ### GPT 输出与蒙版编辑
 
@@ -88,8 +92,8 @@ Evolink 继续使用原有 `prompt/image_urls/aspect_ratio/image_size/quality/n`
 ```bash
 IMAGE_API=http://localhost:8000/api/ai-tools/images
 
-# Seedream 4.5，默认 volcengine。
-curl -sS "$IMAGE_API/seedream/doubao-seedream-4-5-251128" \
+# Seedream 5.5，默认 volcengine。
+curl -sS "$IMAGE_API/seedream/doubao-seedream-5-5-261028" \
   -H 'Content-Type: application/json' \
   -d '{"prompt":"蓝色陶瓷杯的产品摄影，纯白背景","aspect_ratio":"1:1","image_size":"2K"}'
 
@@ -151,7 +155,7 @@ OpenAI GPT 结果的 `input_params` 记录实际的 `operation`、尺寸、质�
 
 `cdn` 可配置图片访问域名；省略时上传函数使用 OSS 公网域名。工具提供自己的对象前缀，例如 `creative/gpt`。返回 URL 能否被客户端读取取决于 Bucket/CDN 的既有访问配置。
 
-对象存储的 [upload_image / upload_image_sync](../src/api/utils/object_storage/aliyun_oss.py) 分别提供异步和同步上传，均接收图片 bytes 并返回 `ImageInfo`。Gemini 路由等待 `gemini.image_create_with_gemini`，独立使用 Google Gen AI 原生异步客户端生成图片，并直接 `await upload_image(...)` 上传；参考图读取在线程中执行。同步 Python 调用使用 `gemini_sync.image_create_with_gemini`，直接通过同步 SDK 生成图片，再调用 `upload_image_sync(...)` 上传。其他同步 `def` 路由由 FastAPI 在线程池运行。
+对象存储的 [upload_image / upload_image_sync](../src/api/utils/object_storage/aliyun_oss.py) 分别提供异步和同步上传，均接收图片 bytes 并返回 `ImageInfo`。Gemini 路由等待 `gemini.image_create_with_gemini`，独立使用 Google Gen AI 原生异步客户端生成图片，并直接 `await upload_image(...)` 上传；参考图读取在线程中执行。同步 Python 调用使用 `gemini_sync.image_create_with_gemini`，直接通过同步 SDK 生成图片，再调用 `upload_image_sync(...)` 上传。Seedream 4.0 和 5.5 路由等待 `seedream.image_create_with_seedream`，该工具通过 `arkruntime.AsyncArk` 生成图片并等待 OSS 上传；参考图与结果均异步下载，本地文件读取及图像压缩在线程中执行。其他同步 `def` 路由由 FastAPI 在线程池运行。
 
 图片生成功能不再写入本地公开文件目录。此入口也不创建私有图片资产版本或评论；相关能力仍使用 [图片编辑 API](image-editing.md)。
 

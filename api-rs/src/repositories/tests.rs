@@ -7,11 +7,12 @@ use uuid::Uuid;
 
 use super::RepositoryError;
 use crate::entities;
+use crate::models::Locale;
 use crate::models::student::{NewStudent, Student, StudentRepository};
 use crate::models::todo::{Todo, TodoRepository};
-use crate::models::user::{User, UserId, UserQuery, UserRepository, UserSort};
+use crate::models::user::{User, UserId, UserQuery, UserRepository, UserSort, UserWrite};
 
-use super::in_memory::{InMemoryStudentRepository, InMemoryTodoRepository, InMemoryUserRepository};
+use super::memory::{InMemoryStudentRepository, InMemoryTodoRepository, InMemoryUserRepository};
 use super::orm::{SeaOrmStudentRepository, SeaOrmTodoRepository, SeaOrmUserRepository};
 use super::sqlx::{SqlxStudentRepository, SqlxTodoRepository, SqlxUserRepository};
 
@@ -19,7 +20,7 @@ async fn create_tables(db: &DatabaseConnection) {
     // Intentionally fail if tables already exist: use an empty, disposable database.
     let schema = Schema::new(db.get_database_backend());
     for statement in [
-        schema.create_table_from_entity(entities::user::Entity),
+        super::orm::user::user_table_for_tests(db.get_database_backend()),
         schema.create_table_from_entity(entities::student::Entity),
         schema.create_table_from_entity(entities::todo::Entity),
     ] {
@@ -38,27 +39,40 @@ async fn sqlite_database() -> Arc<DatabaseConnection> {
     Arc::new(db)
 }
 
-fn user(id: u128, email: &str) -> User {
-    User {
+fn user(id: u128, email: &str) -> UserWrite {
+    UserWrite {
         id: UserId(Uuid::from_u128(id)),
         email: Some(email.into()),
-        username: Some("O'Reilly'; --".into()),
+        nickname: Some(format!("用户 {id}")),
+        username: Some(format!("O'Reilly'; -- {id}")),
         hashed_password: Some("test-hash".into()),
         is_active: Some(true),
+        locale: Locale::JaJp,
         is_superuser: Some(false),
         created_at: Utc.with_ymd_and_hms(2026, 1, 1, 0, 0, 0).unwrap(),
         updated_at: None,
     }
 }
 
+fn assert_written(saved: &User, input: &UserWrite, created_at: chrono::DateTime<Utc>) {
+    let mut expected = input.clone();
+    expected.created_at = created_at;
+    assert_eq!(UserWrite::from(saved), expected);
+    assert!(saved.uid.0 > 0);
+    assert!(saved.uid.0 <= i64::MAX as u64);
+}
+
 async fn user_contract(repo: &dyn UserRepository) {
     assert!(repo.find_all().await.unwrap().is_empty());
     assert!(!repo.exists_by_id(UserId(Uuid::nil())).await.unwrap());
-    let first = user(10, "first@example.com");
-    let second = user(20, "o'reilly@example.com");
-    // Insert out of order to check the same stable ordering for both backends.
-    assert_eq!(repo.insert(&second).await.unwrap(), second);
-    assert_eq!(repo.insert(&first).await.unwrap(), first);
+    let first_input = user(10, "first@example.com");
+    let second_input = user(20, "o'reilly@example.com");
+    // Insert out of order to check stable UUID ordering independently of UID allocation.
+    let second = repo.insert(&second_input).await.unwrap();
+    let first = repo.insert(&first_input).await.unwrap();
+    assert_written(&first, &first_input, first_input.created_at);
+    assert_written(&second, &second_input, second_input.created_at);
+    assert_ne!(first.uid, second.uid);
     assert!(repo.exists_by_id(first.id.clone()).await.unwrap());
     assert_eq!(
         repo.find_all().await.unwrap(),
@@ -80,50 +94,40 @@ async fn user_contract(repo: &dyn UserRepository) {
             .is_none()
     );
 
-    assert!(matches!(
-        repo.insert(&first).await,
-        Err(error) if matches!(error.downcast_ref::<RepositoryError>(), Some(RepositoryError::Conflict))
-    ));
+    expect_conflict(repo.insert(&first_input).await);
     let mut duplicate_email = user(30, "first@example.com");
-    assert!(matches!(
-        repo.insert(&duplicate_email).await,
-        Err(error) if matches!(error.downcast_ref::<RepositoryError>(), Some(RepositoryError::Conflict))
-    ));
+    expect_conflict(repo.insert(&duplicate_email).await);
     duplicate_email.email = None;
-    assert!(matches!(
-        repo.insert(&duplicate_email).await,
-        Err(error) if matches!(error.downcast_ref::<RepositoryError>(), Some(RepositoryError::InvalidInput(_)))
-    ));
-    let mut invalid_update = first.clone();
+    expect_invalid(repo.insert(&duplicate_email).await);
+    let mut invalid_update = UserWrite::from(&first);
     invalid_update.email = None;
-    assert!(matches!(
-        repo.update(&invalid_update).await,
-        Err(error) if matches!(error.downcast_ref::<RepositoryError>(), Some(RepositoryError::InvalidInput(_)))
-    ));
+    expect_invalid(repo.update(&invalid_update).await);
     invalid_update.email = second.email.clone();
-    assert!(matches!(
-        repo.update(&invalid_update).await,
-        Err(error) if matches!(error.downcast_ref::<RepositoryError>(), Some(RepositoryError::Conflict))
-    ));
+    expect_conflict(repo.update(&invalid_update).await);
     assert_eq!(
         repo.find_by_id(first.id.clone()).await.unwrap(),
         Some(first.clone())
     );
 
-    let mut update = first.clone();
+    let mut update = UserWrite::from(&first);
     update.email = Some("updated@example.com".into());
+    update.nickname = None;
     update.username = None;
+    update.locale = Locale::EnUs;
     update.hashed_password = None;
     update.is_active = None;
     update.is_superuser = None;
     update.created_at += chrono::Duration::days(1);
     update.updated_at = Some(update.created_at);
-    let mut expected = update.clone();
-    expected.created_at = first.created_at;
-    assert_eq!(repo.update(&update).await.unwrap(), expected);
+    let updated = repo.update(&update).await.unwrap();
+    assert_written(&updated, &update, first.created_at);
+    assert_eq!(
+        updated.uid, first.uid,
+        "updates must preserve the generated UID"
+    );
     assert_eq!(
         repo.find_by_id(first.id.clone()).await.unwrap(),
-        Some(expected.clone())
+        Some(updated.clone())
     );
     assert!(
         repo.find_by_email("first@example.com")
@@ -133,14 +137,14 @@ async fn user_contract(repo: &dyn UserRepository) {
     );
     assert_eq!(
         repo.find_by_email("updated@example.com").await.unwrap(),
-        Some(expected)
+        Some(updated)
     );
 
     repo.delete_by_id(first.id.clone()).await.unwrap();
     assert!(!repo.exists_by_id(first.id.clone()).await.unwrap());
     assert!(repo.find_by_id(first.id.clone()).await.unwrap().is_none());
     assert!(matches!(
-        repo.update(&first).await,
+        repo.update(&first_input).await,
         Err(error) if matches!(error.downcast_ref::<RepositoryError>(), Some(RepositoryError::NotFound))
     ));
     assert!(matches!(
@@ -150,6 +154,7 @@ async fn user_contract(repo: &dyn UserRepository) {
     repo.delete_by_id(second.id).await.unwrap();
     assert!(repo.find_all().await.unwrap().is_empty());
     user_bulk_save_contract(repo).await;
+    user_username_contract(repo).await;
     user_search_contract(repo).await;
 }
 
@@ -164,28 +169,50 @@ fn expect_invalid<T: std::fmt::Debug>(result: anyhow::Result<T>) {
     );
 }
 
+fn expect_conflict<T: std::fmt::Debug>(result: anyhow::Result<T>) {
+    let error = result.unwrap_err();
+    assert!(
+        matches!(
+            error.downcast_ref::<RepositoryError>(),
+            Some(RepositoryError::Conflict)
+        ),
+        "{error:#}"
+    );
+}
+
 async fn user_bulk_save_contract(repo: &dyn UserRepository) {
     assert!(repo.find_many(&[]).await.unwrap().is_empty());
-    let first = user(10, "first-save@example.com");
-    let second = user(20, "second-save@example.com");
-    assert_eq!(repo.save(&second).await.unwrap(), second);
-    assert_eq!(repo.save(&first).await.unwrap(), first);
+    let first_input = user(10, "first-save@example.com");
+    let second_input = user(20, "second-save@example.com");
+    let second = repo.save(&second_input).await.unwrap();
+    let first = repo.save(&first_input).await.unwrap();
+    assert_written(&first, &first_input, first_input.created_at);
+    assert_written(&second, &second_input, second_input.created_at);
+    assert_ne!(first.uid, second.uid);
 
-    let mut update = first.clone();
+    let mut update = UserWrite::from(&first);
     update.email = Some("changed@example.com".into());
+    update.nickname = Some("Updated nickname".into());
     update.username = None;
+    update.locale = Locale::EnUs;
     update.hashed_password = None;
     update.is_active = None;
     update.is_superuser = None;
     update.created_at += chrono::Duration::days(1);
     update.updated_at = Some(update.created_at);
-    let mut expected = update.clone();
-    expected.created_at = first.created_at;
-    assert_eq!(repo.save(&update).await.unwrap(), expected);
-    assert_eq!(repo.save(&expected).await.unwrap(), expected);
+    let updated = repo.save(&update).await.unwrap();
+    assert_written(&updated, &update, first.created_at);
+    assert_eq!(
+        updated.uid, first.uid,
+        "upserts must preserve the existing UID"
+    );
+    assert_eq!(
+        repo.save(&UserWrite::from(&updated)).await.unwrap(),
+        updated
+    );
     assert_eq!(
         repo.find_by_id(first.id.clone()).await.unwrap(),
-        Some(expected.clone())
+        Some(updated.clone())
     );
     assert!(
         repo.find_by_email("first-save@example.com")
@@ -193,24 +220,13 @@ async fn user_bulk_save_contract(repo: &dyn UserRepository) {
             .unwrap()
             .is_none()
     );
-    assert!(
-        repo.insert(&expected).await.is_err(),
-        "insert remains insert-only"
-    );
+    expect_conflict(repo.insert(&UserWrite::from(&updated)).await);
 
-    let mut conflict = second.clone();
-    conflict.email = expected.email.clone();
-    let error = repo.save(&conflict).await.unwrap_err();
-    assert!(matches!(
-        error.downcast_ref::<RepositoryError>(),
-        Some(RepositoryError::Conflict)
-    ));
+    let mut conflict = UserWrite::from(&second);
+    conflict.email = updated.email.clone();
+    expect_conflict(repo.save(&conflict).await);
     conflict.id = UserId(Uuid::from_u128(30));
-    let error = repo.save(&conflict).await.unwrap_err();
-    assert!(matches!(
-        error.downcast_ref::<RepositoryError>(),
-        Some(RepositoryError::Conflict)
-    ));
+    expect_conflict(repo.save(&conflict).await);
     assert_eq!(
         repo.find_by_id(second.id.clone()).await.unwrap(),
         Some(second.clone())
@@ -229,19 +245,75 @@ async fn user_bulk_save_contract(repo: &dyn UserRepository) {
             second.id.clone(),
             UserId(Uuid::nil()),
             first.id.clone(),
-            second.id.clone(),
+            second.id.clone()
         ])
         .await
         .unwrap(),
-        vec![expected.clone(), second.clone()]
+        vec![updated.clone(), second.clone()]
     );
     assert_eq!(
         repo.find_many(&vec![first.id.clone(); 1000]).await.unwrap(),
-        vec![expected]
+        vec![updated]
     );
     expect_invalid(repo.find_many(&vec![first.id.clone(); 1001]).await);
     repo.delete_by_id(first.id).await.unwrap();
     repo.delete_by_id(second.id).await.unwrap();
+}
+
+async fn user_username_contract(repo: &dyn UserRepository) {
+    let mut first_input = user(60, "first-name@example.com");
+    first_input.username = Some("CaseName".into());
+    let first = repo.insert(&first_input).await.unwrap();
+    let second_input = user(61, "second-name@example.com");
+    let second = repo.insert(&second_input).await.unwrap();
+    let mut conflict = user(62, "new-name@example.com");
+    conflict.username = first.username.clone();
+    expect_conflict(repo.insert(&conflict).await);
+    expect_conflict(repo.save(&conflict).await);
+    assert!(
+        repo.find_by_id(conflict.id.clone())
+            .await
+            .unwrap()
+            .is_none()
+    );
+
+    let mut update = UserWrite::from(&second);
+    update.username = first.username.clone();
+    update.nickname = Some("must not be written".into());
+    update.locale = Locale::EnUs;
+    expect_conflict(repo.update(&update).await);
+    expect_conflict(repo.save(&update).await);
+    assert_eq!(
+        repo.find_by_id(second.id.clone()).await.unwrap(),
+        Some(second.clone())
+    );
+    assert_eq!(
+        repo.find_by_id(first.id.clone()).await.unwrap(),
+        Some(first.clone())
+    );
+
+    // Uniqueness is case-sensitive, and more than one NULL username is permitted.
+    conflict.username = Some("casename".into());
+    let third = repo.insert(&conflict).await.unwrap();
+    assert_ne!(third.uid, first.uid);
+    let mut first_null = UserWrite::from(&first);
+    first_null.username = None;
+    let first_null = repo.update(&first_null).await.unwrap();
+    let mut second_null = UserWrite::from(&second);
+    second_null.username = None;
+    let second_null = repo.save(&second_null).await.unwrap();
+    assert_eq!(first_null.uid, first.uid);
+    assert_eq!(second_null.uid, second.uid);
+    assert_eq!(first_null.username, None);
+    assert_eq!(second_null.username, None);
+
+    let mut fourth_input = user(63, "null-name@example.com");
+    fourth_input.username = None;
+    let fourth = repo.insert(&fourth_input).await.unwrap();
+    for saved in [first_null, second_null, third, fourth] {
+        repo.delete_by_id(saved.id).await.unwrap();
+    }
+    assert!(repo.find_all().await.unwrap().is_empty());
 }
 
 async fn user_search_contract(repo: &dyn UserRepository) {
@@ -445,11 +517,15 @@ async fn concurrent_user_save_contract(repo: Arc<dyn UserRepository>) {
             repo.save(&user).await.unwrap()
         });
     }
+    let mut generated_uids = std::collections::BTreeSet::new();
     while let Some(result) = tasks.join_next().await {
         let saved = result.unwrap();
         assert_eq!(saved.id, input.id);
         assert_eq!(saved.created_at, input.created_at);
+        assert!(saved.uid.0 > 0);
+        generated_uids.insert(saved.uid.0);
     }
+    assert_eq!(generated_uids.len(), 1, "concurrent upserts retain one UID");
     assert_eq!(
         repo.find_many(std::slice::from_ref(&input.id))
             .await
@@ -613,6 +689,42 @@ async fn in_memory_user_save_is_atomic() {
     concurrent_user_save_contract(Arc::new(InMemoryUserRepository::default())).await;
 }
 
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn in_memory_user_uids_are_atomic_and_never_reused_after_deletion() {
+    let repo = InMemoryUserRepository::default();
+    let barrier = Arc::new(tokio::sync::Barrier::new(16));
+    let mut tasks = tokio::task::JoinSet::new();
+    for index in 0..16_u128 {
+        let repo = repo.clone();
+        let barrier = barrier.clone();
+        tasks.spawn(async move {
+            barrier.wait().await;
+            repo.insert(&user(800 + index, &format!("uid-{index}@example.com")))
+                .await
+                .unwrap()
+        });
+    }
+    let mut uids = std::collections::BTreeSet::new();
+    let mut users = Vec::new();
+    while let Some(result) = tasks.join_next().await {
+        let saved = result.unwrap();
+        assert!(uids.insert(saved.uid.0), "generated UIDs must be unique");
+        users.push(saved);
+    }
+    assert_eq!(uids, (1..=16).collect());
+    for saved in users {
+        repo.delete_by_id(saved.id).await.unwrap();
+    }
+    let next = repo
+        .insert(&user(1000, "after-delete@example.com"))
+        .await
+        .unwrap();
+    assert!(
+        next.uid.0 > *uids.last().unwrap(),
+        "deleted UIDs cannot be reused"
+    );
+}
+
 #[tokio::test]
 async fn in_memory_student_contract() {
     student_contract(&InMemoryStudentRepository::default()).await;
@@ -674,9 +786,9 @@ async fn postgres_repository_contracts() {
     // A shared pool also permits switching adapters without copying data.
     let sqlx_users = SqlxUserRepository::new(pool.clone());
     let orm_users = SeaOrmUserRepository::new(db);
-    let shared = user(50, "shared@example.com");
-    sqlx_users.insert(&shared).await.unwrap();
-    let sqlx_conflict = sqlx_users.insert(&shared).await.unwrap_err();
+    let shared_input = user(50, "shared@example.com");
+    let shared = sqlx_users.insert(&shared_input).await.unwrap();
+    let sqlx_conflict = sqlx_users.insert(&shared_input).await.unwrap_err();
     assert!(matches!(
         sqlx_conflict.downcast_ref::<::sqlx::Error>(),
         Some(::sqlx::Error::Database(_))
@@ -685,7 +797,7 @@ async fn postgres_repository_contracts() {
         sqlx_conflict.downcast_ref::<RepositoryError>(),
         Some(RepositoryError::Conflict)
     ));
-    let orm_conflict = orm_users.insert(&shared).await.unwrap_err();
+    let orm_conflict = orm_users.insert(&shared_input).await.unwrap_err();
     assert!(orm_conflict.downcast_ref::<sea_orm::DbErr>().is_some());
     assert!(matches!(
         orm_conflict.downcast_ref::<RepositoryError>(),

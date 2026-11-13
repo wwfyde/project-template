@@ -57,9 +57,7 @@ def database() -> Iterator[Engine]:
 
 @pytest.fixture
 def repository(database: Engine) -> PasswordRepository:
-    return PasswordRepository(
-        cast(async_sessionmaker[AsyncSession], DatabaseFactory(database))
-    )
+    return PasswordRepository(cast(async_sessionmaker[AsyncSession], DatabaseFactory(database)))
 
 
 async def create_user(repository: PasswordRepository, username: str = "alice") -> User:
@@ -75,9 +73,7 @@ def test_invalid_username(username: str) -> None:
 
 
 def test_username_normalization() -> None:
-    assert normalize_username("  Alice.Example@ACME-Test_1  ") == (
-        "alice.example@acme-test_1"
-    )
+    assert normalize_username("  Alice.Example@ACME-Test_1  ") == ("alice.example@acme-test_1")
 
 
 @pytest.mark.parametrize("password", ["", "short", "a" * 1025, "\ud800" * 12])
@@ -119,9 +115,7 @@ async def test_create_and_authenticate_stable_normalized_identity(
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize(
-    "name", ["", "   ", "a" * 256, "Alice\n", "A\u0085B", "\ud800"]
-)
+@pytest.mark.parametrize("name", ["", "   ", "a" * 256, "Alice\n", "A\u0085B", "\ud800"])
 async def test_create_rejects_invalid_display_name_without_persisting_user(
     repository: PasswordRepository, database: Engine, name: str
 ) -> None:
@@ -154,9 +148,7 @@ async def test_duplicate_username_rolls_back_all_new_rows(
         assert [item.id for item in db.scalars(select(User)).all()] == [user.id]
         assert len(db.scalars(select(UserIdentity)).all()) == 1
         assert len(db.scalars(select(PasswordCredential)).all()) == 1
-        assert [item.id for item in db.scalars(select(Account)).all()] == [
-            user.personal_account.id
-        ]
+        assert [item.id for item in db.scalars(select(Account)).all()] == [user.personal_account.id]
         assert len(db.scalars(select(AccountMember)).all()) == 1
 
 
@@ -221,9 +213,7 @@ async def test_bcrypt_credentials_upgrade_without_changing_user_or_version(
     assert result is not None
     assert (result.id, result.auth_version) == (user.id, 1)
     with Session(database) as db:
-        assert db.get(PasswordCredential, user.id).hashed_password.startswith(
-            "$argon2id$"
-        )
+        assert db.get(PasswordCredential, user.id).hashed_password.startswith("$argon2id$")
     assert (await repository.authenticate("alice", legacy_password)).id == user.id
 
 
@@ -327,10 +317,7 @@ async def test_legacy_upgrade_does_not_overwrite_concurrent_reset(
 
 
 def test_password_migration_upgrade_and_downgrade() -> None:
-    path = (
-        Path(__file__).parents[1]
-        / "alembic/versions/da72e4b18c09_password_credentials.py"
-    )
+    path = Path(__file__).parents[1] / "alembic/versions/da72e4b18c09_password_credentials.py"
     spec = spec_from_file_location("password_migration", path)
     module = module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -338,9 +325,7 @@ def test_password_migration_upgrade_and_downgrade() -> None:
     try:
         with engine.begin() as connection:
             # The migration belongs to the historical auth_user schema.
-            connection.exec_driver_sql(
-                "CREATE TABLE auth_user (id VARCHAR(36) PRIMARY KEY)"
-            )
+            connection.exec_driver_sql("CREATE TABLE auth_user (id VARCHAR(36) PRIMARY KEY)")
             module.op = Operations(MigrationContext.configure(connection))
             module.upgrade()
             inspector = inspect(connection)

@@ -56,14 +56,14 @@ async def upload_image(
             MimeType,
             Image.MIME.get(img.format or "image/jpeg") if not mime_type else mime_type,
         )
-        extension: str = (
-            img.format.lower().replace("jpeg", "jpg") if img.format else "jpg"
-        )
+        extension: str = img.format.lower().replace("jpeg", "jpg") if img.format else "jpg"
 
         upload_name = f"{id}.{extension}" if rename else Path(filename).name
         storage_prefix = prefix or oss_config.prefix or "tmp"
         storage_key = f"{storage_prefix.strip('/')}/{upload_name}"
-        original_address = f"{oss_config.bucket_name}.oss-{oss_config.region or 'cn-hangzhou'}.aliyuncs.com"
+        original_address = (
+            f"{oss_config.bucket_name}.oss-{oss_config.region or 'cn-hangzhou'}.aliyuncs.com"
+        )
 
         async with get_oss_client() as client:
             result = await client.put_object(
@@ -138,14 +138,14 @@ def upload_image_sync(
             MimeType,
             Image.MIME.get(img.format or "image/jpeg") if not mime_type else mime_type,
         )
-        extension: str = (
-            img.format.lower().replace("jpeg", "jpg") if img.format else "jpg"
-        )
+        extension: str = img.format.lower().replace("jpeg", "jpg") if img.format else "jpg"
 
         upload_name = f"{id}.{extension}" if rename else Path(filename).name
         storage_prefix = prefix or oss_config.prefix or "tmp"
         storage_key = f"{storage_prefix.strip('/')}/{upload_name}"
-        original_address = f"{oss_config.bucket_name}.oss-{oss_config.region or 'cn-hangzhou'}.aliyuncs.com"
+        original_address = (
+            f"{oss_config.bucket_name}.oss-{oss_config.region or 'cn-hangzhou'}.aliyuncs.com"
+        )
 
         result = get_oss_client_sync().put_object(
             oss.PutObjectRequest(

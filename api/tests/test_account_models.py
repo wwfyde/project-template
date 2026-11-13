@@ -37,9 +37,7 @@ def connection() -> Iterator[Connection]:
 def test_personal_account_defaults_and_user_relationship(
     connection: Connection,
 ) -> None:
-    connection.execute(
-        sa.insert(Account).values(id="personal-alice", personal_user_id="alice")
-    )
+    connection.execute(sa.insert(Account).values(id="personal-alice", personal_user_id="alice"))
     assert "tenant_id" not in User.__table__.columns
     with Session(connection) as session:
         user = session.get(User, "alice")
@@ -70,13 +68,9 @@ def test_account_structure_and_personal_owner_are_constrained(
 
 
 def test_only_one_personal_account_per_user(connection: Connection) -> None:
-    connection.execute(
-        sa.insert(Account).values(id="alice-one", personal_user_id="alice")
-    )
+    connection.execute(sa.insert(Account).values(id="alice-one", personal_user_id="alice"))
     with pytest.raises(IntegrityError):
-        connection.execute(
-            sa.insert(Account).values(id="alice-two", personal_user_id="alice")
-        )
+        connection.execute(sa.insert(Account).values(id="alice-two", personal_user_id="alice"))
 
 
 def test_workspace_memberships_are_unique_and_roles_are_constrained(
@@ -84,13 +78,9 @@ def test_workspace_memberships_are_unique_and_roles_are_constrained(
 ) -> None:
     connection.execute(sa.insert(Account).values(id="shared", structure="workspace"))
     connection.execute(
-        sa.insert(AccountMember).values(
-            account_id="shared", user_id="alice", role="owner"
-        )
+        sa.insert(AccountMember).values(account_id="shared", user_id="alice", role="owner")
     )
-    connection.execute(
-        sa.insert(AccountMember).values(account_id="shared", user_id="bob")
-    )
+    connection.execute(sa.insert(AccountMember).values(account_id="shared", user_id="bob"))
     assert (
         connection.execute(
             sa.select(AccountMember.role).where(AccountMember.user_id == "bob")
@@ -98,9 +88,7 @@ def test_workspace_memberships_are_unique_and_roles_are_constrained(
         == "member"
     )
     with pytest.raises(IntegrityError):
-        connection.execute(
-            sa.insert(AccountMember).values(account_id="shared", user_id="bob")
-        )
+        connection.execute(sa.insert(AccountMember).values(account_id="shared", user_id="bob"))
     with pytest.raises(IntegrityError):
         connection.execute(sa.update(AccountMember).values(role="superuser"))
 
@@ -108,9 +96,7 @@ def test_workspace_memberships_are_unique_and_roles_are_constrained(
 def test_personal_account_prevents_cascading_user_deletion(
     connection: Connection,
 ) -> None:
-    connection.execute(
-        sa.insert(Account).values(id="alice-one", personal_user_id="alice")
-    )
+    connection.execute(sa.insert(Account).values(id="alice-one", personal_user_id="alice"))
     with pytest.raises(IntegrityError):
         connection.execute(sa.delete(User).where(User.id == "alice"))
 

@@ -29,9 +29,7 @@ def test_health_checks_both_dependencies(
     redis.ping.side_effect = None if redis_available else ConnectionError("unavailable")
     redis.ping.return_value = True
     connection = AsyncMock()
-    connection.execute.side_effect = (
-        None if postgres_available else ConnectionError("unavailable")
-    )
+    connection.execute.side_effect = None if postgres_available else ConnectionError("unavailable")
     connection_context = MagicMock()
     connection_context.__aenter__ = AsyncMock(return_value=connection)
     connection_context.__aexit__ = AsyncMock(return_value=False)

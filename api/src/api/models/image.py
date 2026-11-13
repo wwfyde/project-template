@@ -28,13 +28,19 @@ class Image(Base):
     extension: Mapped[str | None] = mapped_column(Text, nullable=True, comment="文件扩展名")
     extra: Mapped[dict | None] = mapped_column(JSONB, server_default="{}", comment="扩展属性")
     storage_key: Mapped[str] = mapped_column(Text, unique=True, nullable=True, comment="")
-    bucket_name: Mapped[str] = mapped_column(Text, server_default="dms-upload", comment="Bucket名称")
-    sha256: Mapped[str | None] = mapped_column(Text, index=True, unique=True, comment="文件hash(SHA256)")
+    bucket_name: Mapped[str] = mapped_column(
+        Text, server_default="dms-upload", comment="Bucket名称"
+    )
+    sha256: Mapped[str | None] = mapped_column(
+        Text, index=True, unique=True, comment="文件hash(SHA256)"
+    )
 
     user_id: Mapped[str | None] = mapped_column(Text, comment="上传者ID")
 
     # 时间日期
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now(), comment="创建日期")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=func.now(), comment="创建日期"
+    )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=func.now(), onupdate=func.now(), comment="更新日期"
     )

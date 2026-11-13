@@ -49,9 +49,7 @@ def database() -> Iterator[Engine]:
 
 @pytest.fixture
 def users(database: Engine) -> PostgresUserRepository:
-    return PostgresUserRepository(
-        cast(async_sessionmaker[AsyncSession], DatabaseFactory(database))
-    )
+    return PostgresUserRepository(cast(async_sessionmaker[AsyncSession], DatabaseFactory(database)))
 
 
 def identity(subject: str, provider: str = "google") -> ProviderIdentity:
@@ -151,9 +149,7 @@ async def test_workspace_resources_require_membership_and_remain_private(
 ) -> None:
     first = await users.resolve(identity("one"), allow_signup=True)
     second = await users.resolve(identity("two"), allow_signup=True)
-    workspace = await AccountRepository(users.sessions).create_workspace(
-        first.id, "Team"
-    )
+    workspace = await AccountRepository(users.sessions).create_workspace(first.id, "Team")
     first_personal = public_user(first, "google")
     first_workspace = public_user(first, "google", workspace)
     second_workspace = public_user(second, "google", workspace)
@@ -169,9 +165,7 @@ async def test_workspace_resources_require_membership_and_remain_private(
     assert not await users.owns("conversation", "team-chat", first_personal)
     assert not await users.owns("conversation", "personal-chat", first_workspace)
     with Session(database) as session, session.begin():
-        session.add(
-            AccountMember(account_id=workspace.id, user_id=second.id, role="member")
-        )
+        session.add(AccountMember(account_id=workspace.id, user_id=second.id, role="member"))
     assert (await users.account(second.id, workspace.id)).id == workspace.id
     assert not await users.owns("conversation", "team-chat", second_workspace)
     assert await users.owned_ids("conversation", second_workspace) == set()
@@ -218,9 +212,10 @@ def test_migration_upgrade_and_downgrade() -> None:
                 "auth_identity",
                 "auth_resource_owner",
             }
-            assert inspector.get_unique_constraints("auth_identity")[0][
-                "column_names"
-            ] == ["provider", "subject"]
+            assert inspector.get_unique_constraints("auth_identity")[0]["column_names"] == [
+                "provider",
+                "subject",
+            ]
             assert module.down_revision == "8d50b113df31"
             module.downgrade()
             assert inspect(connection).get_table_names() == []

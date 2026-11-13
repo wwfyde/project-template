@@ -11,7 +11,7 @@ pub mod entities;
 
 mod core;
 mod middleware;
-mod models;
+pub mod models;
 mod telemetry;
 pub mod utils;
 
@@ -77,32 +77,33 @@ impl Modify for SecurityAddon {
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
-    /// 监听端口：--port 优先于 API_PORT，默认 3000
-    #[arg(long, env = "API_PORT", default_value_t = 3000)]
-    port: u16,
+    /// 监听端口：--port 优先于 API_PORT，再使用 app.port（默认 8000）
+    #[arg(long, env = "API_PORT")]
+    port: Option<u16>,
 }
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    // Process environment > .env.local > .env.
-    dotenvy::from_filename(".env.local").ok();
-    dotenvy::dotenv().ok();
     let args = Args::parse();
     let config = load_config()?;
+    let port = args.port.unwrap_or(config.app.port);
+    let (api_key, jwt_secret, access_token_expire_days) = config.app.runtime_auth()?;
 
     // initialize tracing
     tracing_subscriber::fmt::init();
 
     let db = Arc::new(
-        core::db::connect(config.postgres.connection_url()?)
+        core::db::connect(config.postgres.connection_url()?, config.postgres.pool_size)
             .await
             .context("failed to connect to PostgreSQL")?,
     );
 
+    // 执行数据库同步
+    core::db::sync_schema(&db)
+        .await
+        .context("failed to synchronize PostgreSQL schema")?;
+
     // 创建认证服务
-    let api_key = config.app.api_key;
-    let jwt_secret = config.app.jwt_secret.clone();
-    let access_token_expire_days = config.app.access_token_expire_days;
     let auth_service = Arc::new(AuthService::new(
         api_key,
         jwt_secret,
@@ -116,7 +117,7 @@ async fn main() -> anyhow::Result<()> {
     });
 
     let app = build_app(state);
-    let addr = format!("0.0.0.0:{}", args.port);
+    let addr = format!("0.0.0.0:{port}");
     let listener = tokio::net::TcpListener::bind(&addr)
         .await
         .context("failed to bind HTTP listener")?;
@@ -217,10 +218,10 @@ mod tests {
 
     #[tokio::test]
     async fn user_repository_and_current_user_round_trip() {
-        use crate::models::user::{User, UserId, UserRepository};
+        use crate::models::user::{UserId, UserRepository, UserWrite};
         use crate::repositories::RepositoryError;
         use crate::repositories::orm::SeaOrmUserRepository;
-        use sea_orm::{ConnectOptions, ConnectionTrait, Schema};
+        use sea_orm::{ConnectOptions, ConnectionTrait};
         use uuid::Uuid;
 
         let mut options = ConnectOptions::new("sqlite::memory:");
@@ -229,19 +230,20 @@ mod tests {
         db.execute_unprepared("ATTACH DATABASE ':memory:' AS public")
             .await
             .unwrap();
-        db.execute(
-            &Schema::new(db.get_database_backend())
-                .create_table_from_entity(entities::user::Entity),
-        )
+        db.execute(&crate::repositories::orm::user::user_table_for_tests(
+            db.get_database_backend(),
+        ))
         .await
         .unwrap();
         let repo = SeaOrmUserRepository::new(db.clone());
-        let original = User {
+        let original = UserWrite {
             id: UserId(Uuid::now_v7()),
             email: Some("alice@example.com".into()),
+            nickname: Some("Alice".into()),
             username: Some("alice".into()),
             hashed_password: Some(bcrypt::hash("test-password", 4).unwrap()),
             is_active: Some(true),
+            locale: crate::models::Locale::JaJp,
             is_superuser: Some(false),
             created_at: chrono::Utc::now(),
             updated_at: None,
@@ -300,9 +302,12 @@ mod tests {
                 .unwrap();
         assert_eq!(current["id"], saved.id.0.to_string());
         assert_eq!(current["username"], "alice");
+        assert_eq!(current["uid"], saved.uid.0);
+        assert_eq!(current["nickname"], "Alice");
+        assert_eq!(current["locale"], "ja-JP");
         assert!(current.get("hashed_password").is_none());
 
-        let mut update = saved.clone();
+        let mut update = UserWrite::from(&saved);
         update.email = Some("updated@example.com".into());
         update.created_at -= chrono::Duration::days(1);
         update.updated_at = Some(chrono::Utc::now());
@@ -313,7 +318,7 @@ mod tests {
         repo.delete_by_id(saved.id.clone()).await.unwrap();
         assert!(repo.find_by_id(saved.id.clone()).await.unwrap().is_none());
         for error in [
-            repo.update(&saved).await.unwrap_err(),
+            repo.update(&UserWrite::from(&saved)).await.unwrap_err(),
             repo.delete_by_id(saved.id).await.unwrap_err(),
         ] {
             assert!(matches!(

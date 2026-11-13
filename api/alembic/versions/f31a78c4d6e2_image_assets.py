@@ -27,13 +27,9 @@ def upgrade() -> None:
         ),
         sa.Column("content", sa.LargeBinary(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
-        sa.CheckConstraint(
-            "purpose IN ('image', 'mask')", name="ck_image_asset_purpose"
-        ),
+        sa.CheckConstraint("purpose IN ('image', 'mask')", name="ck_image_asset_purpose"),
     )
-    op.create_index(
-        "ix_image_asset_owner_created_at", "image_asset", ["owner", "created_at", "id"]
-    )
+    op.create_index("ix_image_asset_owner_created_at", "image_asset", ["owner", "created_at", "id"])
     op.create_table(
         "image_comment",
         sa.Column("id", sa.String(36), primary_key=True),

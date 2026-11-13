@@ -30,9 +30,7 @@ class VeImageXConfig(BaseModel):
 class ImageConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    max_upload_bytes: int = Field(
-        default=10 * 1024 * 1024, ge=1024, le=20 * 1024 * 1024
-    )
+    max_upload_bytes: int = Field(default=10 * 1024 * 1024, ge=1024, le=20 * 1024 * 1024)
     max_pixels: int = Field(default=16_000_000, ge=1, le=32_000_000)
     max_concurrent_edits: int = Field(default=2, ge=1, le=16)
     edit_timeout_seconds: int = Field(default=180, ge=1, le=600)
@@ -53,9 +51,7 @@ class ImageConfig(BaseModel):
     @model_validator(mode="after")
     def unique_clients(self) -> "ImageConfig":
         ids = [client.id for client in self.clients]
-        keys = [
-            key.get_secret_value() for client in self.clients for key in client.keys
-        ]
+        keys = [key.get_secret_value() for client in self.clients for key in client.keys]
         if len(ids) != len(set(ids)) or len(keys) != len(set(keys)):
             raise ValueError("Image API client IDs and credentials must be unique")
         return self

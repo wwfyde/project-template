@@ -76,17 +76,10 @@ class ImageService:
                 429,
             )
         async with self._edits:
-            normalized, width, height = await _process(
-                normalize_image, content, self.config
-            )
+            normalized, width, height = await _process(normalize_image, content, self.config)
         stem = PurePath(filename.replace("\\", "/")).stem[:120]
-        stem = (
-            "".join(char for char in stem if ord(char) >= 32 and ord(char) != 127)
-            or "image"
-        )
-        asset = ImageAsset(
-            filename=f"{stem}.png", width=width, height=height, purpose=purpose
-        )
+        stem = "".join(char for char in stem if ord(char) >= 32 and ord(char) != 127) or "image"
+        asset = ImageAsset(filename=f"{stem}.png", width=width, height=height, purpose=purpose)
         await self.store.create_asset(owner, asset, normalized)
         return asset
 
@@ -108,15 +101,10 @@ class ImageService:
                         "Markup and resize use the local provider.",
                         422,
                     )
-                output, width, height = await _process(
-                    local_edit, content, request, self.config
-                )
+                output, width, height = await _process(local_edit, content, request, self.config)
             else:
                 provider = self.providers.get(request.provider)
-                if (
-                    provider is None
-                    or request.operation not in provider.info.operations
-                ):
+                if provider is None or request.operation not in provider.info.operations:
                     raise ImageFailure(
                         "unsupported_operation",
                         "The selected provider does not support this operation.",
@@ -137,9 +125,7 @@ class ImageService:
                     )
                 mask = None
                 if request.mask_asset_id:
-                    mask_content = await self.store.get_content(
-                        owner, request.mask_asset_id
-                    )
+                    mask_content = await self.store.get_content(owner, request.mask_asset_id)
                     mask = await _process(
                         validate_mask,
                         mask_content,
@@ -190,9 +176,7 @@ class ImageService:
             await self.store.create_asset(owner, asset, output)
             return asset
 
-    async def comment(
-        self, owner: str, asset_id: str, request: CommentCreate
-    ) -> ImageComment:
+    async def comment(self, owner: str, asset_id: str, request: CommentCreate) -> ImageComment:
         comment = ImageComment(asset_id=asset_id, **request.model_dump())
         await self.store.add_comment(owner, comment)
         return comment

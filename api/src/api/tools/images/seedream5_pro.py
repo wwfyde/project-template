@@ -50,9 +50,7 @@ def _normalize_image_size(image_size: str | None) -> Literal["1K", "2K"]:
 
 
 def _parse_ratio(aspect_ratio: str) -> tuple[int, int] | None:
-    parts = (
-        aspect_ratio.replace(":", "×").replace("x", "×").replace("X", "×").split("×")
-    )
+    parts = aspect_ratio.replace(":", "×").replace("x", "×").replace("X", "×").split("×")
     if len(parts) != 2:
         return None
     try:
@@ -129,9 +127,7 @@ def image_create_with_seedream5_pro(
         if isinstance(image_urls, str) and image_urls.startswith("data:"):
             image_list = [image_urls]
         elif isinstance(image_urls, str):
-            image_list = [
-                i.strip() for i in image_urls.replace("，", ",").split(",") if i.strip()
-            ]
+            image_list = [i.strip() for i in image_urls.replace("，", ",").split(",") if i.strip()]
         elif image_urls is None:
             image_list = []
         else:
@@ -230,14 +226,10 @@ def image_create_with_seedream5_pro(
 
             response.raise_for_status()
             uploaded_image = asyncio.run(
-                upload_image(
-                    "seedream.png", response.content, prefix="creative/seedream"
-                )
+                upload_image("seedream.png", response.content, prefix="creative/seedream")
             )
             uploaded_urls.append(
-                uploaded_image.model_dump(
-                    mode="json", exclude_none=True, exclude_unset=True
-                )
+                uploaded_image.model_dump(mode="json", exclude_none=True, exclude_unset=True)
             )
 
         if not uploaded_urls:

@@ -127,12 +127,8 @@ def test_handled_failure_records_errors_on_both_manual_spans(
         exceptions = [event for event in span.events if event.name == "exception"]
         assert len(exceptions) == 1
         assert exceptions[0].attributes["exception.type"] == "RuntimeError"
-        assert exceptions[0].attributes["exception.message"] == (
-            "Simulated example failure"
-        )
-    assert "work.completed" not in [
-        event.name for event in spans["examples.otel.work"].events
-    ]
+        assert exceptions[0].attributes["exception.message"] == ("Simulated example failure")
+    assert "work.completed" not in [event.name for event in spans["examples.otel.work"].events]
 
 
 def test_propagation_uses_current_span_and_omits_baggage(
@@ -154,9 +150,7 @@ def test_propagation_uses_current_span_and_omits_baggage(
     assert response.status_code == 200
     payload = response.json()
     business = next(
-        span
-        for span in exporter.get_finished_spans()
-        if span.name == "examples.otel.propagation"
+        span for span in exporter.get_finished_spans() if span.name == "examples.otel.propagation"
     )
     span_id = f"{business.context.span_id:016x}"
     assert payload["trace"]["trace_id"] == trace_id
@@ -170,9 +164,7 @@ def test_propagation_uses_current_span_and_omits_baggage(
 
 def test_disabled_tracing_still_runs_the_example(monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setattr(otel.settings.app, "env", "local")
-    monkeypatch.setattr(
-        otel, "tracer", trace.NoOpTracerProvider().get_tracer(otel.__name__)
-    )
+    monkeypatch.setattr(otel, "tracer", trace.NoOpTracerProvider().get_tracer(otel.__name__))
 
     with TestClient(new_app()) as client:
         response = client.get("/api/examples/otel/trace")
@@ -225,6 +217,4 @@ def test_examples_are_unavailable_in_production(
     monkeypatch.setattr(otel.settings.app, "env", "prod")
 
     assert client.get(f"/api/examples{path}").status_code == 404
-    assert not any(
-        span.name.startswith("examples.otel.") for span in exporter.get_finished_spans()
-    )
+    assert not any(span.name.startswith("examples.otel.") for span in exporter.get_finished_spans())

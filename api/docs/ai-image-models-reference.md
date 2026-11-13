@@ -12,15 +12,16 @@
 | `/gemini/gemini-3-pro-image` | `gemini.image_create_with_gemini` |
 | `/gemini/gemini-3.1-flash-image` | `gemini.image_create_with_gemini(model="gemini-3.1-flash-image")` |
 | `/gemini/gemini-nano-banana-2.1` | `gemini.image_create_with_gemini(model="gemini-nano-banana-2.1")` |
-| `/seedream/doubao-seedream-4-0-250828` | `seedream.image_create_with_seedream` |
+| `/seedream/doubao-seedream-4-0-250828` | `seedream.image_create_with_seedream(model="doubao-seedream-4-0-250828")` |
 | `/seedream/doubao-seedream-4-5-251128` | `seedream4_5.image_create_with_seedream4_5` |
 | `/seedream/doubao-seedream-5-0-260128` | `seedream5_lite.image_create_with_seedream5_lite` |
 | `/seedream/doubao-seedream-5-0-pro-260628` | `seedream5_pro.image_create_with_seedream5_pro` |
+| `/seedream/doubao-seedream-5-5-261028` | `seedream.image_create_with_seedream(model="doubao-seedream-5-5-261028")` |
 | `/gpt/gpt-image-2` | `gpt.image_create_with_gpt_image_2` |
 | `/gpt/gpt-image-2.5-flare` | `gpt.image_create_with_gpt_image_2_5_flare` |
 | `/gpt/gpt-image-2.5-sunburst` | `gpt.image_create_with_gpt_image_2_5_sunburst` |
 
-[路由实现](../src/api/routes/ai_tools.py) 为 11 个字面量路径各写一条显式 `@ai_tools_router.post(...)` 和独立处理函数；没有通配模型路由或路由工厂。Gemini query 默认为 `provider=google`，可选 `laozhang`；GPT 默认为 `openai`，可选 `evolink`；Seedream 只接受 `volcengine`。
+[路由实现](../src/api/routes/ai_tools.py) 为 12 个字面量路径各写一条显式 `@ai_tools_router.post(...)` 和独立处理函数。Gemini query 默认为 `provider=google`，可选 `laozhang`；GPT 默认为 `openai`，可选 `evolink`；Seedream 只接受 `volcengine`。
 
 GPT 选择 Evolink 时，由 `gpt` 模块调用 [gpt_evolink](../src/api/tools/images/gpt_evolink.py) 对应函数。兼容 Python 函数 `image_create_with_gpt_image_2_5` 保留并委托 Flare，不新增该名称的 HTTP 路由。Qwen 等其他工具虽使用共同上传入口，也没有因此自动注册 HTTP API。
 
@@ -32,11 +33,13 @@ GPT 选择 Evolink 时，由 `gpt` 模块调用 [gpt_evolink](../src/api/tools/i
 - `provider` 在 query 中声明，body 不含 `provider/model`。
 - 请求模型严格校验类型并拒绝额外字段；例如图片列表中的非字符串元素返回 HTTP `422`。
 - 每个处理函数都显式传入各参数，直接返回对应模块工具函数的结果。
-- 每个处理函数将 `image_urls/mask_url` 原值交给工具，不设置统一的公网、DNS 或本地路径预检查；具体来源、重定向、大小和格式处理由所调用工具负责。请求类型错误返回 HTTP `422`，工具异常仍转换为失败 `ImageToolResponse`。
+- 每个处理函数将 `image_urls/mask_url` 原值交给工具。Seedream 4.0 和 5.5 路由使用 `http_image_sources()` 包围工具调用，限定 HTTP 参考图为图片 data URL 或公网 HTTP(S) URL，拒绝本地文件、私有地址和参考图重定向；工具在线程中校验来源，不在路由中同步预检 DNS。上下文在成功或失败后复位，直接 Python 调用仍可读取本地文件。其他路由沿用各自工具的来源处理。请求类型错误返回 HTTP `422`，工具异常仍转换为失败 `ImageToolResponse`。
 
 公共请求字段为 `prompt/image_urls/aspect_ratio/image_size`。GPT 另有 `quality/n`，以及可选的 `size/background/output_format/output_compression/moderation/safety_identifier/mask_url`；具体型号和渠道的支持范围见下节。工具内部的尺寸转换、渠道适配、默认质量和业务校验属于执行合同；Schema 接受参数不代表工具一定能完成当前请求。
 
 Gemini 路由使用 `async def` 并等待 `gemini.image_create_with_gemini`。该模块独立创建 Google Gen AI 异步客户端，通过 `await upload_image(...)` 上传图片，不依赖 `gemini_sync`。同步 Python 调用使用 `gemini_sync.image_create_with_gemini`，直接调用同步 SDK 和 `upload_image_sync(...)`；模型枚举集中在 `api.tools.types.GeminiImageModel`。默认模型为 `gemini-3-pro-image`，Lite 仅支持 1K。其他同步路由由 FastAPI 在线程池执行。每条路由直接调用工具，失败时在本条路由中构造 [ImageToolResponse](../src/api/tools/types.py)。厂商错误状态、SSE 或任务提交响应不会作为这个 API 的最终响应。
+
+Seedream 4.0 和 5.5 路由同样使用 `async def`，显式传入模型并等待 `seedream.image_create_with_seedream`。HTTP 的 `image_urls` 映射为工具的 `image` 参数；生成请求使用 `arkruntime.AsyncArk`，参考图与结果均异步下载，OSS 上传在当前异步流程中等待完成；本地文件读取及图像压缩在线程中执行。5.5 的独立请求模型接受 `1K/1.5K/2K`，默认 `2K`，参考图上限为 10 张；4K 不属于 5.5 普通生成的支持范围。官方依据见 [Seedream 5.5](https://ark.volcengine.com/region:cn-beijing/docs/seedream-5-5) 和 [Ark Runtime Python SDK](https://github.com/volcengine/ark-runtime-python)。
 
 ## GPT 执行合同
 
@@ -55,11 +58,11 @@ Evolink 委托原有对应工具，只接受旧参数合同；任何非 null 的
 ```text
 固定 POST 端点
   → 本端点独立请求模型校验
-  → FastAPI 在线程池运行本端点同步处理函数
+  → FastAPI 等待异步处理函数，或在线程池运行同步处理函数
   → 原值传参并显式调用对应工具
   → 厂商 SDK / HTTP 调用
   → 取得图片 bytes
-  → asyncio.run(aliyun_oss.upload_image(...))
+  → 异步工具 await upload_image(...)；同步工具使用其上传适配
   → ImageInfo.model_dump(...)
   → ImageToolResponse
 ```
@@ -79,4 +82,4 @@ Evolink 在取得图片 bytes 前还会创建任务、轮询完成并下载输�
 5. 用 mock SDK/HTTP/OSS 验证实际函数、渠道分派、上传 bytes、元数据与失败行为；集成测试确认固定路由只调用选中的函数。
 6. 文档记录当前函数实际默认值和归一化行为，不把厂商功能表当成已经暴露的 API 能力。
 
-主要源码：[Gemini 工具](../src/api/tools/images/gemini.py)、[Seedream 4.0](../src/api/tools/images/seedream.py)、[4.5](../src/api/tools/images/seedream4_5.py)、[5.0 Lite](../src/api/tools/images/seedream5_lite.py)、[5.0 Pro](../src/api/tools/images/seedream5_pro.py)、[GPT 工具](../src/api/tools/images/gpt.py)、[Evolink 工具](../src/api/tools/images/gpt_evolink.py)。
+主要源码：[Gemini 工具](../src/api/tools/images/gemini.py)、[Seedream 4.0 / 5.5](../src/api/tools/images/seedream.py)、[4.5](../src/api/tools/images/seedream4_5.py)、[5.0 Lite](../src/api/tools/images/seedream5_lite.py)、[5.0 Pro](../src/api/tools/images/seedream5_pro.py)、[GPT 工具](../src/api/tools/images/gpt.py)、[Evolink 工具](../src/api/tools/images/gpt_evolink.py)。

@@ -56,8 +56,7 @@ def _migration_connection(backend: str) -> Iterator[Connection]:
         dsn,
         connect_args={
             "options": (
-                f"-c search_path={schema} -c lock_timeout=10000 "
-                "-c statement_timeout=15000"
+                f"-c search_path={schema} -c lock_timeout=10000 -c statement_timeout=15000"
             ),
         },
     )
@@ -131,9 +130,7 @@ def test_migration_separates_shared_legacy_tenants_and_restores_them(
     migration = _migration("e28b47a1d902_user_accounts.py", legacy_database)
     migration.upgrade()
     accounts = (
-        legacy_database.execute(
-            sa.text("SELECT id, personal_user_id, structure FROM account")
-        )
+        legacy_database.execute(sa.text("SELECT id, personal_user_id, structure FROM account"))
         .mappings()
         .all()
     )
@@ -157,9 +154,7 @@ def test_migration_separates_shared_legacy_tenants_and_restores_them(
         == "unchanged-password-hash"
     )
     assert (
-        legacy_database.execute(
-            sa.text("SELECT subject FROM user_identity")
-        ).scalar_one()
+        legacy_database.execute(sa.text("SELECT subject FROM user_identity")).scalar_one()
         == "external-alice"
     )
     _assert_foreign_keys_valid(legacy_database)
@@ -167,9 +162,7 @@ def test_migration_separates_shared_legacy_tenants_and_restores_them(
         column["name"] for column in sa.inspect(legacy_database).get_columns("user")
     }
     assert (
-        legacy_database.execute(
-            sa.text('SELECT DISTINCT auth_version FROM "user"')
-        ).scalar_one()
+        legacy_database.execute(sa.text('SELECT DISTINCT auth_version FROM "user"')).scalar_one()
         == 2
     )
 
@@ -197,8 +190,7 @@ def test_upgrade_rejects_inconsistent_resource_scope_before_changes(
     if invalid_owner == "wrong-tenant":
         legacy_database.execute(
             sa.text(
-                "UPDATE auth_resource_owner SET tenant_id = 'other-tenant' "
-                "WHERE user_id = 'alice'"
+                "UPDATE auth_resource_owner SET tenant_id = 'other-tenant' WHERE user_id = 'alice'"
             )
         )
     else:
@@ -206,8 +198,7 @@ def test_upgrade_rejects_inconsistent_resource_scope_before_changes(
             pytest.skip("PostgreSQL foreign keys prevent orphaned legacy owners")
         legacy_database.execute(
             sa.text(
-                "UPDATE auth_resource_owner SET user_id = 'missing-user' "
-                "WHERE user_id = 'alice'"
+                "UPDATE auth_resource_owner SET user_id = 'missing-user' WHERE user_id = 'alice'"
             )
         )
     migration = _migration("e28b47a1d902_user_accounts.py", legacy_database)
@@ -216,9 +207,7 @@ def test_upgrade_rejects_inconsistent_resource_scope_before_changes(
     assert "auth_user" in sa.inspect(legacy_database).get_table_names()
     assert "account" not in sa.inspect(legacy_database).get_table_names()
     assert (
-        legacy_database.execute(
-            sa.text("SELECT COUNT(*) FROM auth_resource_owner")
-        ).scalar_one()
+        legacy_database.execute(sa.text("SELECT COUNT(*) FROM auth_resource_owner")).scalar_one()
         == 2
     )
 
@@ -269,10 +258,7 @@ def test_downgrade_assigns_new_users_their_personal_account_scope(
         )
     )
     legacy_database.execute(
-        sa.text(
-            "INSERT INTO account (id, personal_user_id) "
-            "VALUES ('personal-carol', 'carol')"
-        )
+        sa.text("INSERT INTO account (id, personal_user_id) VALUES ('personal-carol', 'carol')")
     )
     legacy_database.execute(
         sa.text(

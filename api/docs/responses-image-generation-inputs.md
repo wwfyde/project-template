@@ -67,7 +67,8 @@ metadata = image_call_metadata(stored)
 
 # SDK 迭代器处理分页。这里拿到的是 Response 输入项。
 inputs = [
-    item async for item in client.responses.input_items.list(
+    item
+    async for item in client.responses.input_items.list(
         response_id,
         include=["message.input_image.image_url"],
         order="asc",

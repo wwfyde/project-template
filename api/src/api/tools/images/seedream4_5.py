@@ -47,8 +47,7 @@ def image_create_with_seedream4_5(
                 base = 2
         if aspect_ratio:
             width, height = [
-                int(item)
-                for item in aspect_ratio.replace(":", "×").replace("x", "×").split("×")
+                int(item) for item in aspect_ratio.replace(":", "×").replace("x", "×").split("×")
             ]
 
             if int(width) == 1 and int(height) == 1:
@@ -89,9 +88,7 @@ def image_create_with_seedream4_5(
         if isinstance(image_urls, str) and image_urls.startswith("data:"):
             image_list = [image_urls]
         elif isinstance(image_urls, str):
-            image_list = [
-                i.strip() for i in image_urls.replace("，", ",").split(",") if i.strip()
-            ]
+            image_list = [i.strip() for i in image_urls.replace("，", ",").split(",") if i.strip()]
         elif image_urls is None:
             image_list = []
         else:
@@ -162,9 +159,7 @@ def image_create_with_seedream4_5(
             "response_format": "url",
             "size": size,
             "stream": use_stream,
-            "optimize_prompt_options": {
-                "mode": "standard"
-            },  # support standard and fast mode
+            "optimize_prompt_options": {"mode": "standard"},  # support standard and fast mode
             # "seed": seed or -1,
             "watermark": False,
         }
@@ -198,14 +193,10 @@ def image_create_with_seedream4_5(
 
                 response.raise_for_status()
                 uploaded_image = asyncio.run(
-                    upload_image(
-                        "seedream.png", response.content, prefix="creative/seedream"
-                    )
+                    upload_image("seedream.png", response.content, prefix="creative/seedream")
                 )
                 uploaded_urls.append(
-                    uploaded_image.model_dump(
-                        mode="json", exclude_none=True, exclude_unset=True
-                    )
+                    uploaded_image.model_dump(mode="json", exclude_none=True, exclude_unset=True)
                 )
             if not uploaded_urls:
                 raise ValueError("Image provider returned no images")
@@ -227,7 +218,5 @@ def image_create_with_seedream4_5(
 
 
 if __name__ == "__main__":
-    resp = image_create_with_seedream4_5(
-        prompt="生成一只可爱的猫咪", aspect_ratio="3:4"
-    )
+    resp = image_create_with_seedream4_5(prompt="生成一只可爱的猫咪", aspect_ratio="3:4")
     print(resp)

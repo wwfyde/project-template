@@ -59,9 +59,7 @@ class Database:
 async def database() -> AsyncIterator[Database]:
     assert POSTGRES_DSN is not None
     assert POSTGRES_DSN.startswith("postgresql+psycopg://")
-    assert make_url(POSTGRES_DSN).host == "127.0.0.1", (
-        "Use a disposable loopback database"
-    )
+    assert make_url(POSTGRES_DSN).host == "127.0.0.1", "Use a disposable loopback database"
     # Identifier consists only of a fixed prefix and a generated hex UUID.
     # Never substitute an environment-provided schema or database identifier.
     schema = f"test_account_{uuid4().hex}"
@@ -71,8 +69,7 @@ async def database() -> AsyncIterator[Database]:
         connect_args={
             "application_name": schema,
             "options": (
-                f"-c search_path={schema} -c lock_timeout=10000 "
-                "-c statement_timeout=15000"
+                f"-c search_path={schema} -c lock_timeout=10000 -c statement_timeout=15000"
             ),
         },
         pool_size=5,
@@ -121,9 +118,7 @@ async def seed_oauth_user(database: Database, name: str) -> User:
     async with database.sessions.begin() as db:
         user = User(
             id=str(uuid4()),
-            personal_account=Account(
-                id=str(uuid4()), structure="personal", is_active=True
-            ),
+            personal_account=Account(id=str(uuid4()), structure="personal", is_active=True),
             display_name=name,
             email="matching-email@example.com",
             is_active=True,
@@ -131,11 +126,7 @@ async def seed_oauth_user(database: Database, name: str) -> User:
         )
         db.add(user)
         await db.flush()
-        db.add(
-            AccountMember(
-                account_id=user.personal_account.id, user_id=user.id, role="owner"
-            )
-        )
+        db.add(AccountMember(account_id=user.personal_account.id, user_id=user.id, role="owner"))
         db.add(
             UserIdentity(
                 id=str(uuid4()),
@@ -203,9 +194,7 @@ async def test_two_accounts_racing_for_one_identity_have_exactly_one_winner(
     barrier = asyncio.Barrier(2)
 
     class ConcurrentStore(AccountStore):
-        async def _identities(
-            self, db: AsyncSession, user_id: str
-        ) -> list[UserIdentity]:
+        async def _identities(self, db: AsyncSession, user_id: str) -> list[UserIdentity]:
             identities = await super()._identities(db, user_id)
             # Both real transactions have queried the unclaimed identity and
             # locked different User rows before either attempts its insert.
@@ -215,9 +204,7 @@ async def test_two_accounts_racing_for_one_identity_have_exactly_one_winner(
     store = ConcurrentStore(database.sessions)
     claim = identity("google", "shared-google-subject")
     tasks = [
-        asyncio.create_task(
-            store.link_identity(user.id, user.personal_account.id, 1, claim)
-        )
+        asyncio.create_task(store.link_identity(user.id, user.personal_account.id, 1, claim))
         for user in (alice, bob)
     ]
     try:
@@ -231,11 +218,7 @@ async def test_two_accounts_racing_for_one_identity_have_exactly_one_winner(
     assert winners[0].auth_version == 2
     async with database.sessions.begin() as db:
         claimed = (
-            (
-                await db.execute(
-                    select(UserIdentity).where(UserIdentity.provider == "google")
-                )
-            )
+            (await db.execute(select(UserIdentity).where(UserIdentity.provider == "google")))
             .scalars()
             .one()
         )
@@ -260,9 +243,7 @@ async def test_concurrent_oauth_unlinks_serialize_and_cannot_remove_all_logins(
     tasks: list[asyncio.Task[User]] = []
     try:
         async with database.sessions.begin() as blocker:
-            await blocker.execute(
-                select(User).where(User.id == user.id).with_for_update()
-            )
+            await blocker.execute(select(User).where(User.id == user.id).with_for_update())
             tasks = [
                 asyncio.create_task(
                     store.unlink_identity(
@@ -335,9 +316,7 @@ async def test_concurrent_password_reset_and_link_preserve_versions_and_ownershi
 
     try:
         async with database.sessions.begin() as blocker:
-            await blocker.execute(
-                select(User).where(User.id == user.id).with_for_update()
-            )
+            await blocker.execute(select(User).where(User.id == user.id).with_for_update())
             tasks[first] = start(first)
             await wait_for_blocked_transactions(database, 1)
             second = "link" if first == "reset" else "reset"

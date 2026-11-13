@@ -9,13 +9,12 @@ from unittest.mock import AsyncMock
 
 import httpx2
 import pytest
-from google.genai import errors, types
-from PIL import Image
-from pytest import MonkeyPatch
-
 from api.core.config import GoogleLLMConfig
 from api.tools.images import gemini
 from api.tools.types import ImageInfo
+from google.genai import errors, types
+from PIL import Image
+from pytest import MonkeyPatch
 
 
 @dataclass
@@ -56,9 +55,7 @@ def generate_content_transport(monkeypatch: MonkeyPatch) -> GenerateContentTrans
     real_async_client = httpx2.AsyncClient
 
     def create_http_client(**kwargs: object) -> httpx2.AsyncClient:
-        client = real_async_client(
-            transport=httpx2.MockTransport(transport.handle), **kwargs
-        )
+        client = real_async_client(transport=httpx2.MockTransport(transport.handle), **kwargs)
         transport.clients.append(client)
         return client
 
@@ -95,19 +92,14 @@ async def test_generate_content_preserves_configured_base_url_and_closes_clients
 ) -> None:
     gemini.settings.providers.google.base_url = base_url
     async with gemini._create_client() as client:
-        assert (
-            client._api_client._async_httpx_client
-            is generate_content_transport.clients[0]
-        )
+        assert client._api_client._async_httpx_client is generate_content_transport.clients[0]
         assert client._api_client._http_options.timeout == 175_000
         assert (
             client._api_client._http_options.base_url_resource_scope
             == types.ResourceScope.COLLECTION
         )
         sync_http_client = client._api_client._httpx_client
-        await client.aio.models.generate_content(
-            model="gemini-3-pro-image", contents="draw"
-        )
+        await client.aio.models.generate_content(model="gemini-3-pro-image", contents="draw")
 
     assert len(generate_content_transport.requests) == 1
     request = generate_content_transport.requests[0]
@@ -146,7 +138,7 @@ async def test_generation_serializes_native_request_with_reference_image(
     result = await gemini.image_create_with_gemini(
         "edit the reference",
         model="gemini-3.1-flash-image",
-        image_urls=f"data:image/png;base64,{encoded_image}",
+        image=f"data:image/png;base64,{encoded_image}",
         aspect_ratio="16:9",
         image_size=image_size,
         allow_grounding=allow_grounding,

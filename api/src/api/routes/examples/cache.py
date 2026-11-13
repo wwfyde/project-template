@@ -379,9 +379,7 @@ async def _invalidate_cache(redis: Redis | RedisCluster, conversation_id: str) -
         return False
 
 
-async def _load_snapshot(
-    db: AsyncSession, conversation_id: str
-) -> ConversationSnapshot | None:
+async def _load_snapshot(db: AsyncSession, conversation_id: str) -> ConversationSnapshot | None:
     # 用参数绑定，不拼 SQL；只读主库/满足一致性要求的副本，防止回填复制延迟中的旧值。
     result = await db.execute(
         select(
@@ -656,9 +654,7 @@ return {1, count, redis.call('PTTL', KEYS[1])}
 """
 
 
-@cache_router.post(
-    "/rate-limit/{subject}", summary="5. 原子限流：INCR 与 PEXPIRE 放进同一个 Lua"
-)
+@cache_router.post("/rate-limit/{subject}", summary="5. 原子限流：INCR 与 PEXPIRE 放进同一个 Lua")
 async def check_rate_limit(
     subject: Annotated[str, Path(pattern=r"^[a-zA-Z0-9_-]{1,64}$")],
     redis: AsyncRedisDep,
@@ -680,9 +676,7 @@ async def check_rate_limit(
             )
     except (RedisError, TimeoutError) as error:
         _log_redis_failure("rate limit", error)
-        raise HTTPException(
-            status.HTTP_503_SERVICE_UNAVAILABLE, "限流服务暂不可用"
-        ) from error
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "限流服务暂不可用") from error
 
     # 若 key 被运维误写成无过期状态，拒绝继续使用损坏的限流状态并提示检查。
     if ttl < 0:
@@ -700,9 +694,7 @@ async def check_rate_limit(
                 "X-RateLimit-Remaining": "0",
             },
         )
-    return RateLimitResult(
-        allowed=True, count=count, remaining=remaining, reset_after_ms=ttl
-    )
+    return RateLimitResult(allowed=True, count=count, remaining=remaining, reset_after_ms=ttl)
 
 
 def _text(value: str | bytes) -> str:
@@ -712,9 +704,7 @@ def _text(value: str | bytes) -> str:
 @cache_router.post(
     "/structures/{demo_id}", summary="6. 数据结构与事务：Hash / Set / List / Sorted Set"
 )
-async def use_data_structures(
-    demo_id: UUID, redis: AsyncRedisDep
-) -> DataStructuresResult:
+async def use_data_structures(demo_id: UUID, redis: AsyncRedisDep) -> DataStructuresResult:
     """在独立教学命名空间写入少量固定数据，所有 key 60 秒后过期。
 
     Hash 存对象字段，Set 去重标签，List 存最近 10 条活动，Sorted Set 存排行榜。
@@ -841,9 +831,7 @@ class SessionPreferences(BaseModel):
     language: Literal["zh", "en"] = "zh"
 
 
-def _sdk_response_key(
-    request: Request, eviction_group: str = "", prefix: str = ""
-) -> str:
+def _sdk_response_key(request: Request, eviction_group: str = "", prefix: str = "") -> str:
     # 遵守 SDK KeyBuilder 签名。这个公共样本不依赖请求参数，故统一三个端点的 key。
     # 路由 path/method 不同，若直接用 default_key_builder，刷新和删除将对不上 GET。
     return f"{prefix}:{settings.app.env}:clock"
@@ -916,9 +904,7 @@ async def refresh_sdk_response() -> SDKCachedResponse:
 @cache_router.delete(
     "/sdk/cache",
     dependencies=[
-        Depends(
-            cache_evict(prefix=SDK_HTTP_CACHE_PREFIX, key_builder=_sdk_response_key)
-        )
+        Depends(cache_evict(prefix=SDK_HTTP_CACHE_PREFIX, key_builder=_sdk_response_key))
     ],
     status_code=status.HTTP_204_NO_CONTENT,
     summary="9. SDK cache_evict：只失效明确指定的 key",
@@ -976,9 +962,7 @@ async def read_sdk_model(
     "/sdk/cache-backend/conversations/{conversation_id}",
     summary="11. SDK CacheBackendDep.delete：业务对象缓存的精确删除",
 )
-async def evict_sdk_model(
-    conversation_id: UUID, backend: CacheBackendDep
-) -> dict[str, bool]:
+async def evict_sdk_model(conversation_id: UUID, backend: CacheBackendDep) -> dict[str, bool]:
     """仅删 SDK 对象投影，不删除数据库记录或原生命令示例的投影。
 
     delete 返回 False 既可能是 key 不存在，也可能是 Redis 故障，不能据此断言数据库
@@ -1018,17 +1002,13 @@ async def sdk_rate_limited() -> dict[str, str]:
 def _sdk_session_rejected(request: Request, reason: str) -> Response:
     return JSONResponse(
         status_code=503 if reason == "unavailable" else 401,
-        content={
-            "detail": "会话服务暂不可用" if reason == "unavailable" else "需要有效会话"
-        },
+        content={"detail": "会话服务暂不可用" if reason == "unavailable" else "需要有效会话"},
         headers={"Cache-Control": "no-store"},
     )
 
 
 @cache_router.get("/sdk/session", summary="13. SDK SessionDep：读取匿名偏好")
-async def read_sdk_session(
-    session: SessionDep, response: Response
-) -> SessionPreferences:
+async def read_sdk_session(session: SessionDep, response: Response) -> SessionPreferences:
     """无会话时返回默认偏好，不创建空会话；不会返回 session ID。
 
     middleware 已加载 Cookie 对应的 Redis 记录，依赖本身不再读取 Redis。
@@ -1040,9 +1020,7 @@ async def read_sdk_session(
     )
 
 
-@cache_router.put(
-    "/sdk/session", summary="14. SDK SessionDep：写入偏好并自动保存 Cookie"
-)
+@cache_router.put("/sdk/session", summary="14. SDK SessionDep：写入偏好并自动保存 Cookie")
 async def write_sdk_session(
     payload: SessionPreferences, session: SessionDep, response: Response
 ) -> SessionPreferences:
@@ -1061,9 +1039,7 @@ async def write_sdk_session(
     dependencies=[Depends(valid_session(on_reject=_sdk_session_rejected))],
     summary="15. SDK valid_session：要求会话存在，独立于身份认证",
 )
-async def read_required_sdk_session(
-    session: SessionDep, response: Response
-) -> SessionPreferences:
+async def read_required_sdk_session(session: SessionDep, response: Response) -> SessionPreferences:
     """先 PUT 创建匿名会话，再带 Cookie 访问；缺失/过期401，默认配置下加载故障503。
 
     这不验证用户身份或权限。组合 cache 时 valid_session 必须先执行；用户相关响应
@@ -1089,9 +1065,7 @@ async def rotate_sdk_session(
     try:
         await store.rotate(state)
     except SessionStoreError as error:
-        raise HTTPException(
-            status.HTTP_503_SERVICE_UNAVAILABLE, "会话轮换失败"
-        ) from error
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "会话轮换失败") from error
     response.headers["Cache-Control"] = "no-store"
     return {"rotated": True}
 
@@ -1101,9 +1075,7 @@ async def rotate_sdk_session(
     status_code=status.HTTP_204_NO_CONTENT,
     summary="17. SDK SessionStoreDep.revoke：服务端注销并清除 Cookie",
 )
-async def revoke_sdk_session(
-    state: SessionStateDep, store: SessionStoreDep
-) -> Response:
+async def revoke_sdk_session(state: SessionStateDep, store: SessionStoreDep) -> Response:
     """退出不要求已有会话，可重复调用；只清浏览器 Cookie 不会撤销服务端会话。
 
     也可 session.clear() 让 middleware 在响应阶段注销；这里显式 await revoke，
@@ -1112,9 +1084,5 @@ async def revoke_sdk_session(
     try:
         await store.revoke(state)
     except SessionStoreError as error:
-        raise HTTPException(
-            status.HTTP_503_SERVICE_UNAVAILABLE, "会话注销失败"
-        ) from error
-    return Response(
-        status_code=status.HTTP_204_NO_CONTENT, headers={"Cache-Control": "no-store"}
-    )
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "会话注销失败") from error
+    return Response(status_code=status.HTTP_204_NO_CONTENT, headers={"Cache-Control": "no-store"})

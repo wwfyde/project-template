@@ -34,13 +34,9 @@ def memory_exporters(
         Mock(side_effect=AssertionError("Metrics must remain disabled in these tests")),
     )
     monkeypatch.setattr(otel.trace, "set_tracer_provider", set_tracer)
-    monkeypatch.setattr(
-        otel.trace, "get_tracer_provider", lambda: set_tracer.call_args.args[0]
-    )
+    monkeypatch.setattr(otel.trace, "get_tracer_provider", lambda: set_tracer.call_args.args[0])
     monkeypatch.setattr(otel.metrics, "set_meter_provider", set_meter)
-    monkeypatch.setattr(
-        otel.metrics, "get_meter_provider", lambda: set_meter.call_args.args[0]
-    )
+    monkeypatch.setattr(otel.metrics, "get_meter_provider", lambda: set_meter.call_args.args[0])
     try:
         yield logs, spans
     finally:
@@ -104,9 +100,7 @@ def test_logs_export_even_when_traces_are_disabled_or_not_sampled(
     )
     assert runtime.logger_provider is not None
 
-    with runtime.tracer_provider.get_tracer("test").start_as_current_span(
-        "work"
-    ) as span:
+    with runtime.tracer_provider.get_tracer("test").start_as_current_span("work") as span:
         runtime.logger_provider.get_logger("api.test").emit(
             body="Work completed",
             attributes={"event_name": "work.completed", "item_id": "item-42"},
@@ -148,10 +142,7 @@ def test_lifespan_flushes_last_business_log_and_reuses_provider(
             pass
 
         assert len(logs.get_finished_logs()) == expected_count
-        assert (
-            logs.get_finished_logs()[-1].log_record.body
-            == "Business shutdown completed"
-        )
+        assert logs.get_finished_logs()[-1].log_record.body == "Business shutdown completed"
 
     assert providers[0] is providers[1]
     assert isinstance(providers[0], LoggerProvider)

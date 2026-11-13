@@ -59,12 +59,8 @@ class HeaderAuthConfig(BaseModel):
     def validate_keys(cls, value: list[SecretStr]) -> list[SecretStr]:
         for key in value:
             secret = key.get_secret_value()
-            if not 32 <= len(secret) <= 512 or any(
-                not 33 <= ord(char) <= 126 for char in secret
-            ):
-                raise ValueError(
-                    "API keys must contain 32 to 512 visible ASCII characters"
-                )
+            if not 32 <= len(secret) <= 512 or any(not 33 <= ord(char) <= 126 for char in secret):
+                raise ValueError("API keys must contain 32 to 512 visible ASCII characters")
         return value
 
 

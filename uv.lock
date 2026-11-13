@@ -219,6 +219,7 @@ dependencies = [
     { name = "alembic" },
     { name = "alibabacloud-oss-v2" },
     { name = "anthropic" },
+    { name = "arkruntime" },
     { name = "claude-agent-sdk" },
     { name = "dashscope" },
     { name = "fastapi" },
@@ -244,6 +245,7 @@ dependencies = [
     { name = "python-dotenv" },
     { name = "python-multipart" },
     { name = "python-socks" },
+    { name = "pyyaml" },
     { name = "redis", extra = ["otel"] },
     { name = "sqlalchemy", extra = ["asyncio"] },
     { name = "tenacity" },
@@ -268,6 +270,7 @@ requires-dist = [
     { name = "alembic", specifier = ">=1.20.0" },
     { name = "alibabacloud-oss-v2", specifier = ">=1.4.1" },
     { name = "anthropic", specifier = ">=2.5.0" },
+    { name = "arkruntime", specifier = ">=0.19.0" },
     { name = "claude-agent-sdk", specifier = ">=0.2.126" },
     { name = "dashscope", specifier = ">=1.26.4" },
     { name = "fastapi", specifier = ">=0.162.0" },
@@ -293,6 +296,7 @@ requires-dist = [
     { name = "python-dotenv", specifier = ">=1.2.4" },
     { name = "python-multipart", specifier = ">=0.0.32" },
     { name = "python-socks", extras = ["asyncio"], specifier = ">=3.1.1" },
+    { name = "pyyaml", specifier = ">=6.0.3" },
     { name = "redis", extras = ["otel"], specifier = ">=8.1.0" },
     { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.1.4" },
     { name = "tenacity", specifier = ">=9.1.4" },
@@ -364,6 +368,24 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/a9/02/0bfc59e781c89acf64c31c388aade9d9d1c1ea38aa1ba1292fe07f607fe9/argon2_cffi_bindings-26.1.0-cp315-cp315t-win32.whl", hash = "sha256:df612391feca41c44d20118f3b88d1b86419465cd1f5496859f715ca60ec2210", size = 24875, upload-time = "2026-08-20T07:33:12.616Z" },
     { url = "https://files.pythonhosted.org/packages/61/c7/c3e46068cddffccecb8ad94d71135e9bf62bbc789589e7dfadc7c6f59214/argon2_cffi_bindings-26.1.0-cp315-cp315t-win_amd64.whl", hash = "sha256:1a0a29ed86960e44eaace7e081bdfab4f08b012fd96ec8edba71e2ad020939e4", size = 26655, upload-time = "2026-08-20T07:33:13.521Z" },
     { url = "https://files.pythonhosted.org/packages/f4/ca/18b9c8c45fecf34b9100ec6d7946057f14a158f2eaa20ea123a3e82351cb/argon2_cffi_bindings-26.1.0-cp315-cp315t-win_arm64.whl", hash = "sha256:d157ddfab1e8b21f2f1dedda9c09645d98b5ed0b667b0626be600a345d426440", size = 25376, upload-time = "2026-08-20T07:33:14.491Z" },
+]
+
+[[package]]
+name = "arkruntime"
+version = "0.19.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "anyio" },
+    { name = "distro" },
+    { name = "httpx" },
+    { name = "pydantic" },
+    { name = "sniffio" },
+    { name = "typing-extensions" },
+    { name = "volcengine-python-sdk" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/36/f6/17226bfd6d975decf2e9b8468df0f516c170b0f07d3790240a633d2a7ab6/arkruntime-0.19.0.tar.gz", hash = "sha256:de7803d70cc078b9713ff501bd37a38efc11278a0f5509a89e24d3f695d453e8", size = 306107, upload-time = "2026-11-03T09:46:16.319Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/58/16/7a6d8fc4631869cb217ee3a9346e0bae19cfa7a37ecf88f1496e9ab07d27/arkruntime-0.19.0-py3-none-any.whl", hash = "sha256:6b7c63720cedc7144dcec68ec75a1fdf807da4e69348171a081ee13129fbffb4", size = 842378, upload-time = "2026-11-03T09:46:14.935Z" },
 ]
 
 [[package]]

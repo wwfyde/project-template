@@ -77,14 +77,10 @@ def image_inpaint_with_seedream(
                 response = httpx2.get(image.get("url"), timeout=180)
                 response.raise_for_status()
                 uploaded_image = asyncio.run(
-                    upload_image(
-                        "inpaint.png", response.content, prefix="creative/inpaint"
-                    )
+                    upload_image("inpaint.png", response.content, prefix="creative/inpaint")
                 )
                 uploaded_urls.append(
-                    uploaded_image.model_dump(
-                        mode="json", exclude_none=True, exclude_unset=True
-                    )
+                    uploaded_image.model_dump(mode="json", exclude_none=True, exclude_unset=True)
                 )
 
             return ImageToolResponse(
@@ -97,9 +93,7 @@ def image_inpaint_with_seedream(
                 error = response.json().get("error", {}).get("message", response.text)
             except:
                 error = response.text
-            return ImageToolResponse(
-                content=f"内容重绘失败, 错误信息: {error}", success=False
-            )
+            return ImageToolResponse(content=f"内容重绘失败, 错误信息: {error}", success=False)
     except Exception as exc:
         return ImageToolResponse(
             content=f"工具调用失败, 无生成图像, 错误提示: {exc}", success=False

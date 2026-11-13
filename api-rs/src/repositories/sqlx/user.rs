@@ -1,5 +1,7 @@
 use super::map_error;
-use crate::models::user::{User, UserId, UserPage, UserQuery, UserRepository, UserSort};
+use crate::models::user::{
+    Uid, User, UserId, UserPage, UserQuery, UserRepository, UserSort, UserWrite,
+};
 use crate::repositories::{
     RepositoryError, user_query_offset, user_search_pattern, validate_user_ids,
 };
@@ -9,11 +11,14 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
-#[derive(FromRow)]
+#[derive(Clone, FromRow)]
 struct UserRow {
     id: Uuid,
+    uid: i64,
     email: String,
     username: Option<String>,
+    nickname: Option<String>,
+    locale: String,
     hashed_password: Option<String>,
     is_active: Option<bool>,
     is_superuser: Option<bool>,
@@ -21,18 +26,23 @@ struct UserRow {
     updated_at: Option<DateTime<Utc>>,
 }
 
-impl From<UserRow> for User {
-    fn from(row: UserRow) -> Self {
-        Self {
+impl TryFrom<UserRow> for User {
+    type Error = anyhow::Error;
+
+    fn try_from(row: UserRow) -> Result<Self> {
+        Ok(Self {
             id: UserId(row.id),
+            uid: Uid::try_from(row.uid)?,
             email: Some(row.email),
+            nickname: row.nickname,
             username: row.username,
             hashed_password: row.hashed_password,
             is_active: row.is_active,
+            locale: row.locale.parse()?,
             is_superuser: row.is_superuser,
             created_at: row.created_at,
             updated_at: row.updated_at,
-        }
+        })
     }
 }
 
@@ -50,15 +60,17 @@ impl SqlxUserRepository {
 impl UserRepository for SqlxUserRepository {
     async fn find_all(&self) -> Result<Vec<User>> {
         ::sqlx::query_as::<_, UserRow>(
-            r#"SELECT id, email, username, hashed_password, is_active, is_superuser,
+            r#"SELECT id, uid, email, username, nickname, locale, hashed_password, is_active, is_superuser,
                       created_at, updated_at
                FROM public."user"
                ORDER BY id ASC"#,
         )
         .fetch_all(&self.pool)
         .await
-        .map(|users| users.into_iter().map(User::from).collect())
-        .map_err(map_error)
+        .map_err(map_error)?
+        .into_iter()
+        .map(User::try_from)
+        .collect()
     }
 
     async fn find_many(&self, ids: &[UserId]) -> Result<Vec<User>> {
@@ -68,7 +80,7 @@ impl UserRepository for SqlxUserRepository {
         }
         let ids: Vec<Uuid> = ids.iter().map(|id| id.0).collect();
         ::sqlx::query_as::<_, UserRow>(
-            r#"SELECT id, email, username, hashed_password, is_active, is_superuser,
+            r#"SELECT id, uid, email, username, nickname, locale, hashed_password, is_active, is_superuser,
                       created_at, updated_at
                FROM public."user"
                WHERE id = ANY($1)
@@ -77,23 +89,27 @@ impl UserRepository for SqlxUserRepository {
         .bind(ids)
         .fetch_all(&self.pool)
         .await
-        .map(|users| users.into_iter().map(User::from).collect())
-        .map_err(map_error)
+        .map_err(map_error)?
+        .into_iter()
+        .map(User::try_from)
+        .collect()
     }
 
-    async fn insert(&self, user: &User) -> Result<User> {
+    async fn insert(&self, user: &UserWrite) -> Result<User> {
         let email = crate::repositories::required_email(user)?;
         ::sqlx::query_as::<_, UserRow>(
             r#"INSERT INTO public."user"
-                   (id, email, username, hashed_password, is_active, is_superuser,
+                   (id, email, username, nickname, locale, hashed_password, is_active, is_superuser,
                     created_at, updated_at)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-               RETURNING id, email, username, hashed_password, is_active, is_superuser,
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+               RETURNING id, uid, email, username, nickname, locale, hashed_password, is_active, is_superuser,
                          created_at, updated_at"#,
         )
         .bind(user.id.0)
         .bind(email)
         .bind(user.username.as_deref())
+        .bind(user.nickname.as_deref())
+        .bind(user.locale.as_str())
         .bind(user.hashed_password.as_deref())
         .bind(user.is_active)
         .bind(user.is_superuser)
@@ -101,30 +117,34 @@ impl UserRepository for SqlxUserRepository {
         .bind(user.updated_at)
         .fetch_one(&self.pool)
         .await
-        .map(User::from)
         .map_err(map_error)
+        .and_then(User::try_from)
     }
 
-    async fn save(&self, user: &User) -> Result<User> {
+    async fn save(&self, user: &UserWrite) -> Result<User> {
         let email = crate::repositories::required_email(user)?;
         ::sqlx::query_as::<_, UserRow>(
             r#"INSERT INTO public."user"
-                   (id, email, username, hashed_password, is_active, is_superuser,
+                   (id, email, username, nickname, locale, hashed_password, is_active, is_superuser,
                     created_at, updated_at)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
                ON CONFLICT (id) DO UPDATE
                SET email = EXCLUDED.email,
                    username = EXCLUDED.username,
+                   nickname = EXCLUDED.nickname,
+                   locale = EXCLUDED.locale,
                    hashed_password = EXCLUDED.hashed_password,
                    is_active = EXCLUDED.is_active,
                    is_superuser = EXCLUDED.is_superuser,
                    updated_at = EXCLUDED.updated_at
-               RETURNING id, email, username, hashed_password, is_active, is_superuser,
+               RETURNING id, uid, email, username, nickname, locale, hashed_password, is_active, is_superuser,
                          created_at, updated_at"#,
         )
         .bind(user.id.0)
         .bind(email)
         .bind(user.username.as_deref())
+        .bind(user.nickname.as_deref())
+        .bind(user.locale.as_str())
         .bind(user.hashed_password.as_deref())
         .bind(user.is_active)
         .bind(user.is_superuser)
@@ -132,13 +152,13 @@ impl UserRepository for SqlxUserRepository {
         .bind(user.updated_at)
         .fetch_one(&self.pool)
         .await
-        .map(User::from)
         .map_err(map_error)
+        .and_then(User::try_from)
     }
 
     async fn find_by_id(&self, id: UserId) -> Result<Option<User>> {
         ::sqlx::query_as::<_, UserRow>(
-            r#"SELECT id, email, username, hashed_password, is_active, is_superuser,
+            r#"SELECT id, uid, email, username, nickname, locale, hashed_password, is_active, is_superuser,
                       created_at, updated_at
                FROM public."user"
                WHERE id = $1"#,
@@ -146,13 +166,14 @@ impl UserRepository for SqlxUserRepository {
         .bind(id.0)
         .fetch_optional(&self.pool)
         .await
-        .map(|user| user.map(User::from))
-        .map_err(map_error)
+        .map_err(map_error)?
+        .map(User::try_from)
+        .transpose()
     }
 
     async fn find_by_email(&self, email: &str) -> Result<Option<User>> {
         ::sqlx::query_as::<_, UserRow>(
-            r#"SELECT id, email, username, hashed_password, is_active, is_superuser,
+            r#"SELECT id, uid, email, username, nickname, locale, hashed_password, is_active, is_superuser,
                       created_at, updated_at
                FROM public."user"
                WHERE email = $1"#,
@@ -160,8 +181,9 @@ impl UserRepository for SqlxUserRepository {
         .bind(email)
         .fetch_optional(&self.pool)
         .await
-        .map(|user| user.map(User::from))
-        .map_err(map_error)
+        .map_err(map_error)?
+        .map(User::try_from)
+        .transpose()
     }
 
     async fn search(&self, query: &UserQuery) -> Result<UserPage> {
@@ -185,7 +207,7 @@ impl UserRepository for SqlxUserRepository {
         let total = u64::try_from(total)?;
 
         let mut page = QueryBuilder::<Postgres>::new(
-            r#"SELECT id, email, username, hashed_password, is_active, is_superuser,
+            r#"SELECT id, uid, email, username, nickname, locale, hashed_password, is_active, is_superuser,
                       created_at, updated_at
                FROM public."user" WHERE TRUE"#,
         );
@@ -206,8 +228,8 @@ impl UserRepository for SqlxUserRepository {
             .await
             .map_err(map_error)?
             .into_iter()
-            .map(User::from)
-            .collect();
+            .map(User::try_from)
+            .collect::<Result<Vec<_>>>()?;
         transaction.commit().await.map_err(map_error)?;
 
         Ok(UserPage {
@@ -218,19 +240,22 @@ impl UserRepository for SqlxUserRepository {
         })
     }
 
-    async fn update(&self, user: &User) -> Result<User> {
+    async fn update(&self, user: &UserWrite) -> Result<User> {
         let email = crate::repositories::required_email(user)?;
         ::sqlx::query_as::<_, UserRow>(
             r#"UPDATE public."user"
-               SET email = $2, username = $3, hashed_password = $4,
-                   is_active = $5, is_superuser = $6, updated_at = $7
+               SET email = $2, username = $3, nickname = $4, locale = $5,
+                   hashed_password = $6, is_active = $7, is_superuser = $8,
+                   updated_at = $9
                WHERE id = $1
-               RETURNING id, email, username, hashed_password, is_active, is_superuser,
+               RETURNING id, uid, email, username, nickname, locale, hashed_password, is_active, is_superuser,
                          created_at, updated_at"#,
         )
         .bind(user.id.0)
         .bind(email)
         .bind(user.username.as_deref())
+        .bind(user.nickname.as_deref())
+        .bind(user.locale.as_str())
         .bind(user.hashed_password.as_deref())
         .bind(user.is_active)
         .bind(user.is_superuser)
@@ -238,7 +263,8 @@ impl UserRepository for SqlxUserRepository {
         .fetch_optional(&self.pool)
         .await
         .map_err(map_error)?
-        .map(User::from)
+        .map(User::try_from)
+        .transpose()?
         .ok_or_else(|| anyhow::Error::new(RepositoryError::NotFound))
     }
 
@@ -296,8 +322,11 @@ mod tests {
         let id = Uuid::now_v7();
         let created_at = Utc.with_ymd_and_hms(2024, 1, 1, 0, 0, 0).unwrap();
         let updated_at = Utc.with_ymd_and_hms(2024, 1, 2, 0, 0, 0).unwrap();
-        let user = User::from(UserRow {
+        let row = UserRow {
             id,
+            uid: 1,
+            nickname: Some("昵称".into()),
+            locale: "en-US".into(),
             email: "user@example.com".into(),
             username: Some("tester".into()),
             hashed_password: Some("hashed".into()),
@@ -305,10 +334,22 @@ mod tests {
             is_superuser: None,
             created_at,
             updated_at: Some(updated_at),
-        });
+        };
+        for invalid_uid in [-1, 0] {
+            let mut invalid = row.clone();
+            invalid.uid = invalid_uid;
+            assert!(User::try_from(invalid).is_err());
+        }
+        let mut invalid = row.clone();
+        invalid.locale = "unsupported".into();
+        assert!(User::try_from(invalid).is_err());
+        let user = User::try_from(row).unwrap();
 
         assert_eq!(user.id, UserId(id));
         assert_eq!(user.email.as_deref(), Some("user@example.com"));
+        assert_eq!(user.uid, Uid(1));
+        assert_eq!(user.nickname.as_deref(), Some("昵称"));
+        assert_eq!(user.locale, crate::models::Locale::EnUs);
         assert_eq!(user.username.as_deref(), Some("tester"));
         assert_eq!(user.hashed_password.as_deref(), Some("hashed"));
         assert_eq!(user.is_active, Some(true));

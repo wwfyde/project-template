@@ -49,9 +49,7 @@ def _create_client(provider: GeminiProvider) -> Generator[genai.Client]:
     if config is None or not config.base_url or not config.api_key.get_secret_value():
         raise _GeminiToolError("provider_unavailable", "Gemini 提供商未配置")
     if provider == "google" and config.use_vertexai:
-        raise _GeminiToolError(
-            "provider_unavailable", "当前图片工具需要 Gemini Developer API 配置"
-        )
+        raise _GeminiToolError("provider_unavailable", "当前图片工具需要 Gemini Developer API 配置")
     base = config.base_url.rstrip("/").removesuffix("/openai")
     if provider == "laozhang" and base.endswith("/v1"):
         base = base.removesuffix("/v1") + "/v1beta"
@@ -83,11 +81,7 @@ def _image_inputs(image_urls: str | list[str] | None) -> list[str]:
         # A data URL contains a comma; it is one reference, not a URL list.
         if image_urls.startswith("data:"):
             return [image_urls]
-        return [
-            item.strip()
-            for item in image_urls.replace("，", ",").split(",")
-            if item.strip()
-        ]
+        return [item.strip() for item in image_urls.replace("，", ",").split(",") if item.strip()]
     if not all(isinstance(item, str) and item for item in image_urls):
         raise _GeminiToolError("invalid_image_input", "参考图必须是非空字符串")
     return image_urls
@@ -117,9 +111,7 @@ def _image_part(source: str) -> types.Part:
                 image.save(output, format="PNG", optimize=True)
                 mime_type = "image/png"
             else:
-                image.convert("RGB").save(
-                    output, format="JPEG", quality=85, optimize=True
-                )
+                image.convert("RGB").save(output, format="JPEG", quality=85, optimize=True)
                 mime_type = "image/jpeg"
             content = output.getvalue()
     return types.Part.from_bytes(data=content, mime_type=mime_type)
@@ -152,9 +144,7 @@ def handle_gemini_image_response(
                 "image/jpeg",
                 "image/webp",
             }:
-                raise _GeminiToolError(
-                    "provider_invalid_response", "模型返回了无效图片"
-                )
+                raise _GeminiToolError("provider_invalid_response", "模型返回了无效图片")
             extension = mime_type.split("/")[-1].replace("jpeg", "jpg")
             filename = f"{uuid.uuid7()}.{extension}"
             metadata = upload_image_sync(
@@ -168,12 +158,8 @@ def handle_gemini_image_response(
     except _GeminiToolError as error:
         return _failure(response.model_version, error.code, error.message)
     except Exception as error:
-        logger.warning(
-            "Gemini image upload failed: error_type=%s", type(error).__name__
-        )
-        return _failure(
-            response.model_version, "image_upload_failed", "生成图片上传失败"
-        )
+        logger.warning("Gemini image upload failed: error_type=%s", type(error).__name__)
+        return _failure(response.model_version, "image_upload_failed", "生成图片上传失败")
     if not images:
         return ImageToolResponse(
             image_model=response.model_version,
@@ -221,9 +207,7 @@ def _prepare_request(
         config.temperature = 1
         config.top_p = 0.95
         config.safety_settings = [
-            types.SafetySetting(
-                category=category, threshold=types.HarmBlockThreshold.OFF
-            )
+            types.SafetySetting(category=category, threshold=types.HarmBlockThreshold.OFF)
             for category in (
                 types.HarmCategory.HARM_CATEGORY_HATE_SPEECH,
                 types.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
@@ -236,18 +220,12 @@ def _prepare_request(
     return [prompt, *[_image_part(source) for source in sources]], config
 
 
-def _request_failure(
-    model: str, provider: GeminiProvider, error: Exception
-) -> ImageToolResponse:
+def _request_failure(model: str, provider: GeminiProvider, error: Exception) -> ImageToolResponse:
     if isinstance(error, _GeminiToolError):
         return _failure(model, error.code, error.message)
     if isinstance(error, errors.APIError):
-        logger.warning(
-            "Gemini image request failed: provider=%s status=%s", provider, error.code
-        )
-        return _failure(
-            model, "provider_failed", "Gemini 图片生成失败，请检查参数或稍后重试"
-        )
+        logger.warning("Gemini image request failed: provider=%s status=%s", provider, error.code)
+        return _failure(model, "provider_failed", "Gemini 图片生成失败，请检查参数或稍后重试")
     if isinstance(error, (OSError, ValueError, requests.RequestException)):
         logger.warning("Gemini image input failed: error_type=%s", type(error).__name__)
         return _failure(model, "invalid_image_input", "参考图无效或无法读取")
@@ -270,22 +248,18 @@ def image_create_with_gemini(
 ) -> ImageToolResponse:
     generation_params: GeminiImageGenerationParams | None = None
     try:
-        contents, config = _prepare_request(
-            prompt, model, image_urls, aspect_ratio, image_size
-        )
+        contents, config = _prepare_request(prompt, model, image_urls, aspect_ratio, image_size)
         config_params = config.model_dump(mode="json", exclude_none=True)
         config_params.update(config_params.pop("image_config", {}))
         generation_params = GeminiImageGenerationParams(
             prompt=prompt,
-            images=_image_inputs(image_urls) or None,
+            image=_image_inputs(image_urls) or None,
             model=model,
             provider=provider,
             **config_params,
         )
         with _create_client(provider) as client:
-            response = client.models.generate_content(
-                model=model, contents=contents, config=config
-            )
+            response = client.models.generate_content(model=model, contents=contents, config=config)
         generation_params.model_version = response.model_version
         result = handle_gemini_image_response(response)
         result.image_model = result.image_model or model

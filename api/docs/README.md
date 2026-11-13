@@ -39,6 +39,7 @@ api/
 | 对接前端或其他客户端 | [接口参考](api-reference.md) → [认证与账户流程](business-flows.md) |
 | 接入图片编辑或模型提供商 | [图片编辑 API](image-editing.md) → [配置示例](../config.example.toml) |
 | 调用图片工具或切换渠道 | [AI 图片工具 API](ai-image-tools.md) → [图片工具调用参考](ai-image-models-reference.md) → [配置示例](../config.example.toml) |
+| 管理和预览 Skills | [Skills API 与组件](skills.md) → [配置示例](../config.example.toml) |
 | 新增模型、接口或外部渠道 | [开发指南](development.md) → 对应专题 → [设计决策](decisions/README.md) |
 | 排查登录、权限、数据问题 | [操作手册](operations.md) → [业务流程](business-flows.md) → [数据模型](data-schema.md) |
 | 理解为什么不用一个 account/auth 目录 | [架构](architecture.md) → [ADR 0001](decisions/0001-user-account.md) |

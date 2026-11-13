@@ -63,9 +63,7 @@ def new_app(config: RequestContextConfig | None = None) -> FastAPI:
     @app.get("/authenticated")
     async def authenticated() -> dict[str, object]:
         bind_identity("user-42", "tenant-7")
-        logging.getLogger("api.auth").info(
-            "Identity resolved", extra={"user_id": "spoofed-extra"}
-        )
+        logging.getLogger("api.auth").info("Identity resolved", extra={"user_id": "spoofed-extra"})
         return {"outbound": outbound_context_headers()}
 
     @app.get("/failure")
@@ -120,9 +118,7 @@ def test_duplicate_request_id_and_traceparent_are_rejected() -> None:
     assert "traceparent" not in response.headers
 
 
-def test_authenticated_ids_replace_spoofed_headers_and_are_not_publicly_cacheable() -> (
-    None
-):
+def test_authenticated_ids_replace_spoofed_headers_and_are_not_publicly_cacheable() -> None:
     with TestClient(new_app()) as client:
         response = client.get(
             "/authenticated",
@@ -212,9 +208,7 @@ def test_trace_context_can_be_forwarded_without_creating_a_local_span(
         assert "incoming_trace_id" not in response.json()["attributes"]
 
 
-def test_existing_server_span_is_enriched_and_propagated_without_duplicate_spans() -> (
-    None
-):
+def test_existing_server_span_is_enriched_and_propagated_without_duplicate_spans() -> None:
     exporter = InMemorySpanExporter()
     provider = TracerProvider()
     provider.add_span_processor(SimpleSpanProcessor(exporter))
@@ -245,9 +239,7 @@ def test_existing_server_span_is_enriched_and_propagated_without_duplicate_spans
 
 
 @pytest.mark.asyncio
-async def test_concurrent_requests_keep_separate_identity_and_reset_afterwards() -> (
-    None
-):
+async def test_concurrent_requests_keep_separate_identity_and_reset_afterwards() -> None:
     entered = 0
     both_entered = asyncio.Event()
     observations: dict[str, dict[str, str]] = {}
@@ -304,9 +296,7 @@ def isolated_logging(monkeypatch: MonkeyPatch) -> Iterator[None]:
     monkeypatch.setattr(logging.Logger, "manager", logging.Manager(root))
     monkeypatch.setattr(logging, "_handlers", WeakValueDictionary())
     monkeypatch.setattr(logging, "_handlerList", [])
-    monkeypatch.setattr(
-        request_context, "logger", logging.getLogger(request_context.__name__)
-    )
+    monkeypatch.setattr(request_context, "logger", logging.getLogger(request_context.__name__))
     yield
     logging.shutdown(logging._handlerList)
 
@@ -332,9 +322,7 @@ def test_application_and_completion_logs_include_trusted_context_in_console_and_
         assert response.status_code == 200
         records = [item.log_record for item in exporter.get_finished_logs()]
         business = next(item for item in records if item.body == "Identity resolved")
-        completed = next(
-            item for item in records if item.body == "HTTP request completed"
-        )
+        completed = next(item for item in records if item.body == "HTTP request completed")
         for record in (business, completed):
             assert record.attributes["request_id"] == "request-logs"
             assert record.attributes["user_id"] == "user-42"
@@ -360,9 +348,7 @@ def test_unhandled_failure_has_request_id_and_does_not_log_exception_secrets(
 ) -> None:
     setup_logging()
     with TestClient(new_app(), raise_server_exceptions=False) as client:
-        response = client.get(
-            "/failure?token=secret", headers={"Request-ID": "failed-request"}
-        )
+        response = client.get("/failure?token=secret", headers={"Request-ID": "failed-request"})
     assert response.status_code == 500
     assert response.headers["Request-ID"] == "failed-request"
     assert response.json() == {"detail": "Internal Server Error"}

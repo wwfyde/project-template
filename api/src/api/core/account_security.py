@@ -11,9 +11,7 @@ from redis_fastapi.session_backend import SessionState, SessionStore, SessionSto
 from api.schemas.account import ReauthenticationStatus
 
 
-def reauthentication_status(
-    session: Mapping[str, object], max_age: int
-) -> ReauthenticationStatus:
+def reauthentication_status(session: Mapping[str, object], max_age: int) -> ReauthenticationStatus:
     value = session.get("authenticated_at")
     now = time.time()
     if (
@@ -48,11 +46,7 @@ def login_deadline(
     session: Mapping[str, object], state: SessionState, store: SessionStore
 ) -> float:
     value = session.get("login_expires_at")
-    if (
-        isinstance(value, (int, float))
-        and not isinstance(value, bool)
-        and math.isfinite(value)
-    ):
+    if isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value):
         return float(value)
     # Older sessions can reauthenticate without acquiring a fresh absolute TTL.
     if state.absolute_remaining is not None and state.absolute_remaining > 0:

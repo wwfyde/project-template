@@ -88,9 +88,7 @@ class ImageRoute(APIRoute):
             public_fields.update({parameter.name, parameter.alias})
             annotation = parameter.field_info.annotation
             if isinstance(annotation, type) and issubclass(annotation, BaseModel):
-                public_fields.update(
-                    _schema_field_names(annotation.model_json_schema())
-                )
+                public_fields.update(_schema_field_names(annotation.model_json_schema()))
 
         async def handle(request: Request) -> Response:
             try:
@@ -146,14 +144,11 @@ class ImageRoute(APIRoute):
                     kind = (
                         kind
                         if kind
-                        in _SAFE_ERROR_TYPES
-                        | {"json_invalid", "value_error", "assertion_error"}
+                        in _SAFE_ERROR_TYPES | {"json_invalid", "value_error", "assertion_error"}
                         else "validation_error"
                     )
                     location = [
-                        part
-                        if type(part) is int or part in public_fields
-                        else "<field>"
+                        part if type(part) is int or part in public_fields else "<field>"
                         for part in item.get("loc", ())
                     ]
                     if kind == "extra_forbidden" and location:
@@ -167,9 +162,7 @@ class ImageRoute(APIRoute):
                     if kind == "json_invalid":
                         message = "Invalid JSON syntax"
                         if isinstance(decoder, json.JSONDecodeError):
-                            reason = _JSON_REASONS.get(
-                                decoder.msg, "Invalid JSON syntax"
-                            )
+                            reason = _JSON_REASONS.get(decoder.msg, "Invalid JSON syntax")
                             message = f"{reason} (line {decoder.lineno}, column {decoder.colno})"
                             diagnostic["json"] = {
                                 "line": decoder.lineno,
@@ -180,16 +173,11 @@ class ImageRoute(APIRoute):
                         # Improve the safe response detail as well as the log.
                         item["msg"] = message
                     diagnostics.append(diagnostic)
-                    if (
-                        kind == "json_invalid"
-                        and len(location) == 2
-                        and type(location[1]) is int
-                    ):
+                    if kind == "json_invalid" and len(location) == 2 and type(location[1]) is int:
                         display_location = f"body@{location[1]}"
                     else:
                         display_location = "".join(
-                            f"[{part}]" if type(part) is int else f".{part}"
-                            for part in location
+                            f"[{part}]" if type(part) is int else f".{part}" for part in location
                         ).lstrip(".")
                     locations.append(display_location)
                 summary = "; ".join(
@@ -209,23 +197,15 @@ class ImageRoute(APIRoute):
                         "http.response.status_code": 422,
                         "validation.error_count": len(errors),
                         "validation.error_locations": locations,
-                        "validation.error_types": [
-                            item["type"] for item in diagnostics
-                        ],
-                        "validation.errors": json.dumps(
-                            diagnostics, ensure_ascii=False
-                        ),
+                        "validation.error_types": [item["type"] for item in diagnostics],
+                        "validation.errors": json.dumps(diagnostics, ensure_ascii=False),
                         "validation.errors_truncated": len(errors) > len(diagnostics),
                     },
                 )
                 return JSONResponse(
                     {
                         "detail": [
-                            {
-                                key: item[key]
-                                for key in ("type", "loc", "msg")
-                                if key in item
-                            }
+                            {key: item[key] for key in ("type", "loc", "msg") if key in item}
                             for item in errors
                         ]
                     },

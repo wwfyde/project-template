@@ -43,9 +43,7 @@ class AccountRepository:
 
     async def get(self, user_id: str, account_id: str) -> Account | None:
         async with self.sessions.begin() as db:
-            return (
-                await db.execute(accessible_account(user_id, account_id))
-            ).scalar_one_or_none()
+            return (await db.execute(accessible_account(user_id, account_id))).scalar_one_or_none()
 
     async def list_for_user(self, user_id: str) -> list[Account]:
         async with self.sessions.begin() as db:
@@ -71,15 +69,11 @@ class AccountRepository:
             raise ValueError("Workspace name must contain 1 to 255 characters")
         async with self.sessions.begin() as db:
             user = (
-                await db.execute(
-                    select(User).where(User.id == user_id).with_for_update()
-                )
+                await db.execute(select(User).where(User.id == user_id).with_for_update())
             ).scalar_one_or_none()
             if user is None or not user.is_active:
                 raise ValueError("User is unavailable")
-            account = Account(
-                id=str(uuid4()), name=name, structure="workspace", is_active=True
-            )
+            account = Account(id=str(uuid4()), name=name, structure="workspace", is_active=True)
             db.add(account)
             await db.flush()
             db.add(AccountMember(account_id=account.id, user_id=user_id, role="owner"))

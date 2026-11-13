@@ -1,14 +1,14 @@
 mod error;
-pub mod in_memory;
+pub mod memory;
 pub mod orm;
 pub mod sqlx;
 
-pub use crate::models::student::{NewStudent, Student, StudentRepository};
-pub use crate::models::todo::{Todo, TodoRepository};
-pub use crate::models::user::{User, UserId, UserPage, UserQuery, UserRepository, UserSort};
+pub use crate::models::student::StudentRepository;
+pub use crate::models::todo::TodoRepository;
+pub use crate::models::user::{User, UserId, UserQuery, UserRepository, UserWrite};
 pub(crate) use error::RepositoryError;
 
-fn required_email(user: &User) -> anyhow::Result<&str> {
+fn required_email(user: &UserWrite) -> anyhow::Result<&str> {
     user.email
         .as_deref()
         .ok_or_else(|| anyhow::Error::new(RepositoryError::InvalidInput("user email is required")))

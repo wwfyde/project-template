@@ -18,6 +18,7 @@ export function AuthenticatedShell() {
     { to: '/', label: 'home' },
     { to: '/admin', label: 'admin' },
     { to: '/assets', label: 'assets' },
+    { to: '/skills', label: 'skills' },
     { to: '/examples', label: 'examples' },
     { to: '/about', label: 'about' },
     { to: '/account', label: 'account' },

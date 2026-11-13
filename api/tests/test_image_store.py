@@ -268,9 +268,7 @@ async def test_database_comment_foreign_key_cascades(
 def test_postgres_ddl_uses_private_bytes_jsonb_and_comment_cascade() -> None:
     ddl = {
         model.__tablename__: str(
-            CreateTable(cast(Table, model.__table__)).compile(
-                dialect=postgresql.dialect()
-            )
+            CreateTable(cast(Table, model.__table__)).compile(dialect=postgresql.dialect())
         )
         for model in (ImageAssetRecord, ImageCommentRecord)
     }
@@ -299,12 +297,10 @@ def test_migration_round_trip_matches_models_and_current_head() -> None:
                 }
                 for model in (ImageAssetRecord, ImageCommentRecord):
                     assert {
-                        column["name"]
-                        for column in inspector.get_columns(model.__tablename__)
+                        column["name"] for column in inspector.get_columns(model.__tablename__)
                     } == set(model.__table__.columns.keys())
                     assert {
-                        index["name"]
-                        for index in inspector.get_indexes(model.__tablename__)
+                        index["name"] for index in inspector.get_indexes(model.__tablename__)
                     } == {index.name for index in model.__table__.indexes}
                 migration.downgrade()
                 assert inspect(connection).get_table_names() == []

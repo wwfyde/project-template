@@ -56,9 +56,7 @@ class MemoryOwnershipRepository:
 def app(monkeypatch: MonkeyPatch) -> FastAPI:
     monkeypatch.setattr(conversations.settings, "repo_type", "memory")
     monkeypatch.setattr(conversations, "_memory_conversations", {})
-    monkeypatch.setattr(
-        conversations, "_memory_messages", conversations.defaultdict(list)
-    )
+    monkeypatch.setattr(conversations, "_memory_messages", conversations.defaultdict(list))
     app = FastAPI(
         telemetry={
             "tracing": False,
@@ -143,9 +141,7 @@ def test_legacy_records_without_ownership_remain_unavailable(
     assert client.get("/api/conversations/legacy").status_code == 404
 
 
-def test_collection_endpoints_require_authentication(
-    app: FastAPI, client: TestClient
-) -> None:
+def test_collection_endpoints_require_authentication(app: FastAPI, client: TestClient) -> None:
     app.state.current_user = None
     for method, path, body in (
         ("GET", "/api/conversations", None),
@@ -158,18 +154,12 @@ def test_creation_rejects_forged_owner_and_legacy_user_code(
     app: FastAPI,
     client: TestClient,
 ) -> None:
-    assert (
-        client.post("/api/conversations", json={"user_id": OTHER_USER.id}).status_code
-        == 403
-    )
+    assert client.post("/api/conversations", json={"user_id": OTHER_USER.id}).status_code == 403
     for headers in (
         {"User-Code": OTHER_USER.id},
         [("User-Code", TEST_USER.id), ("User-Code", OTHER_USER.id)],
     ):
-        assert (
-            client.post("/api/conversations", json={}, headers=headers).status_code
-            == 403
-        )
+        assert client.post("/api/conversations", json={}, headers=headers).status_code == 403
     assert not app.state.ownership_repository.owners
     assert not conversations._memory_conversations
 

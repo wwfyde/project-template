@@ -197,9 +197,7 @@ def client(
         yield test_client
 
 
-def test_http_cache_hit_refresh_and_eviction(
-    client: TestClient, limiter: MemoryLimiter
-) -> None:
+def test_http_cache_hit_refresh_and_eviction(client: TestClient, limiter: MemoryLimiter) -> None:
     url = f"{SDK_PREFIX}/cache"
     first = client.get(url)
     second = client.get(url)
@@ -256,9 +254,7 @@ def test_rate_limit_rejection_includes_retry_headers(client: TestClient) -> None
     assert int(blocked.headers["Retry-After"]) > 0
 
 
-def test_rate_limit_outage_returns_503(
-    client: TestClient, limiter: MemoryLimiter
-) -> None:
+def test_rate_limit_outage_returns_503(client: TestClient, limiter: MemoryLimiter) -> None:
     limiter.degraded = True
     response = client.get(f"{SDK_PREFIX}/rate-limit")
     assert response.status_code == 503
@@ -278,9 +274,7 @@ def test_backend_cache_serializes_projection_and_skips_second_query(
     assert next(iter(redis.ttls.values())) == 60
 
 
-def test_backend_delete_forces_database_reload(
-    client: TestClient, db: MagicMock
-) -> None:
+def test_backend_delete_forces_database_reload(client: TestClient, db: MagicMock) -> None:
     assert client.get(MODEL_URL).status_code == 200
     deleted = client.delete(MODEL_URL)
     assert deleted.status_code == 200

@@ -9,9 +9,7 @@ from .base import Base
 class UserIdentity(Base):
     __tablename__ = "user_identity"
     __table_args__ = (
-        UniqueConstraint(
-            "provider", "subject", name="uq_user_identity_provider_subject"
-        ),
+        UniqueConstraint("provider", "subject", name="uq_user_identity_provider_subject"),
     )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)

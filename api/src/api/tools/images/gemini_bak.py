@@ -50,9 +50,7 @@ def _create_client(provider: GeminiProvider) -> genai.Client:
     if config is None or not config.base_url or not config.api_key.get_secret_value():
         raise _GeminiToolError("provider_unavailable", "Gemini 提供商未配置")
     if provider == "google" and config.use_vertexai:
-        raise _GeminiToolError(
-            "provider_unavailable", "当前图片工具需要 Gemini Developer API 配置"
-        )
+        raise _GeminiToolError("provider_unavailable", "当前图片工具需要 Gemini Developer API 配置")
     base = config.base_url.rstrip("/").removesuffix("/openai")
     if provider == "laozhang" and base.endswith("/v1"):
         base = base.removesuffix("/v1") + "/v1beta"
@@ -77,11 +75,7 @@ def _image_inputs(image_urls: str | list[str] | None) -> list[str]:
         # A data URL contains a comma; it is one reference, not a URL list.
         if image_urls.startswith("data:"):
             return [image_urls]
-        return [
-            item.strip()
-            for item in image_urls.replace("，", ",").split(",")
-            if item.strip()
-        ]
+        return [item.strip() for item in image_urls.replace("，", ",").split(",") if item.strip()]
     if not all(isinstance(item, str) and item for item in image_urls):
         raise _GeminiToolError("invalid_image_input", "参考图必须是非空字符串")
     return image_urls
@@ -112,9 +106,7 @@ def _image_part(source: str) -> types.Part:
                 image.save(output, format="PNG", optimize=True)
                 mime_type = "image/png"
             else:
-                image.convert("RGB").save(
-                    output, format="JPEG", quality=85, optimize=True
-                )
+                image.convert("RGB").save(output, format="JPEG", quality=85, optimize=True)
                 mime_type = "image/jpeg"
             content = output.getvalue()
     return types.Part.from_bytes(data=content, mime_type=mime_type)
@@ -147,9 +139,7 @@ def handle_gemini_image_response(
                 "image/jpeg",
                 "image/webp",
             }:
-                raise _GeminiToolError(
-                    "provider_invalid_response", "模型返回了无效图片"
-                )
+                raise _GeminiToolError("provider_invalid_response", "模型返回了无效图片")
             extension = mime_type.split("/")[-1].replace("jpeg", "jpg")
             filename = f"{uuid.uuid7()}.{extension}"
             metadata = asyncio.run(
@@ -165,12 +155,8 @@ def handle_gemini_image_response(
     except _GeminiToolError as error:
         return _failure(response.model_version, error.code, error.message)
     except Exception as error:
-        logger.warning(
-            "Gemini image upload failed: error_type=%s", type(error).__name__
-        )
-        return _failure(
-            response.model_version, "image_upload_failed", "生成图片上传失败"
-        )
+        logger.warning("Gemini image upload failed: error_type=%s", type(error).__name__)
+        return _failure(response.model_version, "image_upload_failed", "生成图片上传失败")
     if not images:
         return ImageToolResponse(
             image_model=response.model_version,
@@ -220,30 +206,21 @@ def _generate(
     except _GeminiToolError as error:
         return _failure(image_model, error.code, error.message)
     except errors.APIError as error:
-        logger.warning(
-            "Gemini image request failed: provider=%s status=%s", provider, error.code
-        )
-        return _failure(
-            image_model, "provider_failed", "Gemini 图片生成失败，请检查参数或稍后重试"
-        )
+        logger.warning("Gemini image request failed: provider=%s status=%s", provider, error.code)
+        return _failure(image_model, "provider_failed", "Gemini 图片生成失败，请检查参数或稍后重试")
     except (OSError, ValueError, requests.RequestException) as error:
         logger.warning("Gemini image input failed: error_type=%s", type(error).__name__)
         return _failure(image_model, "invalid_image_input", "参考图无效或无法读取")
     except Exception as error:
-        logger.warning(
-            "Gemini image request failed: error_type=%s", type(error).__name__
-        )
-        return _failure(
-            image_model, "provider_failed", "Gemini 图片生成失败，请稍后重试"
-        )
+        logger.warning("Gemini image request failed: error_type=%s", type(error).__name__)
+        return _failure(image_model, "provider_failed", "Gemini 图片生成失败，请稍后重试")
 
 
 def image_create_with_gemini(
     prompt: str,
     *,
     image_urls: str | list[str] | None = None,
-    aspect_ratio: Literal["1:1", "2:3", "3:2", "3:4", "4:3", "9:16", "16:9", "21:9"]
-    | None = None,
+    aspect_ratio: Literal["1:1", "2:3", "3:2", "3:4", "4:3", "9:16", "16:9", "21:9"] | None = None,
     image_size: ImageSize | None = None,
     provider: GeminiProvider = "google",
 ) -> ImageToolResponse:
@@ -253,9 +230,7 @@ def image_create_with_gemini(
         image_urls=image_urls,
         config=types.GenerateContentConfig(
             response_modalities=["TEXT", "IMAGE"],
-            image_config=types.ImageConfig(
-                aspect_ratio=aspect_ratio, image_size=image_size
-            ),
+            image_config=types.ImageConfig(aspect_ratio=aspect_ratio, image_size=image_size),
         ),
         provider=provider,
     )
@@ -367,8 +342,7 @@ def image_create_with_gemini_flash(
     prompt: str,
     *,
     image_urls: str | list[str] | None = None,
-    aspect_ratio: Literal["1:1", "2:3", "3:2", "3:4", "4:3", "9:16", "16:9", "21:9"]
-    | None = None,
+    aspect_ratio: Literal["1:1", "2:3", "3:2", "3:4", "4:3", "9:16", "16:9", "21:9"] | None = None,
     image_size: ImageSize | None = "1K",
     provider: GeminiProvider = "google",
 ) -> ImageToolResponse:

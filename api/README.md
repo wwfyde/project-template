@@ -79,9 +79,11 @@ from api.core.deps import HeaderAuthDep, verify_header_token
 
 router = APIRouter()
 
+
 @router.get("/service-ping", dependencies=[Depends(verify_header_token)])
 async def service_ping() -> dict[str, bool]:
     return {"ok": True}
+
 
 @router.post("/service-call")
 async def service_call(principal: HeaderAuthDep) -> dict[str, str]:
@@ -192,6 +194,7 @@ from fastapi import APIRouter
 from redis_fastapi import AsyncRedisDep
 
 router = APIRouter()
+
 
 @router.get("/cache/title")
 async def read_title(redis: AsyncRedisDep) -> dict[str, str | None]:

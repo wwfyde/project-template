@@ -63,17 +63,11 @@ class AccountStore:
             raise AccountError("account_unavailable", 401, "Account is unavailable")
         await self._account(db, user_id, account_id)
         if expected_version is not None and user.auth_version != expected_version:
-            raise AccountError(
-                "account_changed", 409, "Account changed; sign in again and retry"
-            )
+            raise AccountError("account_changed", 409, "Account changed; sign in again and retry")
         return user
 
-    async def _account(
-        self, db: AsyncSession, user_id: str, account_id: str
-    ) -> Account:
-        account = (
-            await db.execute(accessible_account(user_id, account_id))
-        ).scalar_one_or_none()
+    async def _account(self, db: AsyncSession, user_id: str, account_id: str) -> Account:
+        account = (await db.execute(accessible_account(user_id, account_id))).scalar_one_or_none()
         if account is None:
             raise AccountError("account_unavailable", 401, "Account is unavailable")
         return account
@@ -92,9 +86,7 @@ class AccountStore:
     async def _credential(
         self, db: AsyncSession, user_id: str, *, lock: bool = False
     ) -> PasswordCredential | None:
-        statement = select(PasswordCredential).where(
-            PasswordCredential.user_id == user_id
-        )
+        statement = select(PasswordCredential).where(PasswordCredential.user_id == user_id)
         if lock:
             statement = statement.with_for_update()
         return (await db.execute(statement)).scalar_one_or_none()
@@ -121,9 +113,7 @@ class AccountStore:
         if updates.keys() - {"display_name", "avatar_url"}:
             raise AccountError("invalid_profile", 422, "Unsupported profile field")
         async with self.sessions.begin() as db:
-            user = await self._user(
-                db, user_id, account_id, expected_version, lock=True
-            )
+            user = await self._user(db, user_id, account_id, expected_version, lock=True)
             for name, value in updates.items():
                 setattr(user, name, value)
         return user
@@ -136,14 +126,10 @@ class AccountStore:
         identity: ProviderIdentity,
     ) -> User:
         if identity.provider == "password":
-            raise AccountError(
-                "invalid_provider", 422, "Use password settings for this provider"
-            )
+            raise AccountError("invalid_provider", 422, "Use password settings for this provider")
         try:
             async with self.sessions.begin() as db:
-                user = await self._user(
-                    db, user_id, account_id, expected_version, lock=True
-                )
+                user = await self._user(db, user_id, account_id, expected_version, lock=True)
                 existing = (
                     await db.execute(
                         select(UserIdentity).where(
@@ -160,9 +146,7 @@ class AccountStore:
                     item.provider == identity.provider
                     for item in await self._identities(db, user_id)
                 ):
-                    raise AccountError(
-                        "provider_already_linked", 409, "Provider is already linked"
-                    )
+                    raise AccountError("provider_already_linked", 409, "Provider is already linked")
                 db.add(
                     UserIdentity(
                         id=str(uuid4()),
@@ -188,9 +172,7 @@ class AccountStore:
         identity: ProviderIdentity,
     ) -> User:
         async with self.sessions.begin() as db:
-            user = await self._user(
-                db, user_id, account_id, expected_version, lock=True
-            )
+            user = await self._user(db, user_id, account_id, expected_version, lock=True)
             if not any(
                 item.provider == identity.provider and item.subject == identity.subject
                 for item in await self._identities(db, user_id)
@@ -209,9 +191,7 @@ class AccountStore:
         enabled_providers: set[str],
     ) -> User:
         async with self.sessions.begin() as db:
-            user = await self._user(
-                db, user_id, account_id, expected_version, lock=True
-            )
+            user = await self._user(db, user_id, account_id, expected_version, lock=True)
             credential = await self._credential(db, user_id, lock=True)
             identities = await self._identities(db, user_id)
             target = next((item for item in identities if item.id == identity_id), None)
@@ -235,9 +215,7 @@ class AccountStore:
                 )
             if target.provider == "password":
                 await db.execute(
-                    delete(PasswordCredential).where(
-                        PasswordCredential.user_id == user_id
-                    )
+                    delete(PasswordCredential).where(PasswordCredential.user_id == user_id)
                 )
             await db.execute(
                 delete(UserIdentity).where(
@@ -279,22 +257,16 @@ class AccountStore:
                 )
             username = old_username
             if current_password is None:
-                raise AccountError(
-                    "current_password_required", 400, "Current password is required"
-                )
+                raise AccountError("current_password_required", 400, "Current password is required")
             if not await run_in_threadpool(verify_password, current_password, old_hash):
-                raise AccountError(
-                    "invalid_current_password", 400, "Current password is incorrect"
-                )
+                raise AccountError("invalid_current_password", 400, "Current password is incorrect")
         elif username is None:
             raise AccountError("username_required", 422, "Username is required")
         hashed_password = await run_in_threadpool(hash_password, password)
 
         try:
             async with self.sessions.begin() as db:
-                user = await self._user(
-                    db, user_id, account_id, expected_version, lock=True
-                )
+                user = await self._user(db, user_id, account_id, expected_version, lock=True)
                 credential = await self._credential(db, user_id, lock=True)
                 if (credential.username if credential else None) != old_username or (
                     credential.hashed_password if credential else None
@@ -344,6 +316,4 @@ class AccountStore:
                 user.auth_version += 1
             return user
         except IntegrityError as exc:
-            raise AccountError(
-                "username_conflict", 409, "Username is already in use"
-            ) from exc
+            raise AccountError("username_conflict", 409, "Username is already in use") from exc

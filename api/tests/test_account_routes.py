@@ -63,16 +63,10 @@ class AccountOAuthProvider(FakeOAuthProvider):
         self, *, state: str, nonce: str, code_verifier: str, interactive: bool = False
     ) -> str:
         self.interactive.append(interactive)
-        return "https://identity.example/authorize?" + urlencode(
-            {"state": state, "nonce": nonce}
-        )
+        return "https://identity.example/authorize?" + urlencode({"state": state, "nonce": nonce})
 
-    async def authenticate(
-        self, code: str, *, nonce: str, code_verifier: str
-    ) -> ProviderIdentity:
-        result = await super().authenticate(
-            code, nonce=nonce, code_verifier=code_verifier
-        )
+    async def authenticate(self, code: str, *, nonce: str, code_verifier: str) -> ProviderIdentity:
+        result = await super().authenticate(code, nonce=nonce, code_verifier=code_verifier)
         return result.model_copy(update={"subject": self.subject})
 
 
@@ -81,9 +75,7 @@ class AccountRedis(MemoryOAuthRedis):
         super().__init__()
         self.attempts = MemoryAttemptRedis()
 
-    async def eval(
-        self, script: str, key_count: int, key: str, window: int
-    ) -> tuple[int, int]:
+    async def eval(self, script: str, key_count: int, key: str, window: int) -> tuple[int, int]:
         return await self.attempts.eval(script, key_count, key, window)
 
 
@@ -173,9 +165,7 @@ def session_data(client: TestClient, env: AccountEnvironment) -> dict[str, objec
     return env.auth.store.decode(raw).data
 
 
-def update_session(
-    client: TestClient, env: AccountEnvironment, **changes: object
-) -> None:
+def update_session(client: TestClient, env: AccountEnvironment, **changes: object) -> None:
     sid = client.cookies[COOKIE_NAME]
     raw, ttl = env.auth.store.records[sid]
     record = env.auth.store.decode(raw)
@@ -224,16 +214,8 @@ def seed_identity(
                 )
             )
             db.flush()
-            db.add(
-                AccountMember(
-                    account_id=f"personal-{user_id}", user_id=user_id, role="owner"
-                )
-            )
-        db.add(
-            UserIdentity(
-                id=identity_id, user_id=user_id, provider=provider, subject=subject
-            )
-        )
+            db.add(AccountMember(account_id=f"personal-{user_id}", user_id=user_id, role="owner"))
+        db.add(UserIdentity(id=identity_id, user_id=user_id, provider=provider, subject=subject))
         if provider == "password":
             db.add(
                 PasswordCredential(
@@ -278,17 +260,13 @@ def test_account_requires_session_and_never_caches_errors(
 
 
 @pytest.mark.parametrize("headers", [{}, {"X-CSRF-Token": "wrong"}])
-def test_profile_requires_csrf(
-    account_client: TestClient, headers: dict[str, str]
-) -> None:
+def test_profile_requires_csrf(account_client: TestClient, headers: dict[str, str]) -> None:
     login(account_client)
     response = account_client.patch(
         f"{ACCOUNT_PATH}/profile", json={"display_name": "Changed"}, headers=headers
     )
     assert response.status_code == 403
-    assert (
-        account_client.get(ACCOUNT_PATH).json()["user"]["display_name"] == "Local User"
-    )
+    assert account_client.get(ACCOUNT_PATH).json()["user"]["display_name"] == "Local User"
 
 
 def test_link_start_rejects_cross_origin_even_with_csrf(
@@ -401,9 +379,7 @@ def test_linked_oauth_and_new_password_both_sign_in_to_the_original_user(
     account_client: TestClient, account_env: AccountEnvironment
 ) -> None:
     login(account_client)
-    assert (
-        callback(account_client, start_account_oauth(account_client)).status_code == 303
-    )
+    assert callback(account_client, start_account_oauth(account_client)).status_code == 303
     assert (
         account_client.put(
             f"{ACCOUNT_PATH}/password",
@@ -412,22 +388,12 @@ def test_linked_oauth_and_new_password_both_sign_in_to_the_original_user(
         ).status_code
         == 200
     )
-    assert (
-        account_client.post(
-            "/api/auth/logout", headers=csrf(account_client)
-        ).status_code
-        == 204
-    )
+    assert account_client.post("/api/auth/logout", headers=csrf(account_client)).status_code == 204
     linked_login = login(account_client, "dingtalk")
     assert linked_login["user"]["id"] == USER_ID
     assert linked_login["user"]["account_id"] == TENANT_ID
     assert linked_login["user"]["tenant_id"] == TENANT_ID
-    assert (
-        account_client.post(
-            "/api/auth/logout", headers=csrf(account_client)
-        ).status_code
-        == 204
-    )
+    assert account_client.post("/api/auth/logout", headers=csrf(account_client)).status_code == 204
     password_login = account_client.post(
         "/api/auth/password/login",
         headers={"X-Requested-With": "XMLHttpRequest"},
@@ -449,13 +415,9 @@ def test_sensitive_changes_require_recent_authentication(
     update_session(account_client, account_env, authenticated_at=time.time() - 600)
     headers = csrf(account_client)
     if operation == "link":
-        response = account_client.post(
-            f"{ACCOUNT_PATH}/identities/dingtalk/start", headers=headers
-        )
+        response = account_client.post(f"{ACCOUNT_PATH}/identities/dingtalk/start", headers=headers)
     elif operation == "unlink":
-        response = account_client.delete(
-            f"{ACCOUNT_PATH}/identities/{identity}", headers=headers
-        )
+        response = account_client.delete(f"{ACCOUNT_PATH}/identities/{identity}", headers=headers)
     else:
         response = account_client.put(
             f"{ACCOUNT_PATH}/password",
@@ -476,16 +438,14 @@ def test_recent_authentication_is_rechecked_at_link_callback(
     response = callback(account_client, state)
     assert response.status_code in {303, 403}
     if response.status_code == 303:
-        assert parse_qs(urlsplit(response.headers["location"]).query)[
-            "account_error"
-        ] == ["reauthentication_required"]
+        assert parse_qs(urlsplit(response.headers["location"]).query)["account_error"] == [
+            "reauthentication_required"
+        ]
     assert not account_env.providers["dingtalk"].calls
     assert len(account_client.get(ACCOUNT_PATH).json()["identities"]) == 1
 
 
-@pytest.mark.parametrize(
-    "changed", ["session", "user", "account", "version", "provider"]
-)
+@pytest.mark.parametrize("changed", ["session", "user", "account", "version", "provider"])
 def test_callback_rejects_changed_account_context_before_provider_exchange(
     account_client: TestClient, account_env: AccountEnvironment, changed: str
 ) -> None:
@@ -494,12 +454,8 @@ def test_callback_rejects_changed_account_context_before_provider_exchange(
     if changed == "session":
         old_id = account_client.cookies[COOKIE_NAME]
         new_id = account_env.auth.store.new_id()
-        account_env.auth.store.records[new_id] = account_env.auth.store.records.pop(
-            old_id
-        )
-        account_client.cookies.set(
-            COOKIE_NAME, new_id, domain="testserver.local", path="/"
-        )
+        account_env.auth.store.records[new_id] = account_env.auth.store.records.pop(old_id)
+        account_client.cookies.set(COOKIE_NAME, new_id, domain="testserver.local", path="/")
     elif changed == "user":
         update_session(account_client, account_env, user_id="other-user")
     elif changed == "account":
@@ -529,9 +485,7 @@ def test_oauth_reauth_verifies_existing_identity_and_preserves_deadline(
     after = session_data(account_client, account_env)
     assert after["authenticated_at"] > before["authenticated_at"]
     assert after["login_expires_at"] == before["login_expires_at"]
-    assert (
-        account_client.get(ACCOUNT_PATH).json()["reauthentication"]["required"] is False
-    )
+    assert account_client.get(ACCOUNT_PATH).json()["reauthentication"]["required"] is False
 
 
 def test_oauth_reauth_cannot_switch_to_different_identity(
@@ -548,8 +502,7 @@ def test_oauth_reauth_cannot_switch_to_different_identity(
         "identity_not_linked"
     ]
     assert (
-        session_data(account_client, account_env)["authenticated_at"]
-        == before["authenticated_at"]
+        session_data(account_client, account_env)["authenticated_at"] == before["authenticated_at"]
     )
     assert account_client.get(ACCOUNT_PATH).json()["user"]["id"] == USER_ID
 
@@ -603,9 +556,7 @@ def test_first_password_and_change_keep_same_user_and_require_old_password(
     account = account_client.get(ACCOUNT_PATH).json()
     assert account["user"]["id"] == USER_ID
     assert (
-        next(item for item in account["identities"] if item["provider"] == "password")[
-            "username"
-        ]
+        next(item for item in account["identities"] if item["provider"] == "password")["username"]
         == "alice"
     )
     for current_password in (None, "wrong-password"):
@@ -707,9 +658,7 @@ def test_password_reauth_rechecks_workspace_access_after_verification(
     repository = account_env.auth.app.dependency_overrides[get_password_repository]()
     original_authenticate = repository.authenticate
 
-    async def authenticate_then_revoke_access(
-        username: str, password: str
-    ) -> User | None:
+    async def authenticate_then_revoke_access(username: str, password: str) -> User | None:
         user = await original_authenticate(username, password)
         with Session(account_env.engine) as db, db.begin():
             if interruption == "membership_removed":
@@ -780,16 +729,12 @@ def test_committed_credential_change_survives_session_failure_but_old_cookie_is_
             headers=headers,
         )
     else:
-        response = account_client.delete(
-            f"{ACCOUNT_PATH}/identities/{identity}", headers=headers
-        )
+        response = account_client.delete(f"{ACCOUNT_PATH}/identities/{identity}", headers=headers)
     assert response.status_code == 503
     with Session(account_env.engine) as db:
         assert db.get(User, USER_ID).auth_version == 2
         providers = set(
-            db.scalars(
-                select(UserIdentity.provider).where(UserIdentity.user_id == USER_ID)
-            )
+            db.scalars(select(UserIdentity.provider).where(UserIdentity.user_id == USER_ID))
         )
         assert providers == (
             {"google", "dingtalk"}
@@ -850,9 +795,7 @@ def test_password_reauth_does_not_revive_source_session_lost_during_verification
     response = account_client.post(
         f"{ACCOUNT_PATH}/reauth/password", json={"password": PASSWORD}, headers=headers
     )
-    assert response.status_code == (503 if interruption == "outage" else 401), (
-        response.text
-    )
+    assert response.status_code == (503 if interruption == "outage" else 401), response.text
     assert "set-cookie" not in response.headers
     assert not (set(account_env.auth.store.records) - {sid})
     monkeypatch.setattr(account_env.auth.store, "_read", original_read)
@@ -894,13 +837,11 @@ def test_revocation_after_database_commit_cannot_issue_replacement_session(
             headers=headers,
         )
     else:
-        response = account_client.delete(
-            f"{ACCOUNT_PATH}/identities/{identity}", headers=headers
-        )
+        response = account_client.delete(f"{ACCOUNT_PATH}/identities/{identity}", headers=headers)
     if response.status_code == 303:
-        assert parse_qs(urlsplit(response.headers["location"]).query)[
-            "account_error"
-        ] == ["session_changed"]
+        assert parse_qs(urlsplit(response.headers["location"]).query)["account_error"] == [
+            "session_changed"
+        ]
     else:
         assert response.status_code == 401, response.text
     assert "set-cookie" not in response.headers
@@ -947,9 +888,9 @@ def test_oauth_link_checks_source_session_again_after_provider_exchange(
         assert response.status_code == 503
     else:
         assert response.status_code == 303
-        assert parse_qs(urlsplit(response.headers["location"]).query)[
-            "account_error"
-        ] == ["session_changed"]
+        assert parse_qs(urlsplit(response.headers["location"]).query)["account_error"] == [
+            "session_changed"
+        ]
     with Session(account_env.engine) as db:
         assert db.get(User, USER_ID).auth_version == 1
         assert set(db.scalars(select(UserIdentity.provider))) == {"google"}

@@ -14,16 +14,15 @@ from unittest.mock import AsyncMock
 import httpx2
 import pytest
 import pytest_asyncio
+from api.schemas.ai_tools import GPTImageRequest
+from api.tools.images import gpt
+from api.tools.types import GPTImageGenerationParams, ImageInfo
 from openai import AsyncOpenAI
 from openai.types.responses import ResponseInputImageParam
 from openai.types.responses.tool_param import ImageGenerationInputImageMask
 from PIL import Image
 from pydantic import ValidationError
 from pytest import MonkeyPatch
-
-from api.schemas.ai_tools import GPTImageRequest
-from api.tools.images import gpt
-from api.tools.types import GPTImageGenerationParams, ImageInfo
 
 
 def image_bytes(image_format: str = "PNG") -> bytes:
@@ -94,9 +93,7 @@ async def api_env(monkeypatch: MonkeyPatch) -> AsyncIterator[ImageAPIEnvironment
             follow_redirects=follow_redirects,
         )
 
-    monkeypatch.setattr(
-        gpt, "model_config", SimpleNamespace(model="unused-responses-model")
-    )
+    monkeypatch.setattr(gpt, "model_config", SimpleNamespace(model="unused-responses-model"))
     monkeypatch.setattr(gpt.settings, "proxy_url", None)
     monkeypatch.setattr(gpt, "get_openai_client", lambda: client)
     monkeypatch.setattr(gpt.httpx2, "AsyncClient", download_client)
@@ -151,16 +148,12 @@ async def test_generation_filters_parameters_and_uploads_requested_format(
         "moderation": "low",
         "stream": False,
     }
-    api_env.upload.assert_awaited_once_with(
-        "generated.jpeg", output, prefix="creative/gpt"
-    )
+    api_env.upload.assert_awaited_once_with("generated.jpeg", output, prefix="creative/gpt")
     assert parameters.model_dump() == original
     assert result.success
     assert result.image_model == "gpt-image-2.5-sunburst"
     assert result.usage == api_env.response["usage"]
-    assert result.images == [
-        api_env.upload.return_value.model_dump(mode="json", exclude_none=True)
-    ]
+    assert result.images == [api_env.upload.return_value.model_dump(mode="json", exclude_none=True)]
     assert result.instructions == "draw a cup"
     assert isinstance(result.generation_params, GPTImageGenerationParams)
     assert result.generation_params.model_dump(exclude_none=True) == {
@@ -182,12 +175,10 @@ async def test_generation_filters_parameters_and_uploads_requested_format(
 async def test_auto_selects_endpoint_from_materialized_images(
     api_env: ImageAPIEnvironment, action: str, has_images: bool
 ) -> None:
-    parameters = (
-        gpt.ImageParam() if action == "missing" else gpt.ImageParam(action="auto")
-    )
+    parameters = gpt.ImageParam() if action == "missing" else gpt.ImageParam(action="auto")
     sources = (image_bytes() for _ in range(int(has_images)))
     result = await gpt.image_create_with_image_api(
-        prompt="draw", images=sources, image_param=parameters
+        prompt="draw", image=sources, image_param=parameters
     )
     assert result.success
     assert [request.url.path for request in api_env.requests] == [
@@ -226,7 +217,7 @@ async def test_edit_resolves_all_input_forms_and_native_mask_without_mutation(
     ]
     result = await gpt.image_create_with_image_api(
         prompt="edit",
-        images=(source for source in sources),
+        image=(source for source in sources),
         mask=mask,
         image_param=gpt.ImageParam(
             action="edit", input_fidelity="high", moderation="low", partial_images=2
@@ -243,10 +234,7 @@ async def test_edit_resolves_all_input_forms_and_native_mask_without_mutation(
     ]
     request = api_env.requests[-1]
     message = BytesParser(policy=policy.default).parsebytes(
-        b"Content-Type: "
-        + request.headers["content-type"].encode()
-        + b"\r\n\r\n"
-        + request.content
+        b"Content-Type: " + request.headers["content-type"].encode() + b"\r\n\r\n" + request.content
     )
     parts = list(message.iter_parts())
     references = [
@@ -255,17 +243,13 @@ async def test_edit_resolves_all_input_forms_and_native_mask_without_mutation(
         if part.get_param("name", header="content-disposition") in {"image", "image[]"}
     ]
     masks = [
-        part
-        for part in parts
-        if part.get_param("name", header="content-disposition") == "mask"
+        part for part in parts if part.get_param("name", header="content-disposition") == "mask"
     ]
     assert len(references) == 8
     assert len(masks) == 1
     assert all(part.get_payload(decode=True) == content for part in references + masks)
     fields = {
-        part.get_param("name", header="content-disposition"): part.get_payload(
-            decode=True
-        )
+        part.get_param("name", header="content-disposition"): part.get_payload(decode=True)
         for part in parts
         if not part.get_filename()
     }
@@ -304,7 +288,7 @@ async def test_invalid_action_inputs_fail_before_network(
     with pytest.raises(ValueError):
         await gpt.image_create_with_image_api(
             prompt="draw",
-            images=image_bytes() if case == "generate_with_images" else None,
+            image=image_bytes() if case == "generate_with_images" else None,
             mask=image_bytes() if "mask" in case else None,
             image_param=gpt.ImageParam(action=action),
         )
@@ -315,10 +299,7 @@ async def test_invalid_action_inputs_fail_before_network(
 def test_request_schema_validates_action() -> None:
     assert GPTImageRequest(prompt="draw").action == "auto"
     for action in ("generate", "edit", "auto"):
-        assert (
-            GPTImageRequest.model_validate({"prompt": "draw", "action": action}).action
-            == action
-        )
+        assert GPTImageRequest.model_validate({"prompt": "draw", "action": action}).action == action
     with pytest.raises(ValidationError):
         GPTImageRequest.model_validate({"prompt": "draw", "action": "unknown"})
 
@@ -388,10 +369,7 @@ async def test_returned_metadata_overrides_request_and_maps_revised_prompt(
     assert serialized["instructions"] == "draw a cup"
     assert metadata["prompt"] == expected_prompt
     assert metadata["cached"] is False
-    assert (
-        not {"revised_prompt", "b64_json", "url", "data", "usage", "created"}
-        & metadata.keys()
-    )
+    assert not {"revised_prompt", "b64_json", "url", "data", "usage", "created"} & metadata.keys()
     assert encoded not in json.dumps(metadata)
 
 

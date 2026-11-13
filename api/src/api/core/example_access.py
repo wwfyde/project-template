@@ -10,9 +10,7 @@ _SESSION_EXAMPLE_PATH = "/api/examples/cache/sdk/session"
 _BATCH_EXAMPLE_PATH = "/api/examples/cache/conversations/batch"
 
 
-async def authorize_examples(
-    request: Request, user: CurrentUserDep, users: UsersDep
-) -> None:
+async def authorize_examples(request: Request, user: CurrentUserDep, users: UsersDep) -> None:
     path = request.url.path
     if (
         settings.app.env == "prod"

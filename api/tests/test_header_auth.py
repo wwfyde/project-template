@@ -67,9 +67,7 @@ def test_examples_require_header_and_do_not_echo_secrets(
     missing = header_client.request(method, path, json=payload)
     assert missing.status_code == 401
     assert missing.headers["cache-control"] == "no-store"
-    response = header_client.request(
-        method, path, json=payload, headers={"X-Api-Key": KEY}
-    )
+    response = header_client.request(method, path, json=payload, headers={"X-Api-Key": KEY})
     assert response.status_code == 200
     assert response.json()["authentication"] == "api_key"
     assert response.headers["cache-control"] == "no-store"

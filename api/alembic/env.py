@@ -38,9 +38,7 @@ def include_name(name: str, type_: str, parent_names: list[str]) -> bool:
         # tables = [item.tables for item in target_metadata]
         if isinstance(target_metadata, list):
             return any(
-                name in item.tables
-                for item in target_metadata
-                if isinstance(item, MetaData)
+                name in item.tables for item in target_metadata if isinstance(item, MetaData)
             )
         else:
             return name in target_metadata.tables

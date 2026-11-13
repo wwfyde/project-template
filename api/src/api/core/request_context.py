@@ -90,9 +90,7 @@ class RequestContext:
     tenant_id: str | None = None
 
 
-_context: ContextVar[RequestContext | None] = ContextVar(
-    "api_request_context", default=None
-)
+_context: ContextVar[RequestContext | None] = ContextVar("api_request_context", default=None)
 
 
 def get_request_context() -> RequestContext | None:
@@ -165,9 +163,7 @@ def outbound_context_headers() -> dict[str, str]:
 
 
 class RequestContextMiddleware:
-    def __init__(
-        self, app: ASGIApp, config: RequestContextConfig | None = None
-    ) -> None:
+    def __init__(self, app: ASGIApp, config: RequestContextConfig | None = None) -> None:
         self.app = app
         self.config = config or RequestContextConfig()
 
@@ -179,9 +175,7 @@ class RequestContextMiddleware:
         config = self.config
         headers = Headers(scope=scope)
         supplied = headers.getlist(config.request_id_header)
-        request_id = (
-            supplied[0] if config.accept_request_id and len(supplied) == 1 else ""
-        )
+        request_id = supplied[0] if config.accept_request_id and len(supplied) == 1 else ""
         if not _IDENTIFIER.fullmatch(request_id):
             request_id = uuid4().hex
         # Reject ambiguous duplicate trace headers instead of selecting a parent.
@@ -253,13 +247,9 @@ class RequestContextMiddleware:
                         **correlation_attributes(),
                         "otel.event.name": "http.request.completed",
                         "http.request.method": scope["method"],
-                        "http.route": getattr(
-                            scope.get("route"), "path", "<unmatched>"
-                        ),
+                        "http.route": getattr(scope.get("route"), "path", "<unmatched>"),
                         "http.response.status_code": status,
-                        "http.request.duration_ms": round(
-                            (perf_counter() - begin) * 1000, 3
-                        ),
+                        "http.request.duration_ms": round((perf_counter() - begin) * 1000, 3),
                     }
                     if error_type is not None:
                         attributes["error.type"] = error_type

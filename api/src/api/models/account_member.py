@@ -11,9 +11,7 @@ from .base import Base
 class AccountMember(Base):
     __tablename__ = "account_member"
     __table_args__ = (
-        CheckConstraint(
-            "role IN ('owner', 'admin', 'member')", name="ck_account_member_role"
-        ),
+        CheckConstraint("role IN ('owner', 'admin', 'member')", name="ck_account_member_role"),
     )
 
     account_id: Mapped[str] = mapped_column(
@@ -28,6 +26,4 @@ class AccountMember(Base):
     role: Mapped[str] = mapped_column(
         String(20), default="member", server_default="member", nullable=False
     )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

@@ -32,9 +32,7 @@ type ImageSource = str | bytes | Path | Image.Image
 type ImageInput = ImageSource | ResponseInputImageParam
 
 
-async def _image_url(
-    source: ImageSource, *, convert_image_url_to_base64: bool = True
-) -> str:
+async def _image_url(source: ImageSource, *, convert_image_url_to_base64: bool = True) -> str:
     """Download HTTP images when requested; preserve existing Base64 data URLs."""
     if isinstance(source, str) and source.startswith(("https://", "http://")):
         if not convert_image_url_to_base64:
@@ -107,7 +105,7 @@ class ImageParam(BaseModel):
 async def image_create_with_gpt_image(
     *,
     prompt: str,
-    images: ImageInput | Iterable[ImageInput] | None | MISSING = MISSING,
+    image: ImageInput | Iterable[ImageInput] | None | MISSING = MISSING,
     mask: ImageSource | ImageGenerationInputImageMask | None | MISSING = MISSING,
     model: GPTImageModel = "gpt-image-2.5-flare",
     image_param: ImageParam = ImageParam(),
@@ -118,20 +116,18 @@ async def image_create_with_gpt_image(
     main_model = model_config.model
 
     sources: list[ImageInput]
-    if images is MISSING or images is None:
+    if image is MISSING or image is None:
         sources = []
-    elif isinstance(images, (str, bytes, Path, Image.Image)):
-        sources = [images]
-    elif isinstance(images, dict):
+    elif isinstance(image, (str, bytes, Path, Image.Image)):
+        sources = [image]
+    elif isinstance(image, dict):
         # A native image part is one input, not an iterable of its keys.
-        sources = [cast(ResponseInputImageParam, images)]
+        sources = [cast(ResponseInputImageParam, image)]
     else:
-        sources = list(images)
+        sources = list(image)
     request_input: str | ResponseInputParam = prompt
     if sources:
-        content: list[ResponseInputContentParam] = [
-            {"type": "input_text", "text": prompt}
-        ]
+        content: list[ResponseInputContentParam] = [{"type": "input_text", "text": prompt}]
         for source in sources:
             image_input: ResponseInputImageParam
             if isinstance(source, (str, bytes, Path, Image.Image)):
@@ -148,9 +144,7 @@ async def image_create_with_gpt_image(
             content.append(image_input)
         request_input = [EasyInputMessageParam(role="user", content=content)]
 
-    tool = ImageGeneration(
-        type="image_generation", **image_param.model_dump(exclude_none=True)
-    )
+    tool = ImageGeneration(type="image_generation", **image_param.model_dump(exclude_none=True))
     if mask is not MISSING and mask is not None:
         if not sources:
             raise ValueError("image_mask requires at least one input image")
@@ -183,9 +177,7 @@ async def image_create_with_gpt_image(
     for response_tool in response.tools or []:
         if response_tool.type == "image_generation":
             tool_params.update(
-                response_tool.model_dump(
-                    exclude={"type"}, exclude_none=True, exclude_unset=True
-                )
+                response_tool.model_dump(exclude={"type"}, exclude_none=True, exclude_unset=True)
             )
             break
     if "revised_prompt" in tool_params:
@@ -195,9 +187,7 @@ async def image_create_with_gpt_image(
     for output in response.output:
         if not isinstance(output, ImageGenerationCall):
             continue
-        output_params = output.model_dump(
-            exclude={"result"}, exclude_none=True, exclude_unset=True
-        )
+        output_params = output.model_dump(exclude={"result"}, exclude_none=True, exclude_unset=True)
         if "revised_prompt" in output_params:
             output_params["prompt"] = output_params.pop("revised_prompt")
         call_params.append(
@@ -234,7 +224,7 @@ async def image_create_with_gpt_image(
 async def image_create_with_image_api(
     *,
     prompt: str,
-    images: ImageInput | Iterable[ImageInput] | None | MISSING = MISSING,
+    image: ImageInput | Iterable[ImageInput] | None | MISSING = MISSING,
     mask: ImageSource | ImageGenerationInputImageMask | None | MISSING = MISSING,
     model: GPTImageModel = "gpt-image-2.5-flare",
     image_param: ImageParam = ImageParam(),
@@ -244,14 +234,14 @@ async def image_create_with_image_api(
         raise RuntimeError("CONFIG_MISSING: OpenAI Configuration not provided")
 
     sources: list[ImageInput]
-    if images is MISSING or images is None:
+    if image is MISSING or image is None:
         sources = []
-    elif isinstance(images, (str, bytes, Path, Image.Image)):
-        sources = [images]
-    elif isinstance(images, dict):
-        sources = [cast(ResponseInputImageParam, images)]
+    elif isinstance(image, (str, bytes, Path, Image.Image)):
+        sources = [image]
+    elif isinstance(image, dict):
+        sources = [cast(ResponseInputImageParam, image)]
     else:
-        sources = list(images)
+        sources = list(image)
 
     action = image_param.action
     if action is MISSING or action == "auto":
@@ -270,9 +260,7 @@ async def image_create_with_image_api(
             image_url = source.get("image_url")
             file_id = source.get("file_id")
             if bool(image_url) == bool(file_id):
-                raise ValueError(
-                    "Image input requires exactly one of image_url or file_id"
-                )
+                raise ValueError("Image input requires exactly one of image_url or file_id")
             if image_url:
                 source = image_url
             else:
@@ -313,13 +301,10 @@ async def image_create_with_image_api(
     )
     if action == "generate":
         params.pop("input_fidelity", None)
-        response = await client.images.generate(
-            prompt=prompt, model=model, stream=False, **params
-        )
+        response = await client.images.generate(prompt=prompt, model=model, stream=False, **params)
     else:
         image_files = [
-            await image_file(source, f"reference-{index}")
-            for index, source in enumerate(sources)
+            await image_file(source, f"reference-{index}") for index, source in enumerate(sources)
         ]
         if mask is not MISSING and mask is not None:
             params["mask"] = await image_file(mask, "mask")
@@ -359,9 +344,7 @@ async def image_create_with_image_api(
         if "revised_prompt" in output_params:
             output_params["prompt"] = output_params.pop("revised_prompt")
         image_params.append(
-            GPTImageGenerationParams.model_validate(
-                {**generation_values, **output_params}
-            )
+            GPTImageGenerationParams.model_validate({**generation_values, **output_params})
         )
         if not image.b64_json:
             continue
@@ -402,7 +385,7 @@ if __name__ == "__main__":
     image = asyncio.run(
         image_create_with_image_api(
             prompt="将图像改成卡通风格,里面添加一只猫",
-            images="https://cdn.fullspeed.cn/creative/gpt/01a1a097-a701-7264-8b15-bd94dffcfe7a.png",
+            image="https://cdn.fullspeed.cn/creative/gpt/01a1a097-a701-7264-8b15-bd94dffcfe7a.png",
         )
     )
 

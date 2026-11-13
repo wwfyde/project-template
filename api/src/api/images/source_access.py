@@ -1,5 +1,6 @@
 """Restrict image references only while executing an HTTP image tool request."""
 
+import asyncio
 import ipaddress
 import socket
 from collections.abc import Generator
@@ -47,16 +48,11 @@ def validate_public_image_url(source: str) -> None:
         port = parsed.port
     except ValueError:
         raise ImageSourceError("Invalid image URL") from None
-    if (
-        not hostname
-        or parsed.username is not None
-        or parsed.password is not None
-        or port == 0
-    ):
+    if not hostname or parsed.username is not None or parsed.password is not None or port == 0:
         raise ImageSourceError("Image URLs cannot contain credentials or invalid hosts")
-    if hostname.rstrip(".").lower() == "localhost" or hostname.rstrip(
-        "."
-    ).lower().endswith(".localhost"):
+    if hostname.rstrip(".").lower() == "localhost" or hostname.rstrip(".").lower().endswith(
+        ".localhost"
+    ):
         raise ImageSourceError("Image URLs cannot access local or private addresses")
     try:
         ipaddress.ip_address(hostname)
@@ -70,17 +66,12 @@ def validate_public_image_url(source: str) -> None:
         except OSError, UnicodeError:
             raise ImageSourceError("Could not resolve the image host") from None
         if not addresses or not all(
-            isinstance(result[4][0], str) and _public_address(result[4][0])
-            for result in addresses
+            isinstance(result[4][0], str) and _public_address(result[4][0]) for result in addresses
         ):
-            raise ImageSourceError(
-                "Image URLs cannot access local or private addresses"
-            )
+            raise ImageSourceError("Image URLs cannot access local or private addresses")
     else:
         if not _public_address(hostname):
-            raise ImageSourceError(
-                "Image URLs cannot access local or private addresses"
-            )
+            raise ImageSourceError("Image URLs cannot access local or private addresses")
 
 
 def guard_image_source(source: str) -> None:
@@ -133,11 +124,7 @@ def get_image_reference(
     if protected:
         validate_public_image_url(source)
     if client is not None:
-        response = (
-            client.get(source, follow_redirects=False)
-            if protected
-            else client.get(source)
-        )
+        response = client.get(source, follow_redirects=False) if protected else client.get(source)
     else:
         response = (
             requests.get(source, timeout=timeout, allow_redirects=False)
@@ -146,5 +133,23 @@ def get_image_reference(
         )
     if protected and 300 <= response.status_code < 400:
         response.close()
+        raise ImageSourceError("Image reference redirects are not allowed")
+    return response
+
+
+async def get_image_reference_async(
+    source: str,
+    *,
+    client: httpx2.AsyncClient,
+) -> httpx2.Response:
+    """Fetch without blocking, preserving the HTTP reference boundary."""
+    protected = _http_image_request.get()
+    if protected:
+        await asyncio.to_thread(validate_public_image_url, source)
+    response = (
+        await client.get(source, follow_redirects=False) if protected else await client.get(source)
+    )
+    if protected and 300 <= response.status_code < 400:
+        await response.aclose()
         raise ImageSourceError("Image reference redirects are not allowed")
     return response

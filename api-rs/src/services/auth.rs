@@ -212,7 +212,10 @@ mod tests {
             let user = user::Model {
                 id: Uuid::now_v7(),
                 email: "alice@example.com".to_string(),
+                uid: 1,
                 username: Some("alice".to_string()),
+                nickname: None,
+                locale: "zh-CN".into(),
                 hashed_password: None,
                 is_active,
                 is_superuser: Some(false),

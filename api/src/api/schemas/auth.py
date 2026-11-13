@@ -27,12 +27,9 @@ class ProviderIdentity(BaseModel):
     @classmethod
     def validate_profile_text(cls, value: str | None) -> str | None:
         if value is not None and (
-            not value.strip()
-            or any(ord(char) < 32 or ord(char) == 127 for char in value)
+            not value.strip() or any(ord(char) < 32 or ord(char) == 127 for char in value)
         ):
-            raise ValueError(
-                "Identity fields cannot be blank or contain control characters"
-            )
+            raise ValueError("Identity fields cannot be blank or contain control characters")
         return value
 
     @field_validator("avatar_url")

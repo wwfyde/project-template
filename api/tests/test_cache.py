@@ -156,9 +156,7 @@ async def test_application_configuration_enables_sdk_tls(
         if isinstance(client, RedisCluster):
             assert client.connection_kwargs["connection_class"] is SSLConnection
         else:
-            expected = (
-                SentinelManagedSSLConnection if mode == "sentinel" else SSLConnection
-            )
+            expected = SentinelManagedSSLConnection if mode == "sentinel" else SSLConnection
             assert client.connection_pool.connection_class is expected
             # This catches unsupported TLS kwargs without connecting to Redis.
             client.connection_pool.make_connection()
@@ -209,8 +207,7 @@ def test_configuration_bridge_combines_sentinel_environment_and_toml(
 ) -> None:
     monkeypatch.setenv("REDIS_SENTINEL", "true")
     (tmp_path / "config.toml").write_text(
-        '[redis]\nsentinel_nodes = ["sentinel.example:26379"]\n'
-        'sentinel_master_name = "orders"\n',
+        '[redis]\nsentinel_nodes = ["sentinel.example:26379"]\nsentinel_master_name = "orders"\n',
         encoding="utf-8",
     )
     project_settings = Settings(_env_file=None)
@@ -235,9 +232,7 @@ def test_redis_telemetry_respects_master_and_sdk_switches_without_mutating_setti
     cache_enabled: bool,
     native_enabled: bool,
 ) -> None:
-    declared = RedisConfig(
-        otel_enabled=cache_enabled, otel_redis_enabled=native_enabled
-    )
+    declared = RedisConfig(otel_enabled=cache_enabled, otel_redis_enabled=native_enabled)
     monkeypatch.setattr(cache.settings, "redis", declared)
 
     configured = cache.configure_redis_sdk(telemetry_enabled=enabled)
@@ -273,8 +268,7 @@ def test_configuration_bridge_restores_sdk_constructor() -> None:
 
 def test_cold_app_import_merges_sentinel_environment_and_toml(tmp_path: Path) -> None:
     (tmp_path / "config.toml").write_text(
-        '[redis]\nsentinel_nodes = ["sentinel.example:26379"]\n'
-        'sentinel_master_name = "orders"\n',
+        '[redis]\nsentinel_nodes = ["sentinel.example:26379"]\nsentinel_master_name = "orders"\n',
         encoding="utf-8",
     )
     environment = {

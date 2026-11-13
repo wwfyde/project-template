@@ -100,13 +100,9 @@ async def complete_account_oauth(
     try:
         if attempt.intent == "link":
             require_recent_authentication(session, settings.auth.reauth_max_age_seconds)
-            updated = await accounts.link_identity(
-                user.id, user.account_id, version, identity
-            )
+            updated = await accounts.link_identity(user.id, user.account_id, version, identity)
         else:
-            updated = await accounts.verify_identity(
-                user.id, user.account_id, version, identity
-            )
+            updated = await accounts.verify_identity(user.id, user.account_id, version, identity)
     except AccountError as exc:
         return _failure(settings, exc.code)
     except HTTPException:
@@ -139,10 +135,6 @@ async def complete_account_oauth(
         settings,
         "/account?"
         + urlencode(
-            {
-                "account_action": "linked"
-                if attempt.intent == "link"
-                else "reauthenticated"
-            }
+            {"account_action": "linked" if attempt.intent == "link" else "reauthenticated"}
         ),
     )

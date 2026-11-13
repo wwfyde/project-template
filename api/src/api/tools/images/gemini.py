@@ -86,11 +86,7 @@ def _image_inputs(image_urls: str | list[str] | None) -> list[str]:
         # A data URL contains a comma; it is one reference, not a URL list.
         if image_urls.startswith("data:"):
             return [image_urls]
-        return [
-            item.strip()
-            for item in image_urls.replace("，", ",").split(",")
-            if item.strip()
-        ]
+        return [item.strip() for item in image_urls.replace("，", ",").split(",") if item.strip()]
     if not all(isinstance(item, str) and item for item in image_urls):
         raise GeminiToolError("invalid_image_input", "参考图必须是非空字符串")
     return image_urls
@@ -120,9 +116,7 @@ def _image_part(source: str) -> Part:
                 image.save(output, format="PNG", optimize=True)
                 mime_type = "image/png"
             else:
-                image.convert("RGB").save(
-                    output, format="JPEG", quality=85, optimize=True
-                )
+                image.convert("RGB").save(output, format="JPEG", quality=85, optimize=True)
                 mime_type = "image/jpeg"
             content = output.getvalue()
     return Part.from_bytes(data=content, mime_type=mime_type)
@@ -198,9 +192,7 @@ async def _prepare_request(
         aspect_ratio=None if aspect_ratio == "auto" else aspect_ratio,
         image_size=image_size,
     )
-    config = GenerateContentConfig(
-        response_modalities=["TEXT", "IMAGE"], image_config=image_config
-    )
+    config = GenerateContentConfig(response_modalities=["TEXT", "IMAGE"], image_config=image_config)
     if model in {"gemini-3.1-flash-image", "gemini-nano-banana-2.1"}:
         config.temperature = 1
         config.top_p = 0.95
@@ -222,7 +214,7 @@ async def image_create_with_gemini(
     prompt: str,
     *,
     model: GeminiImageModel = "gemini-3.1-flash-lite-image",
-    image_urls: str | list[str] | None = None,
+    image: str | list[str] | None = None,
     aspect_ratio: str | None = None,
     image_size: ImageSize | None = None,
     allow_grounding: bool = True,
@@ -231,7 +223,7 @@ async def image_create_with_gemini(
     contents, config = await _prepare_request(
         prompt,
         model,
-        image_urls,
+        image,
         aspect_ratio,
         image_size,
     )
@@ -253,7 +245,7 @@ async def image_create_with_gemini(
     config_params.update(config_params.pop("image_config", {}))
     generation_params = GeminiImageGenerationParams(
         prompt=prompt,
-        images=_image_inputs(image_urls) or None,
+        image=_image_inputs(image) or None,
         model=model,
         **config_params,
     )

@@ -38,9 +38,7 @@ def validation_app(monkeypatch: MonkeyPatch) -> tuple[FastAPI, Mock, dict[str, o
         ).parameters.items()
         if parameter.default is not inspect.Parameter.empty
     }
-    tool = Mock(
-        return_value=ImageToolResponse(image_model="gpt-image-2", content="", images=[])
-    )
+    tool = Mock(return_value=ImageToolResponse(image_model="gpt-image-2", content="", images=[]))
     monkeypatch.setattr(gpt, "image_create_with_gpt_image_2", tool)
     app = FastAPI()
     app.add_middleware(RequestContextMiddleware)
@@ -56,13 +54,9 @@ def assert_validation_event(
     error_type: str,
 ) -> dict[str, object]:
     records = [
-        record
-        for record in caplog.records
-        if record.__dict__.get("otel.event.name") == EVENT
+        record for record in caplog.records if record.__dict__.get("otel.event.name") == EVENT
     ]
-    assert len(records) == 1, (
-        "ImageRoute must emit one structured validation failure event"
-    )
+    assert len(records) == 1, "ImageRoute must emit one structured validation failure event"
     record = records[0]
     attributes = record.__dict__
     assert record.levelno == logging.ERROR
@@ -214,9 +208,7 @@ def test_valid_prompt_only_calls_tool_with_declared_defaults_without_validation_
     assert response.status_code == 200
     assert response.json()["success"] is True
     tool.assert_called_once_with(prompt=PROMPT, **defaults)
-    assert not any(
-        record.__dict__.get("otel.event.name") == EVENT for record in caplog.records
-    )
+    assert not any(record.__dict__.get("otel.event.name") == EVENT for record in caplog.records)
 
 
 def test_extra_field_name_is_redacted_only_from_logs(
@@ -245,9 +237,7 @@ def test_extra_field_name_is_redacted_only_from_logs(
     )
     assert error["loc"] == ["body", "<extra_field>"]
     record = next(
-        record
-        for record in caplog.records
-        if record.__dict__.get("otel.event.name") == EVENT
+        record for record in caplog.records if record.__dict__.get("otel.event.name") == EVENT
     )
     exposed = ConsoleFormatter("%(levelname)s %(message)s").format(record)
     exposed += json.dumps(record.__dict__, default=str)
@@ -258,9 +248,7 @@ def test_custom_validator_private_message_is_replaced_in_error_logs(
     caplog: LogCaptureFixture,
 ) -> None:
     private_value = "PRIVATE_VALIDATOR_INPUT_VALUE"
-    private_message = (
-        f"Custom failure input={private_value}; image={IMAGE_DATA}; api_key={API_KEY}"
-    )
+    private_message = f"Custom failure input={private_value}; image={IMAGE_DATA}; api_key={API_KEY}"
 
     class PrivateValidationRequest(BaseModel):
         value: str
@@ -303,9 +291,7 @@ def test_custom_validator_private_message_is_replaced_in_error_logs(
     assert error["msg"] == "Value failed validation"
     assert set(error) == {"type", "loc", "msg"}
     record = next(
-        record
-        for record in caplog.records
-        if record.__dict__.get("otel.event.name") == EVENT
+        record for record in caplog.records if record.__dict__.get("otel.event.name") == EVENT
     )
     exposed = ConsoleFormatter("%(levelname)s %(message)s").format(record)
     exposed += json.dumps(record.__dict__, default=str)
@@ -321,9 +307,7 @@ def test_multiple_errors_emit_one_bounded_event_with_total_count(
     error_count: int,
 ) -> None:
     app, tool, _ = validation_app
-    extra_fields = {
-        f"PRIVATE_EXTRA_KEY_{index}": IMAGE_DATA for index in range(error_count)
-    }
+    extra_fields = {f"PRIVATE_EXTRA_KEY_{index}": IMAGE_DATA for index in range(error_count)}
     with caplog.at_level(logging.ERROR, logger="api.routes.images"):
         with TestClient(app) as client:
             response = client.post(
@@ -335,9 +319,7 @@ def test_multiple_errors_emit_one_bounded_event_with_total_count(
     assert len(response.json()["detail"]) == error_count
     tool.assert_not_called()
     records = [
-        record
-        for record in caplog.records
-        if record.__dict__.get("otel.event.name") == EVENT
+        record for record in caplog.records if record.__dict__.get("otel.event.name") == EVENT
     ]
     assert len(records) == 1
     record = records[0]

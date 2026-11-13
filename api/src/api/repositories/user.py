@@ -18,9 +18,7 @@ from api.schemas.auth import AuthUser, ProviderIdentity
 
 
 class UserRepository(Protocol):
-    async def resolve(
-        self, identity: ProviderIdentity, *, allow_signup: bool
-    ) -> User: ...
+    async def resolve(self, identity: ProviderIdentity, *, allow_signup: bool) -> User: ...
     async def get(self, user_id: str, provider: str) -> User | None: ...
     async def account(self, user_id: str, account_id: str) -> Account | None: ...
     async def own(self, kind: str, resource_id: str, user: AuthUser) -> None: ...
@@ -113,9 +111,7 @@ class PostgresUserRepository:
     async def owns(self, kind: str, resource_id: str, user: AuthUser) -> bool:
         async with self.sessions.begin() as db:
             owner = await db.execute(
-                self._owned_resources(kind, user).where(
-                    ResourceOwner.resource_id == resource_id
-                )
+                self._owned_resources(kind, user).where(ResourceOwner.resource_id == resource_id)
             )
             return owner.scalar_one_or_none() is not None
 
@@ -130,9 +126,7 @@ class PostgresUserRepository:
             ResourceOwner.resource_type == kind,
             ResourceOwner.user_id == user.id,
             ResourceOwner.account_id.in_(
-                accessible_account(user.id, user.account_id).with_only_columns(
-                    Account.id
-                )
+                accessible_account(user.id, user.account_id).with_only_columns(Account.id)
             ),
         )
 

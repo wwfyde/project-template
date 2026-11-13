@@ -56,18 +56,14 @@ class EditRequest(BaseModel):
     width: int | None = Field(default=None, ge=1, le=8192)
     height: int | None = Field(default=None, ge=1, le=8192)
     fit: Literal["contain", "cover", "stretch"] = "contain"
-    background: str = Field(
-        default="transparent", pattern=r"^(transparent|#[0-9a-fA-F]{6})$"
-    )
+    background: str = Field(default="transparent", pattern=r"^(transparent|#[0-9a-fA-F]{6})$")
     markup: list[Markup] | None = Field(default=None, min_length=1, max_length=200)
 
     @model_validator(mode="after")
     def validate_operation(self) -> "EditRequest":
         if self.operation == "resize" and (self.width is None or self.height is None):
             raise ValueError("Resize requires width and height")
-        if self.operation != "resize" and (
-            self.width is not None or self.height is not None
-        ):
+        if self.operation != "resize" and (self.width is not None or self.height is not None):
             raise ValueError("Dimensions only apply to resize")
         if self.operation == "erase" and self.mask_asset_id is None:
             raise ValueError("Erase requires mask_asset_id")
@@ -147,14 +143,10 @@ class ImageProvider(Protocol):
 
 
 class ImageStore(Protocol):
-    async def create_asset(
-        self, owner: str, asset: ImageAsset, content: bytes
-    ) -> None: ...
+    async def create_asset(self, owner: str, asset: ImageAsset, content: bytes) -> None: ...
     async def get_asset(self, owner: str, asset_id: str) -> ImageAsset: ...
     async def get_content(self, owner: str, asset_id: str) -> bytes: ...
     async def list_assets(self, owner: str, limit: int) -> list[ImageAsset]: ...
     async def add_comment(self, owner: str, comment: ImageComment) -> None: ...
     async def list_comments(self, owner: str, asset_id: str) -> list[ImageComment]: ...
-    async def delete_comment(
-        self, owner: str, asset_id: str, comment_id: str
-    ) -> None: ...
+    async def delete_comment(self, owner: str, asset_id: str, comment_id: str) -> None: ...

@@ -1,7 +1,9 @@
 import { imagesEn } from '../../features/images/model/translations'
+import { skillsEn } from '../../features/skills/model/translations'
 
 export const en = {
   images: imagesEn,
+  skills: skillsEn,
   common: {
     appName: 'Project Template',
     languageSwitcherLabel: 'Change language',
@@ -19,6 +21,7 @@ export const en = {
     adminLabel: 'Admin navigation',
     dashboard: 'Dashboard',
     assets: 'Assets',
+    skills: 'Skills',
     examples: 'Examples',
     examplesLabel: 'Example navigation',
     overview: 'Overview',

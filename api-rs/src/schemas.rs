@@ -2,7 +2,12 @@
 //! This module contains all the models used in the API.
 //! Each model is defined in its own file and re-exported here.
 
+pub mod asset;
+pub mod content;
+pub mod document;
+pub mod file;
 pub mod item;
+pub mod knowledge;
 /// This file is used to re-export all the models in the models module.
 /// This way, we can use a single import in the main.rs file to import all the models.
 ///

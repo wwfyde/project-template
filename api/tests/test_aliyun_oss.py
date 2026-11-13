@@ -160,9 +160,7 @@ def test_sync_upload_matches_async_metadata_and_request(
             filename, data, prefix="/creative/gemini/", rename=rename
         )
         async_result = asyncio.run(
-            aliyun_oss.upload_image(
-                filename, data, prefix="/creative/gemini/", rename=rename
-            )
+            aliyun_oss.upload_image(filename, data, prefix="/creative/gemini/", rename=rename)
         )
     finally:
         aliyun_oss.get_oss_client_sync.cache_clear()

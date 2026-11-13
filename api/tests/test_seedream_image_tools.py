@@ -8,13 +8,13 @@ from unittest.mock import Mock
 
 import httpx2
 import pytest
+from api.images import source_access
+from api.tools.types import ImageInfo, ImageToolResponse
 from PIL import Image
 from pydantic import SecretStr
 
-from api.tools.types import ImageInfo, ImageToolResponse
-
 TOOLS = [
-    ("seedream", "image_create_with_seedream", "doubao-seedream-4-0-250828"),
+    ("seedream4", "image_create_with_seedream4", "doubao-seedream-4-0-250828"),
     ("seedream4_5", "image_create_with_seedream4_5", "doubao-seedream-4-5-251128"),
     (
         "seedream5_lite",
@@ -93,7 +93,7 @@ def image_tool(
 
     monkeypatch.setattr(module, "upload_image", upload)
     monkeypatch.setattr(
-        module.requests,
+        source_access.requests,
         "get",
         Mock(side_effect=AssertionError("Unexpected reference download")),
     )
@@ -134,9 +134,7 @@ def test_seedream_single_data_url_keeps_its_base64_comma(
 ) -> None:
     import json
 
-    reference = "data:image/png;base64," + base64.b64encode(image_tool.png).decode(
-        "ascii"
-    )
+    reference = "data:image/png;base64," + base64.b64encode(image_tool.png).decode("ascii")
     result = image_tool.call(prompt="make the cup blue", image_urls=reference)
 
     assert result.success
@@ -162,9 +160,7 @@ def test_seedream_local_reference_uses_uploaded_metadata_url(
     assert result.success
     assert len(image_tool.uploads) == 2
     uploaded_reference = image_tool.uploads[0][2]
-    assert json.loads(image_tool.requests[0].content)["image"] == [
-        uploaded_reference.url
-    ]
+    assert json.loads(image_tool.requests[0].content)["image"] == [uploaded_reference.url]
     assert image_tool.uploads[0][1] == {"prefix": "files"}
     assert result.images[0]["id"] == "oss-id-2"
     assert result.images[0]["url"] == image_tool.uploads[1][2].url

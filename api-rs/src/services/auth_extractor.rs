@@ -7,6 +7,20 @@ use axum::{
 };
 use std::sync::Arc;
 
+pub struct ApiKeyAuth;
+
+impl FromRequestParts<Arc<AppState>> for ApiKeyAuth {
+    type Rejection = (StatusCode, Json<AuthError>);
+
+    async fn from_request_parts(
+        parts: &mut Parts,
+        state: &Arc<AppState>,
+    ) -> Result<Self, Self::Rejection> {
+        state.auth.verify_api_key(&parts.headers, true)?;
+        Ok(Self)
+    }
+}
+
 pub struct AuthUser {
     pub username: String,
 }
@@ -18,7 +32,7 @@ impl FromRequestParts<Arc<AppState>> for AuthUser {
         parts: &mut Parts,
         state: &Arc<AppState>,
     ) -> Result<Self, Self::Rejection> {
-        state.auth.verify_api_key(&parts.headers, true)?;
+        ApiKeyAuth::from_request_parts(parts, state).await?;
 
         let token = parts
             .headers

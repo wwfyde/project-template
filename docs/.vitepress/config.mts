@@ -10,8 +10,13 @@ export default defineConfig({
     nav: [
       { text: '首页', link: '/' },
       { text: '指南', link: '/guide/', activeMatch: '/guide/' },
+      { text: '数据模型', link: '/data-model' },
     ],
     sidebar: [
+      {
+        text: '系统设计',
+        items: [{ text: '数据模型', link: '/data-model' }],
+      },
       {
         text: '文档指南',
         items: [

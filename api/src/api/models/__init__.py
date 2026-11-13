@@ -7,6 +7,7 @@ from .image import Image
 from .image_asset import ImageAssetRecord, ImageCommentRecord
 from .password_credential import PasswordCredential
 from .resource_owner import ResourceOwner
+from .skill import SkillObjectDeletionRecord, SkillRecord, SkillVersionRecord
 from .user import User
 from .user_identity import UserIdentity
 
@@ -25,6 +26,9 @@ __all__ = [
     "PasswordCredential",
     "ResponseItem",
     "ResourceOwner",
+    "SkillObjectDeletionRecord",
+    "SkillRecord",
+    "SkillVersionRecord",
     "User",
     "UserIdentity",
 ]

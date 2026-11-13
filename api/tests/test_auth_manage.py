@@ -39,9 +39,7 @@ async def test_create_and_reset_dispatch_without_printing_password(
     )
     password = "keep-password-out-of-stdout"
     await manage.execute(args, password)
-    repository.create_user.assert_awaited_once_with(
-        "alice", password, display_name="Alice"
-    )
+    repository.create_user.assert_awaited_once_with("alice", password, display_name="Alice")
     args.action = "set-password"
     await manage.execute(args, password)
     repository.set_password.assert_awaited_once_with("alice", password)

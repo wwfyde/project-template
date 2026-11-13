@@ -1,4 +1,4 @@
-use crate::models::user::{User, UserId, UserRepository};
+use crate::models::user::{User, UserId, UserRepository, UserWrite};
 use crate::repositories::RepositoryError;
 use axum::http::StatusCode;
 use std::sync::Arc;
@@ -21,11 +21,11 @@ impl UserService {
         self.repo.find_by_id(id).await.map_err(map_repo_error)
     }
 
-    pub async fn create(&self, new: User) -> Result<User, StatusCode> {
+    pub async fn create(&self, new: UserWrite) -> Result<User, StatusCode> {
         self.repo.insert(&new).await.map_err(map_repo_error)
     }
 
-    pub async fn update(&self, id: UserId, update: User) -> Result<Option<User>, StatusCode> {
+    pub async fn update(&self, id: UserId, update: UserWrite) -> Result<Option<User>, StatusCode> {
         let mut update = update;
         update.id = id;
 
@@ -67,7 +67,7 @@ fn map_repo_error(error: anyhow::Error) -> StatusCode {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::repositories::in_memory::InMemoryUserRepository;
+    use crate::repositories::memory::InMemoryUserRepository;
     use chrono::Utc;
     use uuid::Uuid;
 
@@ -152,12 +152,14 @@ mod tests {
     async fn missing_updates_and_deletes_return_absence() {
         let service = UserService::new(Arc::new(InMemoryUserRepository::default()));
         let id = UserId(Uuid::now_v7());
-        let user = User {
+        let user = UserWrite {
             id: id.clone(),
             email: Some("missing@example.com".into()),
+            nickname: None,
             username: Some("missing".into()),
             hashed_password: None,
             is_active: Some(true),
+            locale: Default::default(),
             is_superuser: Some(false),
             created_at: Utc::now(),
             updated_at: None,

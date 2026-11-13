@@ -40,9 +40,7 @@ def upload_lifecycle(monkeypatch: MonkeyPatch) -> UploadLifecycle:
         ),
     )
 
-    async def put_object(
-        client: AsyncClient, request: oss.PutObjectRequest
-    ) -> SimpleNamespace:
+    async def put_object(client: AsyncClient, request: oss.PutObjectRequest) -> SimpleNamespace:
         assert request.bucket == "test-bucket"
         lifecycle.clients.append(client)
         lifecycle.loops.append(asyncio.get_running_loop())

@@ -47,9 +47,7 @@ def normalize_username(username: str) -> str:
         raise ValueError("Username must contain only ASCII characters")
     normalized = username.strip().lower()
     if not _USERNAME.fullmatch(normalized):
-        raise ValueError(
-            "Username must contain 3 to 64 ASCII letters, numbers, _, ., @ or -"
-        )
+        raise ValueError("Username must contain 3 to 64 ASCII letters, numbers, _, ., @ or -")
     return normalized
 
 
@@ -65,19 +63,14 @@ def _valid_login_password(password: str) -> bool:
 
 def validate_new_password(password: str) -> str:
     if not _valid_login_password(password) or len(password) < MIN_PASSWORD_LENGTH:
-        raise ValueError(
-            "Password must contain 12 to 1024 characters and at most 4096 UTF-8 bytes"
-        )
+        raise ValueError("Password must contain 12 to 1024 characters and at most 4096 UTF-8 bytes")
     return password
 
 
 def _verify_password(password: str, hashed_password: str) -> tuple[bool, str | None]:
     # Legacy bcrypt silently truncates in some versions. Reject rather than
     # accepting a different password that shares the same first 72 bytes.
-    if (
-        hashed_password.startswith(("$2a$", "$2b$", "$2y$"))
-        and len(password.encode("utf-8")) > 72
-    ):
+    if hashed_password.startswith(("$2a$", "$2b$", "$2y$")) and len(password.encode("utf-8")) > 72:
         _PASSWORD_HASH.verify(password, _DUMMY_HASH)
         return False, None
     try:
@@ -132,18 +125,14 @@ class PasswordRepository:
                 hashed_password = credential.hashed_password
             else:
                 hashed_password = _DUMMY_HASH
-        valid, upgraded_hash = await run_in_threadpool(
-            _verify_password, password, hashed_password
-        )
+        valid, upgraded_hash = await run_in_threadpool(_verify_password, password, hashed_password)
         if row is None or not valid:
             return None
 
         async with self.sessions.begin() as db:
             # Match set_password's lock ordering. Hashing never holds DB locks.
             user = (
-                await db.execute(
-                    select(User).where(User.id == user_id).with_for_update()
-                )
+                await db.execute(select(User).where(User.id == user_id).with_for_update())
             ).scalar_one_or_none()
             credential = (
                 await db.execute(
@@ -187,9 +176,7 @@ class PasswordRepository:
         username = normalize_username(username)
         validate_new_password(password)
         if any(unicodedata.category(char) in {"Cc", "Cs"} for char in display_name):
-            raise ValueError(
-                "Display name cannot contain control or invalid Unicode characters"
-            )
+            raise ValueError("Display name cannot contain control or invalid Unicode characters")
         display_name = display_name.strip()
         if not display_name or len(display_name) > 255:
             raise ValueError("Display name must contain 1 to 255 characters")
@@ -250,9 +237,7 @@ class PasswordRepository:
             if user_id is None:
                 raise PasswordUserNotFound("Username does not exist")
             user = (
-                await db.execute(
-                    select(User).where(User.id == user_id).with_for_update()
-                )
+                await db.execute(select(User).where(User.id == user_id).with_for_update())
             ).scalar_one_or_none()
             credential = (
                 await db.execute(

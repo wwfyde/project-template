@@ -69,9 +69,7 @@ def passwords(factory: DatabaseFactory) -> PasswordRepository:
     return PasswordRepository(cast(async_sessionmaker[AsyncSession], factory))
 
 
-def oauth_identity(
-    provider: str = "google", subject: str = "google-alice"
-) -> ProviderIdentity:
+def oauth_identity(provider: str = "google", subject: str = "google-alice") -> ProviderIdentity:
     return ProviderIdentity(
         provider=provider,
         subject=subject,
@@ -106,11 +104,7 @@ def seed_user(
         )
         db.add(user)
         db.flush()
-        db.add(
-            AccountMember(
-                account_id=user.personal_account.id, user_id=user.id, role="owner"
-            )
-        )
+        db.add(AccountMember(account_id=user.personal_account.id, user_id=user.id, role="owner"))
         db.add(
             UserIdentity(
                 id=f"identity-{user_id}",
@@ -126,9 +120,7 @@ async def seed_password(passwords: PasswordRepository) -> User:
     return await passwords.create_user("alice", PASSWORD, display_name="Local Alice")
 
 
-def assert_error(
-    error: pytest.ExceptionInfo[AccountError], code: str, status: int
-) -> None:
+def assert_error(error: pytest.ExceptionInfo[AccountError], code: str, status: int) -> None:
     assert error.value.code == code
     assert error.value.status == status
 
@@ -138,9 +130,7 @@ async def test_link_keeps_user_profile_and_does_not_merge_matching_email(
     repository: AccountStore, database: Engine
 ) -> None:
     user = seed_user(database)
-    other = seed_user(
-        database, user_id="bob", provider="dingtalk", subject="dingtalk-bob"
-    )
+    other = seed_user(database, user_id="bob", provider="dingtalk", subject="dingtalk-bob")
     linked = await repository.link_identity(
         user.id,
         user.personal_account.id,
@@ -155,9 +145,7 @@ async def test_link_keeps_user_profile_and_does_not_merge_matching_email(
     assert snapshot.user.avatar_url == "https://example.com/local.png"
     assert snapshot.user.email == "alice@example.com"
     assert snapshot.user.phone == "123456789"
-    assert (
-        await repository.snapshot(other.id, other.personal_account.id)
-    ).user.auth_version == 1
+    assert (await repository.snapshot(other.id, other.personal_account.id)).user.auth_version == 1
     with Session(database) as db:
         assert len(db.scalars(select(User)).all()) == 2
 
@@ -177,29 +165,19 @@ async def test_identity_already_claimed_by_any_user_is_a_conflict(
     account_id = user.personal_account.id
     if shared_workspace:
         with Session(database) as db, db.begin():
-            db.add(
-                Account(id="shared-workspace", structure="workspace", is_active=True)
-            )
+            db.add(Account(id="shared-workspace", structure="workspace", is_active=True))
             db.flush()
             db.add_all(
                 [
-                    AccountMember(
-                        account_id="shared-workspace", user_id=user.id, role="owner"
-                    ),
-                    AccountMember(
-                        account_id="shared-workspace", user_id="bob", role="member"
-                    ),
+                    AccountMember(account_id="shared-workspace", user_id=user.id, role="owner"),
+                    AccountMember(account_id="shared-workspace", user_id="bob", role="member"),
                 ]
             )
         account_id = "shared-workspace"
     with pytest.raises(AccountError) as error:
-        await repository.link_identity(
-            user.id, account_id, 1, oauth_identity("dingtalk", "taken")
-        )
+        await repository.link_identity(user.id, account_id, 1, oauth_identity("dingtalk", "taken"))
     assert_error(error, "identity_conflict", 409)
-    assert (
-        await repository.snapshot(user.id, user.personal_account.id)
-    ).user.auth_version == 1
+    assert (await repository.snapshot(user.id, user.personal_account.id)).user.auth_version == 1
 
 
 @pytest.mark.asyncio
@@ -229,10 +207,7 @@ async def test_verify_identity_never_auto_links_a_new_identity(
             user.id, user.personal_account.id, 1, oauth_identity("dingtalk", "new")
         )
     assert_error(error, "identity_not_linked", 403)
-    assert (
-        len((await repository.snapshot(user.id, user.personal_account.id)).identities)
-        == 1
-    )
+    assert len((await repository.snapshot(user.id, user.personal_account.id)).identities) == 1
 
 
 @pytest.mark.asyncio
@@ -269,9 +244,7 @@ async def test_profile_changes_only_cosmetic_fields_and_keeps_auth_version(
     assert snapshot.user.email == user.email
     assert [item.id for item in snapshot.identities] == ["identity-alice"]
     with pytest.raises(AccountError) as error:
-        await repository.profile(
-            user.id, user.personal_account.id, 1, {"tenant_id": "other"}
-        )
+        await repository.profile(user.id, user.personal_account.id, 1, {"tenant_id": "other"})
     assert_error(error, "invalid_profile", 422)
 
 
@@ -307,17 +280,13 @@ async def test_mutations_enforce_user_account_active_and_expected_version(
     with pytest.raises(AccountError) as error:
         match method:
             case "profile":
-                await repository.profile(
-                    user.id, account_id, version, {"display_name": "Changed"}
-                )
+                await repository.profile(user.id, account_id, version, {"display_name": "Changed"})
             case "link":
                 await repository.link_identity(
                     user.id, account_id, version, oauth_identity("dingtalk", "new")
                 )
             case "verify":
-                await repository.verify_identity(
-                    user.id, account_id, version, oauth_identity()
-                )
+                await repository.verify_identity(user.id, account_id, version, oauth_identity())
             case "unlink":
                 await repository.unlink_identity(
                     user.id, account_id, version, "identity-alice", {"google"}
@@ -352,10 +321,7 @@ async def test_cannot_remove_last_available_login(
             user.id, user.personal_account.id, 2, "identity-alice", enabled
         )
     assert_error(error, "last_login_method", 409)
-    assert (
-        len((await repository.snapshot(user.id, user.personal_account.id)).identities)
-        == 2
-    )
+    assert len((await repository.snapshot(user.id, user.personal_account.id)).identities) == 2
 
 
 @pytest.mark.asyncio
@@ -366,15 +332,11 @@ async def test_password_identity_without_matching_credential_cannot_preserve_log
     user = seed_user(database)
     with Session(database) as db, db.begin():
         db.add(
-            UserIdentity(
-                id="password-id", user_id=user.id, provider="password", subject="alice"
-            )
+            UserIdentity(id="password-id", user_id=user.id, provider="password", subject="alice")
         )
         if credential_state == "wrong_subject":
             db.add(
-                PasswordCredential(
-                    user_id=user.id, username="different", hashed_password="hash"
-                )
+                PasswordCredential(user_id=user.id, username="different", hashed_password="hash")
             )
     with pytest.raises(AccountError) as error:
         await repository.unlink_identity(
@@ -388,9 +350,7 @@ async def test_password_identity_without_matching_credential_cannot_preserve_log
 
 
 @pytest.mark.asyncio
-async def test_unlink_checks_identity_ownership(
-    repository: AccountStore, database: Engine
-) -> None:
+async def test_unlink_checks_identity_ownership(repository: AccountStore, database: Engine) -> None:
     user = seed_user(database)
     seed_user(database, user_id="bob", subject="bob-google")
     with pytest.raises(AccountError) as error:
@@ -408,9 +368,7 @@ async def test_two_removals_with_same_version_cannot_remove_both_logins(
     await repository.link_identity(
         user.id, user.personal_account.id, 1, oauth_identity("dingtalk", "new")
     )
-    identities = (
-        await repository.snapshot(user.id, user.personal_account.id)
-    ).identities
+    identities = (await repository.snapshot(user.id, user.personal_account.id)).identities
     first = await repository.unlink_identity(
         user.id, user.personal_account.id, 2, identities[0].id, {"google", "dingtalk"}
     )
@@ -433,10 +391,7 @@ async def test_two_removals_with_same_version_cannot_remove_both_logins(
             {"google", "dingtalk"},
         )
     assert_error(last, "last_login_method", 409)
-    assert (
-        len((await repository.snapshot(user.id, user.personal_account.id)).identities)
-        == 1
-    )
+    assert len((await repository.snapshot(user.id, user.personal_account.id)).identities) == 1
 
 
 @pytest.mark.asyncio
@@ -541,9 +496,7 @@ async def test_first_password_validation(
             current_password=None,
         )
     assert_error(error, code, 422)
-    assert (
-        await repository.snapshot(user.id, user.personal_account.id)
-    ).username is None
+    assert (await repository.snapshot(user.id, user.personal_account.id)).username is None
 
 
 @pytest.mark.asyncio
@@ -574,14 +527,10 @@ async def test_unlink_password_deletes_credential_and_invalidates_old_version(
     repository: AccountStore, passwords: PasswordRepository, database: Engine
 ) -> None:
     user = await seed_password(passwords)
-    await repository.link_identity(
-        user.id, user.personal_account.id, 1, oauth_identity()
-    )
+    await repository.link_identity(user.id, user.personal_account.id, 1, oauth_identity())
     identity = next(
         item
-        for item in (
-            await repository.snapshot(user.id, user.personal_account.id)
-        ).identities
+        for item in (await repository.snapshot(user.id, user.personal_account.id)).identities
         if item.provider == "password"
     )
     changed = await repository.unlink_identity(
@@ -591,9 +540,7 @@ async def test_unlink_password_deletes_credential_and_invalidates_old_version(
     assert await passwords.authenticate("alice", PASSWORD) is None
     with Session(database) as db:
         assert db.get(PasswordCredential, user.id) is None
-    assert (
-        await repository.snapshot(user.id, user.personal_account.id)
-    ).username is None
+    assert (await repository.snapshot(user.id, user.personal_account.id)).username is None
 
 
 @pytest.mark.asyncio
@@ -615,9 +562,7 @@ async def test_enabled_matching_password_allows_unlinking_oauth(
     assert changed.auth_version == 3
     assert [
         item.provider
-        for item in (
-            await repository.snapshot(user.id, user.personal_account.id)
-        ).identities
+        for item in (await repository.snapshot(user.id, user.personal_account.id)).identities
     ] == ["password"]
 
 
@@ -656,9 +601,7 @@ async def test_password_reset_during_verification_cannot_be_overwritten(
             current_password=PASSWORD,
         )
     assert_error(error, "account_changed", 409)
-    assert (
-        await passwords.authenticate("alice", "administrator-reset-password")
-    ).id == user.id
+    assert (await passwords.authenticate("alice", "administrator-reset-password")).id == user.id
     assert await passwords.authenticate("alice", NEW_PASSWORD) is None
 
 
@@ -688,9 +631,7 @@ async def test_first_password_rechecks_version_after_hashing(
             current_password=None,
         )
     assert_error(error, "account_changed", 409)
-    assert (
-        await repository.snapshot(user.id, user.personal_account.id)
-    ).username is None
+    assert (await repository.snapshot(user.id, user.personal_account.id)).username is None
 
 
 @pytest.mark.asyncio
@@ -702,14 +643,10 @@ async def test_password_mutations_use_postgres_user_then_credential_locks(
     operation: str,
 ) -> None:
     user = await seed_password(passwords)
-    await repository.link_identity(
-        user.id, user.personal_account.id, 1, oauth_identity()
-    )
+    await repository.link_identity(user.id, user.personal_account.id, 1, oauth_identity())
     password_identity = next(
         item
-        for item in (
-            await repository.snapshot(user.id, user.personal_account.id)
-        ).identities
+        for item in (await repository.snapshot(user.id, user.personal_account.id)).identities
         if item.provider == "password"
     )
     factory.statements.clear()
@@ -749,15 +686,11 @@ async def test_link_and_profile_lock_user_row(
     await repository.link_identity(
         user.id, user.personal_account.id, 1, oauth_identity("dingtalk", "new")
     )
-    await repository.profile(
-        user.id, user.personal_account.id, 2, {"display_name": "Updated"}
-    )
+    await repository.profile(user.id, user.personal_account.id, 2, {"display_name": "Updated"})
     locked_sql = [
         str(statement.compile(dialect=postgresql.dialect()))
         for statement in factory.statements
         if getattr(statement, "_for_update_arg", None) is not None
     ]
     assert len(locked_sql) == 2
-    assert all(
-        'FROM "user"' in sql and sql.endswith("FOR UPDATE") for sql in locked_sql
-    )
+    assert all('FROM "user"' in sql and sql.endswith("FOR UPDATE") for sql in locked_sql)

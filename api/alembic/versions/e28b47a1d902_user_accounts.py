@@ -23,9 +23,7 @@ depends_on = None
 
 def _require_online() -> Connection:
     if op.get_context().as_sql:
-        raise RuntimeError(
-            "The user/account data migration requires an online connection"
-        )
+        raise RuntimeError("The user/account data migration requires an online connection")
     return op.get_bind()
 
 
@@ -73,9 +71,7 @@ def _check_personal_only(connection: Connection) -> None:
         )
 
 
-def _rename_unique(
-    table: str, old_name: str, new_name: str, columns: list[str]
-) -> None:
+def _rename_unique(table: str, old_name: str, new_name: str, columns: list[str]) -> None:
     with op.batch_alter_table(table) as batch:
         batch.drop_constraint(old_name, type_="unique")
         batch.create_unique_constraint(new_name, columns)
@@ -98,9 +94,7 @@ def upgrade() -> None:
         )
     _check_legacy_ownership(connection)
     users = (
-        connection.execute(
-            sa.text("SELECT id, tenant_id, display_name, created_at FROM auth_user")
-        )
+        connection.execute(sa.text("SELECT id, tenant_id, display_name, created_at FROM auth_user"))
         .mappings()
         .all()
     )
@@ -142,9 +136,7 @@ def upgrade() -> None:
         "account",
         sa.Column("id", sa.String(36), primary_key=True),
         sa.Column("name", sa.String(255)),
-        sa.Column(
-            "structure", sa.String(20), server_default="personal", nullable=False
-        ),
+        sa.Column("structure", sa.String(20), server_default="personal", nullable=False),
         sa.Column(
             "personal_user_id",
             sa.String(36),
@@ -157,9 +149,7 @@ def upgrade() -> None:
             server_default=sa.func.now(),
             nullable=False,
         ),
-        sa.CheckConstraint(
-            "structure IN ('personal', 'workspace')", name="ck_account_structure"
-        ),
+        sa.CheckConstraint("structure IN ('personal', 'workspace')", name="ck_account_structure"),
         sa.CheckConstraint(
             "(structure = 'personal' AND personal_user_id IS NOT NULL) OR "
             "(structure = 'workspace' AND personal_user_id IS NULL)",
@@ -188,9 +178,7 @@ def upgrade() -> None:
             server_default=sa.func.now(),
             nullable=False,
         ),
-        sa.CheckConstraint(
-            "role IN ('owner', 'admin', 'member')", name="ck_account_member_role"
-        ),
+        sa.CheckConstraint("role IN ('owner', 'admin', 'member')", name="ck_account_member_role"),
     )
     op.create_index("ix_account_member_user_id", "account_member", ["user_id"])
     op.add_column("resource_owner", sa.Column("account_id", sa.String(36)))
@@ -287,10 +275,7 @@ def downgrade() -> None:
             values,
         )
         connection.execute(
-            sa.text(
-                "UPDATE resource_owner SET tenant_id = :tenant_id "
-                "WHERE user_id = :user_id"
-            ),
+            sa.text("UPDATE resource_owner SET tenant_id = :tenant_id WHERE user_id = :user_id"),
             values,
         )
     with op.batch_alter_table("resource_owner") as batch:

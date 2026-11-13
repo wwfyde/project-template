@@ -1,5 +1,6 @@
 use crate::AppState;
 use crate::handlers;
+use crate::schemas::content::ContentSchemas;
 use axum::Router;
 use std::sync::Arc;
 use utoipa::OpenApi;
@@ -10,7 +11,7 @@ pub mod misc;
 pub mod user;
 
 #[derive(OpenApi)]
-#[openapi(paths(
+#[openapi(modifiers(&ContentSchemas), paths(
     handlers::user::get_users,
     handlers::user::get_user,
     handlers::user::get_current_user,
@@ -40,6 +41,30 @@ mod tests {
     use serde_json::json;
 
     #[test]
+    fn openapi_includes_content_schemas_without_unimplemented_routes() {
+        let document = serde_json::to_value(AllApi::openapi()).expect("serialize OpenAPI");
+        for name in [
+            "FileObject",
+            "AssetObject",
+            "DocumentObject",
+            "DocumentRevisionObject",
+            "KnowledgeBaseObject",
+            "KnowledgeSourceObject",
+            "KnowledgeBaseSourceObject",
+            "KnowledgeChunkObject",
+            "SourceCitationObject",
+        ] {
+            assert!(
+                document["components"]["schemas"].get(name).is_some(),
+                "missing content schema {name}"
+            );
+        }
+        for path in ["/files", "/assets", "/documents", "/knowledge-bases"] {
+            assert!(document["paths"].get(path).is_none());
+        }
+    }
+
+    #[test]
     fn openapi_matches_user_routes_and_authentication() {
         let document = serde_json::to_value(AllApi::openapi()).expect("serialize OpenAPI");
         for path in ["/users", "/users/{id}", "/users/me"] {
@@ -49,6 +74,11 @@ mod tests {
                 "{path} requires both credentials"
             );
         }
+        assert_eq!(
+            document["paths"]["/users"]["post"]["security"],
+            json!([{"api_key": []}]),
+            "creating the first user requires only the API key"
+        );
         assert!(
             document["paths"]["/users"]["post"]["responses"]
                 .get("201")

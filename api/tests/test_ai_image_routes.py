@@ -107,9 +107,7 @@ class ToolCalls:
     error: Exception | None = None
     thread_ids: list[int] = field(default_factory=list)
 
-    def run(
-        self, function_name: str, parameters: dict[str, object]
-    ) -> ImageToolResponse:
+    def run(self, function_name: str, parameters: dict[str, object]) -> ImageToolResponse:
         if function_name == "image_create_with_gemini":
             assert asyncio.get_running_loop().is_running()
         else:
@@ -146,9 +144,7 @@ def tool_calls(monkeypatch: MonkeyPatch) -> ToolCalls:
             async def fake_gemini(**kwargs: object) -> ImageToolResponse:
                 return calls.run("image_create_with_gemini", kwargs)
 
-            monkeypatch.setattr(
-                module, function_name, AsyncMock(side_effect=fake_gemini)
-            )
+            monkeypatch.setattr(module, function_name, AsyncMock(side_effect=fake_gemini))
         else:
             monkeypatch.setattr(module, function_name, fake)
     return calls
@@ -171,9 +167,7 @@ def client(tool_calls: ToolCalls) -> Iterator[TestClient]:
         "gemini-nano-banana-2.1",
     ],
 )
-def test_gemini_routes_await_unified_model_entry(
-    monkeypatch: MonkeyPatch, model: str
-) -> None:
+def test_gemini_routes_await_unified_model_entry(monkeypatch: MonkeyPatch, model: str) -> None:
     from api.tools.images import gemini
 
     result = ImageToolResponse(content="done", images=[], usage={"total_tokens": 12})
@@ -237,9 +231,7 @@ def test_fixed_endpoints_use_tool_signatures_and_image_tool_response_schema() ->
         operation = schema["paths"][f"{PREFIX}/{path}"]["post"]
         assert "security" not in operation
         assert (
-            operation["responses"]["200"]["content"]["application/json"]["schema"][
-                "$ref"
-            ]
+            operation["responses"]["200"]["content"]["application/json"]["schema"]["$ref"]
             == "#/components/schemas/ImageToolResponse"
         )
         reference = operation["requestBody"]["content"]["application/json"]["schema"][
@@ -251,17 +243,12 @@ def test_fixed_endpoints_use_tool_signatures_and_image_tool_response_schema() ->
         fixed = {"provider", "model"} if module == "gemini" else {"provider"}
         assert set(body["properties"]) == set(parameters) - fixed
         assert set(body["required"]) == {
-            name
-            for name, param in parameters.items()
-            if param.default is inspect.Parameter.empty
+            name for name, param in parameters.items() if param.default is inspect.Parameter.empty
         }
         for name, param in parameters.items():
             if name not in fixed and param.default is not inspect.Parameter.empty:
                 expected = param.default
-                if (
-                    path.endswith("gemini-3.1-flash-lite-image")
-                    and name == "image_size"
-                ):
+                if path.endswith("gemini-3.1-flash-lite-image") and name == "image_size":
                     expected = "1K"
                 assert body["properties"][name].get("default") == expected
         query = {item["name"]: item for item in operation["parameters"]}
@@ -294,9 +281,7 @@ def test_each_endpoint_calls_its_corresponding_tool_and_returns_its_result(
     assert "no-store" in response.headers["cache-control"]
 
 
-@pytest.mark.parametrize(
-    "path,provider", [(GEMINI_PATH, "laozhang"), (GPT_PATH, "evolink")]
-)
+@pytest.mark.parametrize("path,provider", [(GEMINI_PATH, "laozhang"), (GPT_PATH, "evolink")])
 def test_optional_provider_is_passed_to_the_tool(
     client: TestClient, tool_calls: ToolCalls, path: str, provider: str
 ) -> None:
@@ -410,9 +395,7 @@ def test_channel_choices_are_restricted(
     assert not tool_calls.calls
 
 
-def test_tool_failures_keep_the_unified_response(
-    client: TestClient, tool_calls: ToolCalls
-) -> None:
+def test_tool_failures_keep_the_unified_response(client: TestClient, tool_calls: ToolCalls) -> None:
     tool_calls.result = ImageToolResponse(
         success=False, content="Upload failed", error="upload_failed", images=[]
     )
@@ -438,9 +421,7 @@ def test_tool_failures_keep_the_unified_response(
         "/gemini/gemini-2.5-flash-image",
     ],
 )
-def test_no_dynamic_or_qwen_endpoints(
-    client: TestClient, tool_calls: ToolCalls, path: str
-) -> None:
+def test_no_dynamic_or_qwen_endpoints(client: TestClient, tool_calls: ToolCalls, path: str) -> None:
     assert client.post(PREFIX + path, json={"prompt": "draw"}).status_code == 404
     assert not tool_calls.calls
 

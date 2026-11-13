@@ -136,8 +136,13 @@ curl -sS "$AGENT_API/sessions/$AGENT_SESSION_ID/turns?limit=20"
 from collections.abc import AsyncGenerator
 
 from api.agents.contracts import (
-    AgentDefinition, AgentFailure, AgentItem, BackendState,
-    RunEvent, RunRequest, RunResult,
+    AgentDefinition,
+    AgentFailure,
+    AgentItem,
+    BackendState,
+    RunEvent,
+    RunRequest,
+    RunResult,
 )
 
 

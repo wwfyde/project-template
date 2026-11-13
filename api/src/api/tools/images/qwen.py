@@ -30,9 +30,7 @@ def image_edit_with_qwen(
         if isinstance(image_urls, str) and image_urls.startswith("data:"):
             image_list = [image_urls]
         elif isinstance(image_urls, str):
-            image_list = [
-                i.strip() for i in image_urls.replace("，", ",").split(",") if i.strip()
-            ]
+            image_list = [i.strip() for i in image_urls.replace("，", ",").split(",") if i.strip()]
         elif image_urls is None:
             image_list = []
         else:
@@ -148,15 +146,11 @@ def image_generate_with_qwen(
                 image_response = requests.get(result.url, timeout=60)
                 image_response.raise_for_status()
                 uploaded_image = asyncio.run(
-                    upload_image(
-                        "qwen.png", image_response.content, prefix="creative/qwen"
-                    )
+                    upload_image("qwen.png", image_response.content, prefix="creative/qwen")
                 )
                 urls.append(uploaded_image.url)
                 images.append(
-                    uploaded_image.model_dump(
-                        mode="json", exclude_unset=True, exclude_none=True
-                    )
+                    uploaded_image.model_dump(mode="json", exclude_unset=True, exclude_none=True)
                 )
 
         else:
@@ -175,9 +169,7 @@ def image_generate_with_qwen(
             image_model="qwen-image-1",
         )
     except Exception as error:
-        return ImageToolResponse(
-            content=f"工具调用失败, 错误提示: {error}", success=False
-        )
+        return ImageToolResponse(content=f"工具调用失败, 错误提示: {error}", success=False)
 
 
 if __name__ == "__main__":

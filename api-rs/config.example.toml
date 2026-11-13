@@ -1,8 +1,20 @@
-demo = "99"
+project_name = "Api"
+repo_type = "postgres"  # 省略时默认 memory；保留此示例原有的 PostgreSQL 选择。
+profile = "web"
+admin_users = []
+httpx_timeout = 60
+wait_max_seconds = 120
 
 [app]
+name = "api"
+env = "dev"
+debug = true
+port = 8000
+log_level = "INFO"
+# Rust 认证服务的兼容配置；实际部署时替换以下示例密钥。
 api_key = "admin"
 jwt_secret = "custom_jwt_here"
+access_token_expire_days = 30
 
 [postgres]
 host = "postgres"
@@ -10,13 +22,18 @@ port = 5432
 username = "postgres"
 password = "postgres"
 db = "postgres"
+pool_size = 30
 
+# 省略整个 redis 表时也使用 Redis 默认配置；REDIS=null 可显式禁用。
 [redis]
 host = "127.0.0.1"
 port = 6379
 password = ""
 db = 0
+session_cookie_name = "project_template_session"
+session_fail_closed = true
 
+# ark 是 volcengine 的兼容别名；供应商配置均可省略。
 [providers.ark]
 api_key = "****"
 base_url = "https://ark.cn-beijing.volces.com/api/v3"

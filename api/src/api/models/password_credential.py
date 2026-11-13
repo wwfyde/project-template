@@ -8,9 +8,7 @@ from .base import Base
 
 class PasswordCredential(Base):
     __tablename__ = "password_credential"
-    __table_args__ = (
-        UniqueConstraint("username", name="uq_password_credential_username"),
-    )
+    __table_args__ = (UniqueConstraint("username", name="uq_password_credential_username"),)
 
     user_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("user.id", ondelete="CASCADE"), primary_key=True

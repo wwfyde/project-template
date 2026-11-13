@@ -106,9 +106,7 @@ def test_telemetry_configuration_sources(
     assert config.active is True
     assert config.service_name == "orders-api"
     assert config.exporter_otlp_endpoint == "http://collector:4318"
-    assert config.exporter_otlp_headers.get_secret_value() == (
-        "Authorization=Bearer%20test-token"
-    )
+    assert config.exporter_otlp_headers.get_secret_value() == ("Authorization=Bearer%20test-token")
     assert config.traces_sampler_arg == 0.25
     assert config.metric_export_interval == 1000
     assert config.logs_enabled is False
@@ -118,17 +116,13 @@ def test_telemetry_configuration_sources(
     assert "test-token" not in repr(config)
 
 
-def test_settings_precedence(
-    monkeypatch: MonkeyPatch, settings_directory: Path
-) -> None:
+def test_settings_precedence(monkeypatch: MonkeyPatch, settings_directory: Path) -> None:
     (settings_directory / "config.toml").write_text(
         '[otel]\nenabled = true\nservice_name = "from-toml"\n'
         'exporter_otlp_endpoint = "http://collector:4318"\n',
         encoding="utf-8",
     )
-    (settings_directory / ".env").write_text(
-        "OTEL_SERVICE_NAME=from-dotenv\n", encoding="utf-8"
-    )
+    (settings_directory / ".env").write_text("OTEL_SERVICE_NAME=from-dotenv\n", encoding="utf-8")
     assert Settings().otel.service_name == "from-dotenv"
 
     monkeypatch.setenv("OTEL_SERVICE_NAME", "from-environment")
@@ -143,9 +137,7 @@ def test_settings_precedence(
 def test_sdk_disabled_overrides_enabled_configuration(
     monkeypatch: MonkeyPatch, settings_directory: Path
 ) -> None:
-    (settings_directory / "config.toml").write_text(
-        "[otel]\nenabled = true\n", encoding="utf-8"
-    )
+    (settings_directory / "config.toml").write_text("[otel]\nenabled = true\n", encoding="utf-8")
     monkeypatch.setenv("OTEL_SDK_DISABLED", "true")
 
     config = Settings().otel
@@ -171,12 +163,8 @@ def test_invalid_sampling_ratio_is_rejected(ratio: float) -> None:
         "http://collector:4318#fragment",
     ],
 )
-@pytest.mark.parametrize(
-    "field", ["exporter_otlp_endpoint", "exporter_otlp_logs_endpoint"]
-)
-def test_invalid_or_credential_bearing_endpoint_is_rejected(
-    endpoint: str, field: str
-) -> None:
+@pytest.mark.parametrize("field", ["exporter_otlp_endpoint", "exporter_otlp_logs_endpoint"])
+def test_invalid_or_credential_bearing_endpoint_is_rejected(endpoint: str, field: str) -> None:
     with pytest.raises(ValidationError):
         OtelConfig(**{field: endpoint})
 
@@ -295,9 +283,7 @@ def test_fastapi_exports_request_metrics_and_propagates_traceparent(
 
 
 @pytest.mark.parametrize("semconv", ["", "http", "http/dup"])
-@pytest.mark.parametrize(
-    "method, reject", [("GET", False), ("GET", True), ("POST", False)]
-)
+@pytest.mark.parametrize("method, reject", [("GET", False), ("GET", True), ("POST", False)])
 def test_http_spans_never_capture_callback_queries_or_request_secrets(
     memory_telemetry: tuple[InMemorySpanExporter, InMemoryMetricReader, Mock],
     monkeypatch: MonkeyPatch,
@@ -324,9 +310,7 @@ def test_http_spans_never_capture_callback_queries_or_request_secrets(
             raise HTTPException(400, "Invalid OAuth callback")
         return RedirectResponse("/", status_code=303)
 
-    otel.setup_telemetry(
-        app, OtelConfig(enabled=True, postgres_enabled=False), environment="test"
-    )
+    otel.setup_telemetry(app, OtelConfig(enabled=True, postgres_enabled=False), environment="test")
     trace_id, parent_id = "12345678901234567890123456789012", "1234567890123456"
     with TestClient(app) as client:
         response = client.request(
@@ -354,9 +338,7 @@ def test_http_spans_never_capture_callback_queries_or_request_secrets(
     assert span.context.trace_id == int(trace_id, 16)
     assert span.parent.span_id == int(parent_id, 16)
     assert span.attributes["http.route"] == "/api/auth/{provider}/callback"
-    status_attribute = (
-        "http.status_code" if not semconv else "http.response.status_code"
-    )
+    status_attribute = "http.status_code" if not semconv else "http.response.status_code"
     assert span.attributes[status_attribute] == response.status_code
     # Includes event attributes, status descriptions and span names, beyond the
     # URL attributes that triggered the original OAuth-code disclosure.
@@ -372,12 +354,8 @@ def test_query_hook_also_redacts_url_full_and_is_safe_for_nonrecording_spans() -
     provider.add_span_processor(SimpleSpanProcessor(exporter))
     try:
         with provider.get_tracer(__name__).start_as_current_span("request") as span:
-            span.set_attribute(
-                "url.full", "https://example.test/callback?code=SECRET#fragment"
-            )
-            span.set_attribute(
-                "http.url", "https://example.test/callback?custom=SECRET"
-            )
+            span.set_attribute("url.full", "https://example.test/callback?code=SECRET#fragment")
+            span.set_attribute("http.url", "https://example.test/callback?custom=SECRET")
             span.set_attribute("http.target", "/callback?code=SECRET")
             span.set_attribute("url.query", "code=SECRET")
             otel._redact_http_query(span, {})
@@ -406,9 +384,7 @@ async def test_postgres_instruments_async_queries_once_without_parameters(
 
     async def connect(**kwargs: object) -> SimpleNamespace:
         return SimpleNamespace(
-            info=SimpleNamespace(
-                dbname="orders", host="postgres", port=5432, user="api"
-            ),
+            info=SimpleNamespace(dbname="orders", host="postgres", port=5432, user="api"),
             cursor_factory=kwargs["cursor_factory"],
         )
 
@@ -422,9 +398,7 @@ async def test_postgres_instruments_async_queries_once_without_parameters(
         otel.setup_telemetry(new_app(), config, environment="test")
         connection = await psycopg.AsyncConnection.connect(cursor_factory=StubCursor)
         assert (
-            await connection.cursor_factory().execute(
-                "SELECT %s", ("private-database-value",)
-            )
+            await connection.cursor_factory().execute("SELECT %s", ("private-database-value",))
             == "private-database-value"
         )
 
@@ -432,9 +406,7 @@ async def test_postgres_instruments_async_queries_once_without_parameters(
         instrument.assert_called_once()
         assert instrument.call_args.kwargs["capture_parameters"] is False
         query_spans = [
-            span
-            for span in spans.get_finished_spans()
-            if "db.statement" in span.attributes
+            span for span in spans.get_finished_spans() if "db.statement" in span.attributes
         ]
         assert len(query_spans) == 1
         assert query_spans[0].kind is SpanKind.CLIENT
@@ -497,13 +469,9 @@ def test_runtime_configures_otlp_exporters_and_resource_without_network(
     monkeypatch.setattr(otel, "OTLPLogExporter", log_exporter)
     monkeypatch.setattr(otel, "PeriodicExportingMetricReader", periodic_reader)
     monkeypatch.setattr(otel.trace, "set_tracer_provider", set_tracer)
-    monkeypatch.setattr(
-        otel.trace, "get_tracer_provider", lambda: set_tracer.call_args.args[0]
-    )
+    monkeypatch.setattr(otel.trace, "get_tracer_provider", lambda: set_tracer.call_args.args[0])
     monkeypatch.setattr(otel.metrics, "set_meter_provider", set_meter)
-    monkeypatch.setattr(
-        otel.metrics, "get_meter_provider", lambda: set_meter.call_args.args[0]
-    )
+    monkeypatch.setattr(otel.metrics, "get_meter_provider", lambda: set_meter.call_args.args[0])
     config = OtelConfig(
         enabled=True,
         service_name="orders-api",

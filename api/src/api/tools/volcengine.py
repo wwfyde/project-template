@@ -107,7 +107,9 @@ class ImageEditRequest(BaseModel):
 
     req_key: str = SeedreamVisionServiceIdentity.ImageEdit.value
     image_urls: list[str] | None = Field(None, description="图片 URL，需且仅需输入一张图片")
-    binary_data_base64: list[str] | None = Field(None, description="图片文件 Base64，需且仅需输入一张图片")
+    binary_data_base64: list[str] | None = Field(
+        None, description="图片文件 Base64，需且仅需输入一张图片"
+    )
     prompt: str = Field(..., description="图像编辑指令")
     seed: int | None = Field(-1, title="随机种子")
     scale: float | None = Field(
@@ -176,20 +178,17 @@ def create_volc_header(
     # current_date = now.date().isoformat()
     current_date = now.strftime("%Y%m%d")
     host = httpx2.URL(params.base_url).host
-    canonical_headers = (
-        f"content-type:{content_type}\nhost:{host}\nx-content-sha256:{payload_hash}\nx-date:{current_datetime}\n"
-    )
+    canonical_headers = f"content-type:{content_type}\nhost:{host}\nx-content-sha256:{payload_hash}\nx-date:{current_datetime}\n"
     credential_scope = f"{current_date}/{params.region}/{params.service}/request"
     canonical_uri = "/"
     # query_string = httpx2.URL(params.base_url, params=params.query_params).query.decode()
 
     query_string = get_query_string(params.query_params)
 
-    canonical_request = (
-        f"{params.method}\n{canonical_uri}\n{query_string}\n{canonical_headers}\n{signed_headers}\n{payload_hash}"
-    )
+    canonical_request = f"{params.method}\n{canonical_uri}\n{query_string}\n{canonical_headers}\n{signed_headers}\n{payload_hash}"
     canonical_request_hash = hashlib.sha256(canonical_request.encode("utf-8")).hexdigest()
     string_to_sign = f"{params.algorithm}\n{current_datetime}\n{credential_scope}\n{canonical_request_hash}"
+
     signing_key = get_signature_key(params.secret_key, current_date, params.region, params.service)
     signature = hmac.new(signing_key, string_to_sign.encode("utf-8"), hashlib.sha256).hexdigest()
     authorization_header = (

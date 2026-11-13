@@ -49,9 +49,7 @@ def main() -> None:
         description="Manage local password accounts; no public signup or default password."
     )
     actions = parser.add_subparsers(dest="action", required=True)
-    create = actions.add_parser(
-        "create-user", help="Create a local user and password identity"
-    )
+    create = actions.add_parser("create-user", help="Create a local user and password identity")
     create.add_argument("username")
     create.add_argument("--display-name")
     reset = actions.add_parser(
@@ -68,9 +66,7 @@ def main() -> None:
     except SQLAlchemyError:
         # Database exceptions can include bound credential hashes. Give a safe
         # operational error instead of dumping SQL parameters to the terminal.
-        parser.exit(
-            2, "Database operation failed; check connectivity and run the migrations.\n"
-        )
+        parser.exit(2, "Database operation failed; check connectivity and run the migrations.\n")
     except EOFError, KeyboardInterrupt:
         parser.exit(130, "Cancelled\n")
 

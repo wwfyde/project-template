@@ -44,9 +44,7 @@ class RequestContextFilter(logging.Filter):
 class ConsoleFormatter(logging.Formatter):
     def formatTime(self, record: logging.LogRecord, datefmt: str | None = None) -> str:
         return (
-            datetime.fromtimestamp(record.created)
-            .astimezone()
-            .isoformat(timespec="milliseconds")
+            datetime.fromtimestamp(record.created).astimezone().isoformat(timespec="milliseconds")
         )
 
     def format(self, record: logging.LogRecord) -> str:
@@ -54,17 +52,13 @@ class ConsoleFormatter(logging.Formatter):
         display_record = copy(record)
         TraceContextFilter().filter(display_record)
         attributes = {
-            key: value
-            for key, value in record.__dict__.items()
-            if key not in _RECORD_FIELDS
+            key: value for key, value in record.__dict__.items() if key not in _RECORD_FIELDS
         }
         if attributes:
             display_record.msg = (
                 record.getMessage()
                 + " | "
-                + json.dumps(
-                    attributes, ensure_ascii=False, separators=(",", ":"), default=str
-                )
+                + json.dumps(attributes, ensure_ascii=False, separators=(",", ":"), default=str)
             )
             display_record.args = ()
         return super().format(display_record)

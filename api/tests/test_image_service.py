@@ -76,9 +76,7 @@ async def test_upload_and_resize_are_immutable_and_contain_uses_transparent_padd
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("fit", ["cover", "stretch"])
-async def test_resize_dimensions_and_opaque_output(
-    service: ImageService, fit: str
-) -> None:
+async def test_resize_dimensions_and_opaque_output(service: ImageService, fit: str) -> None:
     source = await service.upload("owner", png("red"), "source")
     edited = await service.edit(
         "owner",
@@ -152,9 +150,7 @@ async def test_erase_preserves_every_unselected_pixel_and_passes_white_mask(
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("kind", ["foreign", "size", "empty", "transparent"])
-async def test_invalid_mask_rejected_before_provider_call(
-    service: ImageService, kind: str
-) -> None:
+async def test_invalid_mask_rejected_before_provider_call(service: ImageService, kind: str) -> None:
     source = await service.upload("owner", png("red"), "source")
     mask = await service.upload(
         "other" if kind == "foreign" else "owner",
@@ -195,9 +191,7 @@ async def test_foreign_source_cannot_invoke_a_paid_provider(
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize(
-    "bad", ["unconfigured", "unknown-model", "local", "unsupported"]
-)
+@pytest.mark.parametrize("bad", ["unconfigured", "unknown-model", "local", "unsupported"])
 async def test_dispatch_rejects_unavailable_or_unsupported_choices(
     service: ImageService, bad: str
 ) -> None:
@@ -239,9 +233,7 @@ async def test_background_removal_requires_real_alpha(service: ImageService) -> 
         "owner", source.id, EditRequest(operation="remove_background", provider="gpt")
     )
     assert (
-        Image.open(
-            BytesIO(await service.store.get_content("owner", edited.id))
-        ).getpixel((0, 0))[3]
+        Image.open(BytesIO(await service.store.get_content("owner", edited.id))).getpixel((0, 0))[3]
         == 0
     )
 

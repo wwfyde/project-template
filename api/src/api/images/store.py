@@ -154,17 +154,11 @@ class PostgresImageStore:
         async with self.sessions.begin() as db:
             result = await db.execute(
                 select(ImageAssetRecord.document)
-                .where(
-                    ImageAssetRecord.owner == owner, ImageAssetRecord.purpose == "image"
-                )
-                .order_by(
-                    ImageAssetRecord.created_at.desc(), ImageAssetRecord.id.desc()
-                )
+                .where(ImageAssetRecord.owner == owner, ImageAssetRecord.purpose == "image")
+                .order_by(ImageAssetRecord.created_at.desc(), ImageAssetRecord.id.desc())
                 .limit(max(0, limit))
             )
-            return [
-                ImageAsset.model_validate(document) for document in result.scalars()
-            ]
+            return [ImageAsset.model_validate(document) for document in result.scalars()]
 
     async def add_comment(self, owner: str, comment: ImageComment) -> None:
         try:
@@ -190,9 +184,7 @@ class PostgresImageStore:
                 )
                 if result.scalar_one_or_none() is None:
                     raise _not_found() from exc
-            raise ImageFailure(
-                "comment_exists", "Comment already exists.", 409
-            ) from exc
+            raise ImageFailure("comment_exists", "Comment already exists.", 409) from exc
 
     async def list_comments(self, owner: str, asset_id: str) -> list[ImageComment]:
         async with self.sessions.begin() as db:
@@ -205,9 +197,7 @@ class PostgresImageStore:
                 )
                 .order_by(ImageCommentRecord.created_at, ImageCommentRecord.id)
             )
-            return [
-                ImageComment.model_validate(document) for document in result.scalars()
-            ]
+            return [ImageComment.model_validate(document) for document in result.scalars()]
 
     async def delete_comment(self, owner: str, asset_id: str, comment_id: str) -> None:
         async with self.sessions.begin() as db:

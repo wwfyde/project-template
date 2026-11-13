@@ -36,9 +36,7 @@ def image_upload() -> SimpleNamespace:
         png=png,
         data_url="data:image/png;base64," + base64.b64encode(png).decode("ascii"),
         metadata=metadata,
-        serialized=metadata.model_dump(
-            mode="json", exclude_none=True, exclude_unset=True
-        ),
+        serialized=metadata.model_dump(mode="json", exclude_none=True, exclude_unset=True),
         upload=AsyncMock(return_value=metadata),
     )
 
@@ -82,11 +80,7 @@ def test_seedream3_generation_reuses_canonical_oss_metadata(
     monkeypatch.setattr(module, "upload_image", image_upload.upload)
     post = Mock(
         return_value={
-            "data": {
-                "binary_data_base64": [
-                    base64.b64encode(image_upload.png).decode("ascii")
-                ]
-            }
+            "data": {"binary_data_base64": [base64.b64encode(image_upload.png).decode("ascii")]}
         }
     )
     monkeypatch.setattr(module, "_post_volcengine", post)
@@ -105,9 +99,7 @@ def test_seedream3_portrait_reference_uses_metadata_url(
     module = importlib.import_module("api.tools.images.seedream3")
     monkeypatch.setattr(module, "upload_image", image_upload.upload)
     run = Mock(
-        return_value={
-            "binary_data_base64": [base64.b64encode(image_upload.png).decode("ascii")]
-        }
+        return_value={"binary_data_base64": [base64.b64encode(image_upload.png).decode("ascii")]}
     )
     monkeypatch.setattr(module, "_run_async_task", run)
 
@@ -133,9 +125,7 @@ def test_qwen_uploads_output_and_local_reference_with_canonical_metadata(
         module,
         "settings",
         SimpleNamespace(
-            providers=SimpleNamespace(
-                dashscope=SimpleNamespace(api_key=SecretStr("qwen-key"))
-            ),
+            providers=SimpleNamespace(dashscope=SimpleNamespace(api_key=SecretStr("qwen-key"))),
             data_dir=tmp_path,
         ),
     )
@@ -151,9 +141,7 @@ def test_qwen_uploads_output_and_local_reference_with_canonical_metadata(
                     choices=[
                         SimpleNamespace(
                             message={
-                                "content": [
-                                    {"image": "https://images.example.test/result.png"}
-                                ]
+                                "content": [{"image": "https://images.example.test/result.png"}]
                             }
                         )
                     ]
@@ -162,12 +150,9 @@ def test_qwen_uploads_output_and_local_reference_with_canonical_metadata(
         )
         monkeypatch.setattr(module.MultiModalConversation, "call", call)
         monkeypatch.setattr(module.httpx2, "get", download)
-        result = module.image_edit_with_qwen(
-            prompt="blue cup", image_urls=str(reference)
-        )
+        result = module.image_edit_with_qwen(prompt="blue cup", image_urls=str(reference))
         assert (
-            call.call_args.kwargs["messages"][0]["content"][1]["image"]
-            == image_upload.metadata.url
+            call.call_args.kwargs["messages"][0]["content"][1]["image"] == image_upload.metadata.url
         )
         assert image_upload.upload.await_count == 2
     else:
@@ -175,9 +160,7 @@ def test_qwen_uploads_output_and_local_reference_with_canonical_metadata(
             return_value=SimpleNamespace(
                 status_code=200,
                 output=SimpleNamespace(
-                    results=[
-                        SimpleNamespace(url="https://images.example.test/result.png")
-                    ]
+                    results=[SimpleNamespace(url="https://images.example.test/result.png")]
                 ),
             )
         )
@@ -215,9 +198,7 @@ def test_seedream_editing_tools_reuse_canonical_metadata_and_configuration(
         )
     )
     monkeypatch.setattr(module.httpx2, "post", post)
-    monkeypatch.setattr(
-        module.httpx2, "get", Mock(return_value=image_response(image_upload.png))
-    )
+    monkeypatch.setattr(module.httpx2, "get", Mock(return_value=image_response(image_upload.png)))
     kwargs = {"prompt": "blue cup", "image_url": image_upload.data_url}
     if module_name == "inpaint":
         kwargs["mask_url"] = image_upload.data_url
@@ -225,9 +206,7 @@ def test_seedream_editing_tools_reuse_canonical_metadata_and_configuration(
 
     assert result.success
     assert result.images == [image_upload.serialized]
-    assert post.call_args.args == (
-        "https://ark.example.test/api/v3/images/generations",
-    )
+    assert post.call_args.args == ("https://ark.example.test/api/v3/images/generations",)
     assert post.call_args.kwargs["headers"]["Authorization"] == "Bearer ark-key"
     assert image_upload.upload.await_args.args[1] == image_upload.png
 
@@ -264,9 +243,7 @@ def test_background_removal_loads_optional_rembg_only_when_called(
     remove = Mock(return_value=image_upload.png)
     monkeypatch.setitem(sys.modules, "rembg", SimpleNamespace(remove=remove))
     monkeypatch.setattr(module, "upload_image", image_upload.upload)
-    monkeypatch.setattr(
-        module.httpx2, "get", Mock(return_value=image_response(image_upload.png))
-    )
+    monkeypatch.setattr(module.httpx2, "get", Mock(return_value=image_response(image_upload.png)))
 
     result = module.rembg_with_url("https://images.example.test/source.png")
 
@@ -283,9 +260,7 @@ async def test_image_to_prompt_resolves_google_configuration_at_call_time(
     monkeypatch.setattr(
         module,
         "settings",
-        SimpleNamespace(
-            providers=SimpleNamespace(google=SimpleNamespace(model="vision-model"))
-        ),
+        SimpleNamespace(providers=SimpleNamespace(google=SimpleNamespace(model="vision-model"))),
     )
     client = MagicMock()
     async_client = SimpleNamespace(
@@ -299,8 +274,5 @@ async def test_image_to_prompt_resolves_google_configuration_at_call_time(
     result = await module.image_to_prompt(image_upload.data_url)
 
     assert result == "blue cup"
-    assert (
-        async_client.models.generate_content.await_args.kwargs["model"]
-        == "vision-model"
-    )
+    assert async_client.models.generate_content.await_args.kwargs["model"] == "vision-model"
     client.close.assert_called_once()

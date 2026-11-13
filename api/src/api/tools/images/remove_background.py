@@ -13,9 +13,7 @@ def rembg_with_url(image_url: str) -> ImageInfo:
     response.raise_for_status()
     content = remove(response.content, force_return_bytes=True)
     return asyncio.run(
-        upload_image(
-            "background-removed.png", content, prefix="tool/remove_backaground"
-        )
+        upload_image("background-removed.png", content, prefix="tool/remove_backaground")
     )
 
 

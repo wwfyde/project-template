@@ -53,9 +53,7 @@ class MemoryAttemptRedis:
         self.now = 0
         self.fail = False
 
-    async def eval(
-        self, script: str, key_count: int, key: str, window: int
-    ) -> tuple[int, int]:
+    async def eval(self, script: str, key_count: int, key: str, window: int) -> tuple[int, int]:
         self.calls.append(key)
         if self.fail:
             raise RedisConnectionError("test counter storage unavailable")
@@ -245,15 +243,9 @@ def test_password_session_reuses_write_and_logout_csrf_protection(
         ).status_code
         == 403
     )
+    assert password_client.post(PRIVATE_PATH, headers={"X-CSRF-Token": csrf}).status_code == 200
     assert (
-        password_client.post(PRIVATE_PATH, headers={"X-CSRF-Token": csrf}).status_code
-        == 200
-    )
-    assert (
-        password_client.post(
-            "/api/auth/logout", headers={"X-CSRF-Token": csrf}
-        ).status_code
-        == 204
+        password_client.post("/api/auth/logout", headers={"X-CSRF-Token": csrf}).status_code == 204
     )
     assert not password_env.store.records
     assert password_client.get(SESSION_PATH).json()["authenticated"] is False
@@ -435,9 +427,7 @@ def test_session_write_failure_cannot_establish_a_logged_in_cookie(
     original_write = password_env.store._write
     calls = 0
 
-    async def fail_write(
-        session_id: str, payload: str, *, idle: int, absolute: int | None
-    ) -> None:
+    async def fail_write(session_id: str, payload: str, *, idle: int, absolute: int | None) -> None:
         nonlocal calls
         calls += 1
         if not transient or calls == 1:

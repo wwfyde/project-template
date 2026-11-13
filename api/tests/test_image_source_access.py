@@ -101,9 +101,7 @@ def test_public_literal_and_public_dns_are_allowed(monkeypatch: MonkeyPatch) -> 
 @pytest.mark.parametrize("result", [[], OSError("DNS private diagnostic")])
 def test_unresolved_hosts_fail_closed(monkeypatch: MonkeyPatch, result: object) -> None:
     resolver = (
-        Mock(side_effect=result)
-        if isinstance(result, OSError)
-        else Mock(return_value=result)
+        Mock(side_effect=result) if isinstance(result, OSError) else Mock(return_value=result)
     )
     monkeypatch.setattr(source_access.socket, "getaddrinfo", resolver)
     with pytest.raises(ImageSourceError) as failure:
@@ -126,9 +124,7 @@ def test_context_validates_pass_through_sources_and_resets_after_failure(
         with http_image_sources(["http://127.0.0.1/a.png"]):
             raise AssertionError("Invalid source entered the tool")
     guard_image_source("/tmp/local.png")
-    with http_image_sources(
-        "https://first.example/a.png，https://second.example/b.png"
-    ):
+    with http_image_sources("https://first.example/a.png，https://second.example/b.png"):
         pass
     assert resolver.call_count == 2
 
@@ -163,9 +159,7 @@ def test_httpx_redirect_is_not_followed(monkeypatch: MonkeyPatch) -> None:
     with http_image_sources():
         with pytest.raises(ImageSourceError, match="redirects"):
             get_image_reference("https://images.example/a.png", client=client)
-    client.get.assert_called_once_with(
-        "https://images.example/a.png", follow_redirects=False
-    )
+    client.get.assert_called_once_with("https://images.example/a.png", follow_redirects=False)
     response.close.assert_called_once_with()
 
 
@@ -189,12 +183,8 @@ def test_gemini_sources_are_independent_of_http_source_context(
     image = output.getvalue()
     local = tmp_path / "local.png"
     local.write_bytes(image)
-    resolver = Mock(
-        side_effect=AssertionError("Direct tools do not resolve through the guard")
-    )
-    download = Mock(
-        return_value=SimpleNamespace(content=image, raise_for_status=Mock())
-    )
+    resolver = Mock(side_effect=AssertionError("Direct tools do not resolve through the guard"))
+    download = Mock(return_value=SimpleNamespace(content=image, raise_for_status=Mock()))
     monkeypatch.setattr(source_access.socket, "getaddrinfo", resolver)
     monkeypatch.setattr(module.requests, "get", download)
     assert module._image_part(str(local)).inline_data.data == image
@@ -204,8 +194,6 @@ def test_gemini_sources_are_independent_of_http_source_context(
     download.reset_mock()
     with http_image_sources():
         assert module._image_part(str(local)).inline_data.data == image
-        assert (
-            module._image_part("http://127.0.0.1/image.png").inline_data.data == image
-        )
+        assert module._image_part("http://127.0.0.1/image.png").inline_data.data == image
     download.assert_called_once_with("http://127.0.0.1/image.png", timeout=175)
     resolver.assert_not_called()

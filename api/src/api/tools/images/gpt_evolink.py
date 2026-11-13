@@ -123,9 +123,7 @@ def calculate_custom_size(
     candidates: list[tuple[float, int, int]] = []
 
     for long_edge in range(EDGE_MULTIPLE, MAX_EDGE + EDGE_MULTIPLE, EDGE_MULTIPLE):
-        ideal_short_edge = (
-            long_edge / source_ratio if is_landscape else long_edge * source_ratio
-        )
+        ideal_short_edge = long_edge / source_ratio if is_landscape else long_edge * source_ratio
         short_edges = {
             max(MIN_EDGE, round(ideal_short_edge / EDGE_MULTIPLE) * EDGE_MULTIPLE),
             max(MIN_EDGE, int(ideal_short_edge // EDGE_MULTIPLE) * EDGE_MULTIPLE),
@@ -140,13 +138,8 @@ def calculate_custom_size(
 
             output_ratio = output_width / output_height
             ratio_error = abs(output_ratio - source_ratio) / source_ratio
-            size_error = (
-                abs(max(output_width, output_height) - target_long_edge)
-                / target_long_edge
-            )
-            candidates.append(
-                (ratio_error * 1000 + size_error, output_width, output_height)
-            )
+            size_error = abs(max(output_width, output_height) - target_long_edge) / target_long_edge
+            candidates.append((ratio_error * 1000 + size_error, output_width, output_height))
 
     if not candidates:
         return None
@@ -155,9 +148,7 @@ def calculate_custom_size(
     return f"{output_width}x{output_height}"
 
 
-def normalize_size(
-    size: str | None, resolution: Literal["1K", "2K", "4K"]
-) -> str | None:
+def normalize_size(size: str | None, resolution: Literal["1K", "2K", "4K"]) -> str | None:
     ratio = parse_size_ratio(size)
     if not ratio:
         return None
@@ -194,11 +185,7 @@ def normalize_image_urls(image_urls: str | list[str] | None) -> list[str]:
     if isinstance(image_urls, str):
         if image_urls.startswith("data:"):
             return [image_urls]
-        return [
-            item.strip()
-            for item in image_urls.replace("，", ",").split(",")
-            if item.strip()
-        ]
+        return [item.strip() for item in image_urls.replace("，", ",").split(",") if item.strip()]
     return list(image_urls or [])
 
 

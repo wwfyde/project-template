@@ -44,9 +44,7 @@ async def password_login(
     settings: SettingsDep,
 ) -> AuthSessionResponse:
     await limit_password_attempts(request, payload.username, redis, settings)
-    user = await repository.authenticate(
-        payload.username, payload.password.get_secret_value()
-    )
+    user = await repository.authenticate(payload.username, payload.password.get_secret_value())
     if user is None:
         # Nonexistent, disabled and incorrect credentials have the same answer.
         raise HTTPException(401, "Incorrect username or password")

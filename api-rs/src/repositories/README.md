@@ -1,6 +1,6 @@
 # Repositories
 
-仓储实现按技术组织为 `in_memory`、`sqlx`、`orm` 三个目录。每个目录实现 user、student、todo 三个领域接口，共九个实现；调用方使用领域模型和 `anyhow::Result<T>`，不依赖 ORM entity 或 SQLx row。
+仓储实现按技术组织为 `memory`、`sqlx`、`orm` 三个目录。每个目录实现 user、student、todo 三个领域接口，共九个实现；调用方使用领域模型和 `anyhow::Result<T>`，不依赖 ORM entity 或 SQLx row。
 
 | 领域接口 | 内存实现 | SeaORM 2 实现 | SQLx 0.9 实现 |
 | --- | --- | --- | --- |
@@ -19,7 +19,7 @@ src/
 └── repositories/
     ├── mod.rs               # 导出技术模块及领域模型、接口
     ├── error.rs             # crate 内部错误分类标记，不作为 trait 返回类型
-    ├── in_memory/
+    ├── memory/
     │   ├── mod.rs           # 导出三个 InMemory*Repository
     │   ├── user.rs
     │   ├── student.rs
@@ -38,7 +38,7 @@ src/
     └── README.md
 ```
 
-`models` 只定义数据类型和 trait，仓储方法直接返回 `anyhow::Result<T>`，不定义仓储错误类型或数据库校验逻辑。`repositories` 根模块重新导出用户、学生、待办的领域模型与 trait，以及 `UserQuery`、`UserPage`、`UserSort`；具体实现从 `repositories::in_memory`、`repositories::sqlx`、`repositories::orm` 导入。旧的 `repositories::user`、`repositories::student`、`repositories::todo` 路径已删除，不保留兼容别名。
+用户领域类型、值校验与 trait 定义在 `models`；仓储方法返回 `anyhow::Result<T>`。数据库错误分类与具体驱动留在仓储层，具体实现从 `repositories::memory`、`repositories::sqlx`、`repositories::orm` 导入。`User`、`UserWrite` 与查询类型可从 `models::user` 导入。旧的 `repositories::user`、`repositories::student`、`repositories::todo` 路径已删除，不保留兼容别名。
 
 `repositories/error.rs` 中的 `RepositoryError` 是 `pub(crate)` 的内部分类标记，只有 `NotFound`、`Conflict`、`InvalidInput`，不出现在 trait 签名中，也不作为公开 API 导出。后端将已知驱动错误通过 `anyhow::Error::context(marker)` 添加分类并保留原始来源；未知错误直接通过 anyhow 传播，没有额外的 `Database` 包装。应用服务使用 `downcast_ref::<RepositoryError>()` 判断分类，不匹配错误文本。
 
@@ -49,8 +49,9 @@ src/
 - 三组接口均有 `find_all`、`find_by_id`、`update`、`delete_by_id`。user 新增记录使用 `insert`，已移除旧 `create` 名称；student / todo 保留 `create`。user 另有 `find_many`、`find_by_email`、`save`、`search` 和 `exists_by_id`。`exists_by_id` 返回 `anyhow::Result<bool>`，trait 提供复用 `find_by_id` 的默认实现，当前三个用户仓储均覆盖为存在性检查，避免加载完整用户。
 - `find_all` 按 ID 升序返回；查询不到单条记录返回 `Ok(None)`，更新或删除不存在的记录返回包含 `NotFound` 标记的 anyhow 错误。
 - 唯一键冲突标记为 `Conflict`；无效仓储输入标记为 `InvalidInput`。数据库错误映射分别位于 `orm/mod.rs` 和 `sqlx/mod.rs`，保留底层错误来源。
-- `update` 更新所有可编辑字段，`Option::None` 表示清空该字段，在数据库中写入 SQL NULL；不会修改 ID 或 `created_at`。user / todo 的 `updated_at` 由调用方提供。
-- user 插入需要调用方提供 `UserId(Uuid)` 和时间戳。领域模型的 email 仍为 Option，但数据库列非空，`insert`、`update` 和 `save` 缺失 email 都会产生 `InvalidInput` 标记；该校验由 `repositories` 内部的私有共享 helper 实现，三个后端共用。内存实现同样检查重复 ID 和 email。
+- `update` 更新所有可编辑字段，`Option::None` 表示清空该字段，在数据库中写入 SQL NULL；不会修改 ID 或 `created_at`，用户的数字 UID 也保持不变。user / todo 的 `updated_at` 由调用方提供。
+- user 写入使用 `UserWrite`，需要调用方提供 `UserId(Uuid)` 和时间戳，不接受 UID。创建时分配 UID，保存后返回包含 `Uid` 的 `User`。编辑已有用户使用 `UserWrite::from(&user)`。领域模型的 email 仍为 Option，但数据库列非空，缺失 email 会产生 `InvalidInput` 标记。三个后端均检查重复 ID、email 和非空 username；用户名精确匹配并允许多个 NULL。
+- `nickname` 和 `locale` 参与所有用户读写。语言按 `zh-CN/en-US/ja-JP` 保存；数据库读取不会将非法语言或非正数 UID 转成默认值。内存实现的 UID 计数器与数据放在同一锁内，删除用户后不复用编号。
 - student 创建使用 `NewStudent { name, age }`，由仓储生成 ID，并在返回的 `Student` 中提供该 ID；数据库实现使用自增主键，内存实现自行分配。
 - todo 与现有数据库实体一致：UUID 主键、`completed: Option<bool>`、`created_at` / `updated_at` 均为 UTC 时间。创建时由调用方提供 UUID 和时间戳，不使用整数 ID 兼容转换。
 
@@ -64,7 +65,7 @@ src/
 
 `find_many(&[UserId])` 最多接受 1000 个输入 ID，校验发生在去重之前。空输入返回空列表；重复 ID 只返回一次，缺失 ID 跳过，结果按 ID 升序排列，不保留输入顺序。
 
-`insert(&User)` 只插入新记录，重复主键或 email 返回 `Conflict`。`save(&User)` 明确表示按主键原子 upsert：不存在则插入，已存在则保留原来的 `created_at`，完整替换 email、username、hashed_password、is_active、is_superuser、updated_at。可空字段的 `None` 会清空原值；另一个 ID 已占用 email 时仍返回 `Conflict`。时间戳由调用方提供，仓储不会自动刷新 `updated_at`。数据库实现使用 `INSERT ... ON CONFLICT (id) DO UPDATE`，内存实现在单个写锁内完成检查和写入。
+`insert(&UserWrite)` 只插入新记录，重复主键、email 或非空 username 返回 `Conflict`。`save(&UserWrite)` 明确表示按 UUID 主键原子 upsert：不存在则插入并分配 UID，已存在则保留原来的 UID 与 `created_at`，完整替换 email、username、nickname、locale、hashed_password、is_active、is_superuser、updated_at。可空字段的 `None` 会清空原值；其他用户占用相同邮箱或用户名时仍返回 `Conflict`。时间戳由调用方提供，仓储不会自动刷新 `updated_at`。数据库实现使用 `INSERT ... ON CONFLICT (id) DO UPDATE`，内存实现在单个写锁内完成检查和写入。
 
 这里的 `save` 与 SeaORM `ActiveModel::save` 的语义不同。后者根据主键的 `ActiveValue` 选择操作：`NotSet` 插入，`Set` 或 `Unchanged` 更新；它不会通过查询数据库存在性决定 upsert，给一个不存在的 UUID 设置 `Set` 也会走更新。本项目使用显式冲突处理实现仓储的保存契约。参考：[SeaORM Save](https://www.sea-ql.org/SeaORM/docs/basic-crud/save/)、[SeaORM Insert / On Conflict](https://www.sea-ql.org/SeaORM/docs/basic-crud/insert/)。
 
@@ -96,14 +97,13 @@ src/
 ```rust
 use anyhow::Result;
 use chrono::Utc;
-use crate::repositories::{User, UserPage, UserQuery, UserRepository, UserSort};
+use crate::models::user::{User, UserPage, UserQuery, UserRepository, UserSort, UserWrite};
 
 async fn save_and_search_users(
     repo: &dyn UserRepository,
-    mut user: User,
+    user: User,
 ) -> Result<UserPage> {
-    // user 已包含调用方生成的 ID、非空 email 和时间戳。
-    // 只允许新增的流程使用 repo.insert(&user).await?。
+    let mut user = UserWrite::from(&user);
     user.username = Some("Alice".into());
     user.is_active = Some(true);
     user.is_superuser = Some(false);
@@ -150,7 +150,7 @@ let student = students.create(&NewStudent {
 ```rust
 use std::sync::Arc;
 use crate::repositories::{StudentRepository, TodoRepository, UserRepository};
-use crate::repositories::in_memory::{
+use crate::repositories::memory::{
     InMemoryStudentRepository, InMemoryTodoRepository, InMemoryUserRepository,
 };
 

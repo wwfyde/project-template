@@ -123,9 +123,7 @@ class FakeOAuthProvider:
     def build_authorize_url(self, *, state: str, nonce: str, code_verifier: str) -> str:
         return f"https://identity.example/authorize?{urlencode({'state': state, 'nonce': nonce})}"
 
-    async def authenticate(
-        self, code: str, *, nonce: str, code_verifier: str
-    ) -> ProviderIdentity:
+    async def authenticate(self, code: str, *, nonce: str, code_verifier: str) -> ProviderIdentity:
         self.calls.append((code, nonce, code_verifier))
         if self.fail:
             raise AuthProviderError("External provider unavailable")
@@ -365,9 +363,7 @@ def test_callback_rotates_session_and_returns_csrf_with_trusted_ids(
     assert "access_token" not in payload
     assert "oauth_browser" not in payload
     with TestClient(auth_env.app, base_url="https://testserver") as stale:
-        response = stale.get(
-            PROTECTED_PATH, headers={"Cookie": f"{COOKIE_NAME}={old_id}"}
-        )
+        response = stale.get(PROTECTED_PATH, headers={"Cookie": f"{COOKIE_NAME}={old_id}"})
     assert response.status_code == 401
 
 
@@ -450,9 +446,7 @@ def test_concurrent_callbacks_consume_state_exactly_once(
 def test_unimplemented_or_unknown_provider_has_no_login_entry(
     auth_client: TestClient, auth_env: AuthTestEnvironment, provider_id: str
 ) -> None:
-    response = auth_client.get(
-        f"/api/auth/oauth/{provider_id}/start", follow_redirects=False
-    )
+    response = auth_client.get(f"/api/auth/oauth/{provider_id}/start", follow_redirects=False)
     assert response.status_code == 503
     assert not auth_env.redis.records
     assert not auth_env.store.records
@@ -664,9 +658,7 @@ def test_oauth_storage_failure_cannot_establish_login(
         operation,
         AsyncMock(side_effect=RedisConnectionError("test outage")),
     )
-    path = (
-        "/api/auth/oauth/google/callback" if state else "/api/auth/oauth/google/start"
-    )
+    path = "/api/auth/oauth/google/callback" if state else "/api/auth/oauth/google/start"
     response = auth_client.get(
         path,
         params={"state": state, "code": "code"} if state else {},
@@ -744,9 +736,7 @@ def test_duplicate_identity_and_csrf_headers_are_rejected(
         ("Tenant-ID", TENANT_ID),
         ("Account-ID", TENANT_ID),
     ):
-        response = auth_client.get(
-            PROTECTED_PATH, headers=[(name, value), (name.lower(), value)]
-        )
+        response = auth_client.get(PROTECTED_PATH, headers=[(name, value), (name.lower(), value)])
         assert response.status_code == 403
     response = auth_client.post(
         "/api/auth/logout", headers=[("X-CSRF-Token", token), ("X-CSRF-Token", token)]
@@ -759,9 +749,7 @@ def test_non_ascii_csrf_is_rejected_without_internal_error(
     auth_client: TestClient,
 ) -> None:
     login(auth_client)
-    response = auth_client.post(
-        "/api/auth/logout", headers=[(b"X-CSRF-Token", b"\xff")]
-    )
+    response = auth_client.post("/api/auth/logout", headers=[(b"X-CSRF-Token", b"\xff")])
     assert response.status_code == 403
 
 
@@ -823,9 +811,7 @@ def test_transient_rotation_failure_does_not_later_save_authenticated_session(
     original_write = auth_env.store._write
     calls = 0
 
-    async def fail_once(
-        session_id: str, payload: str, *, idle: int, absolute: int | None
-    ) -> None:
+    async def fail_once(session_id: str, payload: str, *, idle: int, absolute: int | None) -> None:
         nonlocal calls
         calls += 1
         if calls == 1:

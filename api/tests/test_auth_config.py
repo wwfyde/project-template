@@ -39,17 +39,13 @@ def test_oauth_defaults_enable_configured_credentials_only() -> None:
             },
         }
     )
-    availability = {
-        provider.id: provider.enabled for provider in get_auth_providers(config)
-    }
+    availability = {provider.id: provider.enabled for provider in get_auth_providers(config)}
     assert availability["google"] and availability["dingtalk"]
     config.dingtalk.enabled = False
     assert not get_auth_providers(config)[2].enabled
 
 
-def test_original_dingtalk_config_remains_usable_without_retaining_unused_secret() -> (
-    None
-):
+def test_original_dingtalk_config_remains_usable_without_retaining_unused_secret() -> None:
     source = {
         "dingtalk": {
             "client_id": "test-client",
@@ -137,7 +133,5 @@ def test_unknown_and_unimplemented_provider_cannot_be_started() -> None:
         ("assets", "/"),
     ],
 )
-def test_return_path_cannot_escape_application_origin(
-    value: str | None, expected: str
-) -> None:
+def test_return_path_cannot_escape_application_origin(value: str | None, expected: str) -> None:
     assert sanitize_return_to(value) == expected

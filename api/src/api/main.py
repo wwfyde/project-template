@@ -53,6 +53,9 @@ def create_app(lifespan: Callable = lifespan) -> FastAPI:
     app.add_middleware(RequestContextMiddleware, config=settings.request_context)
 
     app.include_router(router, prefix="/api")
+    from api.routes.skills import skills_router
+
+    app.include_router(skills_router, prefix="/v1")
     settings.data_dir.mkdir(parents=True, exist_ok=True)
     app.mount("/api/files", StaticFiles(directory=settings.data_dir), name="files")
 

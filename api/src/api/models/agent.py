@@ -22,23 +22,15 @@ class Agent(Base):
         server_default=text("uuidv7()"),
         comment="ID",
     )
-    name: Mapped[str] = mapped_column(
-        String(32), unique=True, nullable=False, comment="Name"
-    )
+    name: Mapped[str] = mapped_column(String(32), unique=True, nullable=False, comment="Name")
     display_name: Mapped[str | None] = mapped_column(
         String(64), nullable=True, comment="Display name"
     )
-    description: Mapped[str | None] = mapped_column(
-        Text, nullable=True, comment="Description"
-    )
-    avatar_url: Mapped[str | None] = mapped_column(
-        Text, nullable=True, comment="Avatar URL"
-    )
+    description: Mapped[str | None] = mapped_column(Text, nullable=True, comment="Description")
+    avatar_url: Mapped[str | None] = mapped_column(Text, nullable=True, comment="Avatar URL")
     metadata = mapped_column(Text, nullable=True, comment="Metadata")
 
-    api_key_hash: Mapped[str] = mapped_column(
-        String(64), nullable=False, comment="API key hash"
-    )
+    api_key_hash: Mapped[str] = mapped_column(String(64), nullable=False, comment="API key hash")
     claim_token: Mapped[str | None] = mapped_column(
         String(80), nullable=True, comment="Claim token"
     )

@@ -1,11 +1,9 @@
-
-
 from api.main import app
 
 
 def test_main():
     # import uvicorn
-    assert  1 == 2
+    assert 1 == 2
     # uvicorn.run(app=app)
 
 
