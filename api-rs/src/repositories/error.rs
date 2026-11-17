@@ -4,6 +4,8 @@
 pub(crate) enum RepositoryError {
     #[error("record not found")]
     NotFound,
+    #[error("access to this resource is forbidden")]
+    Forbidden,
     #[error("record already exists")]
     Conflict,
     #[error("invalid repository input: {0}")]

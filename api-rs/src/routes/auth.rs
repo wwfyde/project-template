@@ -45,10 +45,7 @@ pub async fn login_for_access_token(
         .auth
         .authenticate_user(&state.db, &form_data.username, &form_data.password)
         .await?;
-    let username = user
-        .username
-        .ok_or_else(|| AuthError::Unauthorized("User has no username".to_string()))?;
-    let access_token = state.auth.create_access_token(&username)?;
+    let access_token = state.auth.create_access_token(user.id)?;
     let expires_in = state.auth.access_token_lifetime_seconds()?;
 
     Ok(Json(Token {

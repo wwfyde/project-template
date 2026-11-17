@@ -7,7 +7,8 @@
 ```sh
 cd api-rs
 cp config.example.toml config.local.toml
-# 修改 config.local.toml 中的数据库连接、API key 和 JWT secret。
+# 修改 config.local.toml 中的数据库、Redis、API key 和 JWT secret。
+# 不使用 Redis 时，在运行命令前设置 REDIS=null。
 cargo run --bin api_rs -- --port 3000
 ```
 
@@ -19,6 +20,8 @@ API_PORT=8000 cargo run --bin api_rs
 
 文档入口为 `/docs`，OpenAPI 为 `/api-docs/openapi.json`，健康检查为 `/health`。Swagger UI 使用 vendored 资源，构建时不再单独从 GitHub 下载前端资源。
 
+`src/main.rs` 负责声明模块和进入 Tokio 运行时，随后调用 `app::run().await`。`src/app.rs` 的 `run` 统一处理命令行参数、配置与依赖初始化、数据库结构同步、服务监听及优雅关闭；`build_app` 仅根据已有 `AppState` 组装路由、中间件和 OpenAPI，便于独立测试。
+
 配置通过 `config + serde` 加载，字段及默认值与 Python `Settings` 对齐。优先级从低到高为字段默认值、TOML、dotenv、进程环境变量。相对文件路径以启动工作目录为基准，建议在 `api-rs/` 中运行。
 
 单字段默认值通过 `Settings::from_config()` 中的 `set_default()` 集中设置，嵌套类型保留各自的 `Default` 实现。常规使用 `load_config()`；代码构造 `config::Config` 时，通过 `Settings::from_config(config)` 应用相同默认值和校验，直接调用 `try_deserialize::<Settings>()` 不会补齐这些加载器默认值。
@@ -29,7 +32,7 @@ TOML 依次读取 `config.toml`、`config.dev.toml`、`config.staging.toml`、`c
 
 `repo_type` 位于顶层，默认 `memory`，枚举还包括 `postgres/mongodb/mysql/redis`；该字段的可接受值不代表 Rust 已提供相应存储实现。PostgreSQL 的 `host/port/username/password/db` 必填，`db` 兼容 `database`，`pool_size` 默认 `30`。当前 Rust 服务仍连接 PostgreSQL；API key、JWT secret 和 token 有效天数通过兼容字段 `app.api_key/app.jwt_secret/app.access_token_expire_days` 提供，启动时校验，没有默认认证密钥。
 
-`redis` 省略时使用默认配置，显式 JSON `null`（例如 `REDIS=null`）表示禁用；TOML 不支持 `null`。`oss/nacos/api_prefix/proxy_url` 与各 LLM 供应商均可省略。供应商别名为 `qwen → dashscope`、`ark → volcengine`、`gemini → google`；每个已配置供应商必须提供 `base_url/api_key/model`。`models` 接受完整的字符串列表或模型对象列表，不接受二者混合。独立 `extra` 配置只从 `config/extra.toml` 读取。
+`redis` 省略时使用默认配置并连接 `localhost:6379`，显式 JSON `null`（例如 `REDIS=null`）表示禁用；TOML 不支持 `null`。启用时，Redis 初始化失败会阻止服务启动。`oss/nacos/api_prefix/proxy_url` 与各 LLM 供应商均可省略。供应商别名为 `qwen → dashscope`、`ark → volcengine`、`gemini → google`；每个已配置供应商必须提供 `base_url/api_key/model`。`models` 接受完整的字符串列表或模型对象列表，不接受二者混合。独立 `extra` 配置只从 `config/extra.toml` 读取。
 
 Rust 加载器明确支持 `REDIS=null` 禁用和 `TOOLS` 环境变量的 JSON 解码；这两项是对 Python 环境变量解析行为的扩展。普通字符串配置和密钥保留原文，包括空串、数字字符串及字面值 `null`。
 
@@ -37,17 +40,65 @@ Rust 加载器明确支持 `REDIS=null` 禁用和 `TOOLS` 环境变量的 JSON �
 
 `repositories` 按 `memory`、`sqlx`、`orm` 三种技术组织，每种技术都实现 user、student、todo，共九个仓储实现。仓储接口直接返回 `anyhow::Result<T>`；领域类型和接口由 `repositories` 根模块重新导出，具体实现从技术模块导入，例如 `repositories::orm::SeaOrmUserRepository`。用户写入采用不含自增 UID 的 `UserWrite`，保存后返回完整 `User`。错误分类和共享校验留在仓储层内部，保留底层错误来源；服务通过类型 downcast 判断已知错误，不匹配错误文本。两种数据库后端可复用同一个 PostgreSQL 连接池；目录、导入示例及契约测试见 [仓储说明](src/repositories/README.md)。
 
+多账户用例另由 `models/account_repository.rs` 定义事务端口，当前提供 `SeaOrmAccountRepository`。`Tenant` 表示个人或组织的计费归属，`Account` 表示 personal 或 workspace 资源空间；同一用户可通过成员关系加入多个账户。两层角色独立，租户管理员不会自动获得所有 Workspace 的资源访问权。
+
+## Redis 异步缓存
+
+单机和哨兵都使用同一个 `CacheConnection`，由 `AppState.cache: Option<CacheConnection>` 持有。部署选择只出现在 `app.rs::run`，两个构造函数返回同一类型：
+
+```rust
+let cache = match config.redis.as_ref() {
+    Some(settings) => Some(if settings.sentinel {
+        CacheConnection::sentinel(settings).await?
+    } else {
+        CacheConnection::standalone(settings).await?
+    }),
+    None => None,
+};
+```
+
+业务代码无需识别部署模式，统一使用 `redis::AsyncCommands`、`Cmd::query_async` 或 pipeline。克隆共享底层长连接，无需外层 `Mutex`：
+
+```rust
+use crate::state::AppState;
+use redis::AsyncCommands;
+
+async fn cache_example(state: &AppState) -> anyhow::Result<Option<String>> {
+    let Some(mut cache) = state.cache.clone() else {
+        return Ok(None);
+    };
+    let _: () = cache.set_ex("demo:greeting", "hello", 60).await?;
+    Ok(cache.get("demo:greeting").await?)
+}
+```
+
+开发环境默认连接单机。生产按 **1 主 2 从 + 3 哨兵** 部署，在 [配置示例](config.example.toml) 中将 `sentinel` 改为 `true`，填写三个 `sentinel_nodes` 和共同的 `sentinel_master_name`。客户端只配置哨兵地址；副本由 Redis 复制和 Sentinel 管理。三个哨兵分别部署在独立故障域，各自的服务端 `sentinel monitor` 设置 quorum 为 `2`。数据连接只选择主节点，不启用读写分离；这不改变 Redis 异步复制的持久性语义。[Redis Sentinel 部署说明](https://redis.io/docs/latest/operate/oss_and_stack/management/sentinel/)
+
+数据节点使用 `username` / `password` / `db`，哨兵使用独立的 `sentinel_username` / `sentinel_password`。哨兵模式不接受 `url`；节点列表支持 TOML 数组、CSV 或 JSON 环境变量，例如：
+
+```sh
+REDIS_SENTINEL=true \
+REDIS_SENTINEL_NODES='sentinel-a:26379,sentinel-b:26379,sentinel-c:26379' \
+REDIS_SENTINEL_MASTER_NAME=mymaster cargo run --bin api_rs
+```
+
+单机内部使用 `ConnectionManager`；哨兵连接在断线或主从切换后重新发现主节点，业务仍持有同一个对象。失败命令返回错误，不自动重放写入。连接和响应超时默认 5 秒，分别由 `socket_connect_timeout`、`socket_timeout` 覆盖；TCP keepalive 在空闲 60 秒后开始探测。设置 `REDIS=null` 可禁用缓存，启用时初始化失败会阻止服务启动。本服务不支持 Redis Cluster。
+
+两种模式均支持 TLS、PEM CA 和 mTLS，具体字段见配置示例。`max_connections` 仅兼容旧配置，不限制多路复用连接数；前缀、TTL、会话及限流字段不由连接层自动执行。实现依据与恢复语义见 [redis-rs v2 说明](docs/redis-v2.md)。
+
 ## SeaORM v2
 
 ### Entity-first 自动同步
 
-独立函数 `core::db::sync_schema(&db).await?` 使用 SeaORM 2 的 `schema-sync`，在一个事务内同步已注册的 11 个业务实体：缺失的表、列、外键会自动创建，唯一键按实体声明对齐。`alembic_version` 等迁移元数据不参与同步。新增实体时，在该函数中追加 `.register(entities::新模块::Entity)`。
+独立函数 `core::db::sync_schema(&db).await?` 使用 SeaORM 2 的 `schema-sync`，在一个事务内同步已注册的 15 个业务实体，包含 `tenant`、`account`、`tenant_member` 与 `account_member`：缺失的表、列、外键会自动创建，唯一键按实体声明对齐。`alembic_version` 等迁移元数据不参与同步。新增实体时，在该函数中追加 `.register(entities::新模块::Entity)`。
 
 `user.id` 保留 UUID 主键；`uid` 为正数 `BIGINT` 自增身份并独立唯一，`username` 也有唯一约束。用户名按精确值比较，允许多个 `NULL`。昵称统一使用可空的 `nickname`；`locale` 非空、默认 `zh-CN`，允许 `zh-CN/en-US/ja-JP`。当前以清库重建后的结构为准，不保留旧昵称字段的迁移或回填逻辑。
 
 同步不会自动删除列、重命名列或修改已有列的类型；这些变更以及需要定制回填的非空字段仍应使用显式迁移。当前启动流程只调用 entity-first 同步，不执行下面的版本迁移。
 
-在空的、可丢弃的 PostgreSQL 数据库验证首次建表、重复同步和用户字段约束：
+当前结构按可重建数据库实现，不提供旧用户的个人租户／账户回填，也不为旧 item 推断账户归属。结构同步只创建约束和表列；新用户注册用例才会原子创建其默认个人空间。
+
+在空的、可丢弃的 PostgreSQL 数据库验证首次建表、重复同步、用户与账户字段约束：
 
 ```sh
 API_RS_SCHEMA_TEST_DATABASE_URL='postgresql://USER:PASSWORD@localhost:5432/api_rs_schema_test' \
@@ -87,7 +138,7 @@ API_RS_MIGRATION_TEST_DATABASE_URL='postgresql://USER:PASSWORD@localhost:5432/ap
 
 ## 初始化与创建用户
 
-启动服务后，使用配置中的 `app.api_key`（或 `APP_API_KEY` 环境变量）调用 `POST /api/users`。首次初始化和后续新建用户使用同一个接口，只需 `X-Api-Key`，无需 JWT。接口返回 `201`；缺少或错误的 API key 返回 `401`，重复邮箱返回 `409`。
+启动服务后，使用配置中的 `app.api_key`（或 `APP_API_KEY` 环境变量）调用 `POST /api/users`。首次初始化和后续新建用户使用同一个接口，只需 `X-Api-Key`，无需 JWT。接口返回 `201`；缺少或错误的 API key 返回 `401`，重复邮箱或用户名返回 `409`。
 
 ```sh
 API_KEY='替换为服务配置中的 API key'
@@ -98,6 +149,8 @@ curl --fail-with-body http://localhost:8000/api/users \
 ```
 
 服务自动生成 UUID `id` 和自增 `uid`，密码通过 bcrypt 加密后保存，响应不包含密码。创建的用户默认启用，`is_superuser=false`；省略昵称和语言时，分别使用 `nickname=NULL` 与 `locale=zh-CN`。这两个字段会持久化并随用户信息返回；UID 不接受客户端指定。API key 是允许创建用户的服务凭据，应由受信任的调用方保管。
+
+注册通过 `AccountService` 在同一事务内创建 User、personal Tenant、personal Account 及两条 owner 成员关系，失败时整体回滚。个人账户不可共享；组织租户可创建多个 Workspace，成员必须同时属于组织及所选账户。
 
 随后通过用户名和密码登录获取 JWT：
 
@@ -116,20 +169,21 @@ curl --fail-with-body http://localhost:8000/api/users/me \
   -H "Authorization: Bearer $TOKEN"
 ```
 
+JWT 的 `sub` 为稳定的用户 UUID；旧版以用户名为 subject 的 token 需要重新登录获取。资源访问时可通过 `X-Account-Id` 选择有权访问的账户，省略则使用自己的 personal account；权限在请求时根据数据库成员关系校验。计费归属的 `tenant_id` 从账户解析，不由客户端独立指定。租户、账户和成员管理的参数与响应继续查看生成的 OpenAPI。
+
 ## 接口变化
 
-- `POST /api/users` 仅要求 `X-Api-Key`；重复邮箱或用户名返回 `409`。`GET /api/users`、`GET /api/users/{id}` 和 `GET /api/users/me` 同时要求 `X-Api-Key` 和 Bearer JWT。已移除错误调用 item 处理器的用户 PUT/DELETE 路由，返回 405。
+- `POST /api/users` 仅要求 `X-Api-Key`；重复邮箱或用户名返回 `409`。用户查询要求 `X-Api-Key` 和 Bearer JWT；列表和按 ID 查询限定为所选账户的成员，`/users/me` 返回登录者身份。已移除错误调用 item 处理器的用户 PUT/DELETE 路由，返回 405。
 - `POST /api/auth/token` 接收 URL encoded username/password，响应的 `expires_in` 是有效秒数。未启用的用户不能登录；内部数据库错误返回 500，不回传错误详情。
-- item 接口要求 `X-Api-Key`。POST 和 PUT 使用独立输入 DTO，必填 `title`、`config`、`owner_id`；`description`、`description2` 可空。客户端不再提交 `id`、`created_at`、`updated_at`，未知字段返回 422。
-- PUT 完整替换可编辑字段，省略或传 null 的描述字段会清空；服务维护 ID、创建时间和更新时间。
+- item 接口要求 `X-Api-Key`、Bearer JWT 和已验证的账户上下文。POST 和 PUT 使用独立输入 DTO，必填 `title`、`config`；`description`、`description2` 可空。客户端不提交 `owner_id`、`account_id`、ID 或时间戳，未知字段返回 422。
+- item 的列表、读取、更新和删除均按账户过滤。PUT 完整替换可编辑字段，省略或传 null 的描述字段会清空；创建者 `owner_id`、账户归属和创建时间保持不变。
 
 ```json
 {
   "title": "示例",
   "description": null,
   "description2": "补充说明",
-  "config": { "enabled": true },
-  "owner_id": "019a0123-4567-7890-abcd-0123456789ab"
+  "config": { "enabled": true }
 }
 ```
 
@@ -146,9 +200,19 @@ cargo clippy -p api_rs --all-targets --locked -- -D warnings
 
 默认回归测试无需本地配置、PostgreSQL 或 Redis：三组 SeaORM 仓储契约使用真实内存 SQLite，三组内存仓储运行相同的 CRUD 契约；HTTP 测试直接调用 Axum Router，覆盖登录与当前用户、item CRUD、JWT、OpenAPI 和 CORS。SQLite 仅作为测试依赖；生产使用 PostgreSQL。SQLx / SeaORM 六个数据库实现另有可显式运行的真实 PostgreSQL 公共契约测试，测试名仍为 `repositories::tests::postgres_repository_contracts`，运行方式见仓储说明。
 
+Redis 真实服务测试需要 Docker 和 `uv`，在工作区根目录运行：
+
+```sh
+bash api-rs/scripts/test-redis.sh
+```
+
+脚本创建临时单机和 1 主 2 从 + 3 哨兵拓扑，验证共享连接断线恢复、哨兵可用性、主节点切换以及失败写入不重放，结束后自动清理。测试不修改已有 Redis 服务，不依赖应用中的 Redis 配置；该脚本尚不覆盖 TLS/mTLS。
+
 ## 架构
 
 文件、资产、文档和知识库的领域对象按上下文组织在 `src/models/`，接口表示位于 `src/schemas/`。领域实体通过构造和行为方法保护不变量，不依赖 ORM 或 HTTP；库入口导出 `models`、`schemas` 和现有 `entities` 供调用及独立验证，服务入口沿用现有模块组织。
+
+用户、租户、账户与成员关系已有应用服务、SeaORM 持久化及访问控制，item 作为现有资源已接入账户隔离。tenant 当前提供计费归属标识，不包含用量计量、账单扣费或支付渠道集成。
 
 对象关系、版本与来源追溯、索引生命周期及拟议单数表映射见[数据模型文档](../docs/data-model.md)，业务用语见[术语表](GLOSSARY.md)。这些新对象目前提供领域规则和 `utoipa` schema，尚未新增文件、资产、文档或知识库的 HTTP CRUD、仓储实现及数据库表；schema 已纳入现有 `/docs` 和 `/api-docs/openapi.json`，接口说明由代码生成。
 

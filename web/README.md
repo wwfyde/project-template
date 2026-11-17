@@ -90,6 +90,37 @@ server {
 
 存储不可用时仍可在当前页面切换。默认外观不写入存储；主题解析会忽略损坏或不支持的存储版本，并为不合法的字段恢复默认值。
 
+## UI 分层与对话导航
+
+新增组件按 `primitive → component/ui → block/widget → feature` 组织：
+
+- `@base-ui/react` 提供无样式 primitive；`src/components/ui/` 封装主题与基础控件。
+- `src/blocks/` 组合可复用的业务界面，不依赖 feature、路由或服务端接口。
+- `src/features/` 负责业务数据、API、页面状态与具体接入；路由仅装配 feature。
+
+`src/blocks/user-message-navigation-rail/` 提供用户消息导航条：紧凑琴键、悬停预览、点击及拖动定位、历史预览加载、书签、键盘快捷键和可见消息高亮。调用方提供稳定 ID 的用户消息索引、数据加载与定位回调；书签持久化、正文留白检测和滚动高亮由 feature 处理。详见 [组件文档](src/blocks/user-message-navigation-rail/README.md)。
+
+登录后访问 `/examples/user-message-navigation-rail`，可查看中英双语演示并测试本地历史加载、书签和拖动；旧示例 URL 自动跳转。
+
+## Agent 页面
+
+登录后访问 `/agent`，或点击主导航的Agent入口。页面使用独立全屏布局：桌面侧栏、手机抽屉、Chat / Task Tabs、共享输入器、当前页面会话与任务步骤。支持新建、标题搜索、示例建议、逐段回复、停止、复制、轮次导航、明暗主题和中英文切换。
+
+输入器plus统一包含上传文件、网页链接、文本资料、技能、模式切换和工具，已移除独立工具按钮。链接／文本／技能引用显示为可移除chip，提交后可在用户消息中展开查看实际内容、URL或技能版本。技能选择调用既有认证API，支持已加载条目搜索、加载更多与错误重试，保存所选技能的默认版本引用。本轮扩展通过162项测试、类型检查、构建和lint命令；lint仍有既有警告，CUA验收范围见下方功能文档。
+
+这是明确标记的交互预览：回复来自 `src/features/agent/infrastructure/preview-transport.ts`，不调用模型、搜索或工具。附件支持选择／粘贴／拖放／移除与校验，最多5个、单个20MiB，只保存名称和大小等元信息，不上传或读取内容。链接／文本／技能合计最多8条；URL只接受HTTP／HTTPS，不自动抓取，技能列表可读不代表技能被执行。没有`@source`／`/command`候选输入、通用资料库、浏览器标签页读取、语音、后台任务队列、生成失败重试或Creative图片／视频执行功能。
+
+Chat / Task分别拥有文本、附件、引用、模型与工具草稿，草稿按模式保存；会话、草稿和预览运行只保留在当前页面内存，刷新重置。切换模式可保留原模式运行；同模式新建或改选另一会话结束原预览。新建清空文本、附件和引用，保留模型／工具选择。仅引用或附件可发送，只有工具选择时不能发送。
+
+每次提交会固定本轮模型、工具及引用快照。Fast、Auto、Thoughtful分别展示简短、适中、追加思考问题的本地示例；已选工具及引用列在回复末尾并注明未实际执行／抓取。它们不是服务端执行能力目录。
+
+- [ChatComposer组件契约](src/blocks/chat-composer/README.md)：受控block，不读取业务API或路由。
+- [Agent设计与实现说明](../docs/agent-design-system.md)：视觉token、分层、交互、验证与后端接入边界。
+- [Agent研究与需求](../docs/agent-page-research.md)：参考出处、现有后端核对与后续能力规划。
+- [输入器动作与上下文](../docs/agent-composer-actions.md)：plus 菜单浏览器证据、上下文引用、能力契约与本轮验收状态。
+
+产品沿用已有Session Cookie认证，没有新增绕过开关。UI自动化使用的session fixture仅限测试浏览器上下文，不能作为部署或登录方式。
+
 ## 使用语义 Token
 
 `src/theme/styles/theme.css` 定义设计系统变量，并通过 Tailwind `@theme inline` 注册对应工具类。页面优先使用语义名称，让所有预设自动生效：

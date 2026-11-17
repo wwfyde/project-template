@@ -232,7 +232,7 @@ impl UserRepository for SeaOrmUserRepository {
     }
 }
 
-fn insert_model(user: &UserWrite) -> Result<ActiveModel> {
+pub(crate) fn insert_model(user: &UserWrite) -> Result<ActiveModel> {
     let email = crate::repositories::required_email(user)?;
     Ok(ActiveModel {
         id: Set(user.id.0),

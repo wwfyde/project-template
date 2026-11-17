@@ -13,6 +13,7 @@ pub struct Model {
     pub description: Option<String>,
     pub description2: Option<String>,
     pub config: Json,
+    pub account_id: Uuid,
     pub owner_id: Uuid,
     pub created_at: DateTimeWithTimeZone,
     pub updated_at: Option<DateTimeWithTimeZone>,
@@ -21,9 +22,17 @@ pub struct Model {
         from = "owner_id",
         to = "id",
         on_update = "NoAction",
-        on_delete = "Cascade"
+        on_delete = "Restrict"
     )]
     pub user: BelongsTo<super::user::Entity>,
+    #[sea_orm(
+        belongs_to,
+        from = "account_id",
+        to = "id",
+        on_update = "NoAction",
+        on_delete = "Cascade"
+    )]
+    pub account: BelongsTo<super::account::Entity>,
 }
 
 impl ActiveModelBehavior for ActiveModel {}

@@ -35,5 +35,6 @@
       "version": "24.22.1",
       "onFail": "download"
     }
-  }
+  },
+  "devDependencies": {}
 }

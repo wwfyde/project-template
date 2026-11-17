@@ -2,6 +2,8 @@
 
 pub mod prelude;
 
+pub mod account;
+pub mod account_member;
 pub mod alembic_version;
 pub mod author;
 pub mod book;
@@ -12,5 +14,7 @@ pub mod llm;
 pub mod order;
 pub mod student;
 pub mod student_course;
+pub mod tenant;
+pub mod tenant_member;
 pub mod todo;
 pub mod user;

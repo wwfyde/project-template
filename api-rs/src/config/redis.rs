@@ -1,6 +1,8 @@
-use anyhow::{Result, ensure};
+use anyhow::{Context, Result, ensure};
 use percent_encoding::{AsciiSet, NON_ALPHANUMERIC, utf8_percent_encode};
 use serde::{Deserialize, Deserializer, de};
+use std::net::Ipv6Addr;
+use std::time::Duration;
 
 use super::SecretString;
 
@@ -38,6 +40,7 @@ pub struct RedisConfig {
     pub max_connections: Option<u64>,
     pub socket_timeout: Option<f64>,
     pub socket_connect_timeout: Option<f64>,
+    // 兼容旧配置输入；启用 Cluster 时明确拒绝，避免静默切换为单机。
     pub cluster: bool,
     pub sentinel: bool,
     pub sentinel_master_name: String,
@@ -131,12 +134,12 @@ impl RedisConfig {
             ("socket_connect_timeout", self.socket_connect_timeout),
         ] {
             ensure!(
-                timeout.is_none_or(|value| value >= 0.0),
-                "redis.{name} must be nonnegative"
+                timeout.is_none_or(|value| Duration::try_from_secs_f64(value).is_ok()),
+                "redis.{name} must be a finite, nonnegative, representable duration"
             );
         }
         ensure!(
-            !self.sentinel_master_name.is_empty(),
+            !self.sentinel_master_name.trim().is_empty(),
             "redis.sentinel_master_name must not be empty"
         );
         ensure!(
@@ -176,11 +179,11 @@ impl RedisConfig {
                 "redis.session_cookie_domain must contain only letters, digits, '-' and '.'"
             );
         }
+        ensure!(
+            !self.cluster,
+            "redis.cluster is not supported; use standalone or sentinel mode"
+        );
         if self.sentinel {
-            ensure!(
-                !self.cluster,
-                "redis.sentinel and redis.cluster are mutually exclusive"
-            );
             ensure!(
                 self.url.is_none(),
                 "redis.url is not supported in sentinel mode"
@@ -232,21 +235,44 @@ impl RedisConfig {
         self.sentinel_nodes
             .iter()
             .map(|node| {
-                let (host, port) = match node.rsplit_once(':') {
-                    Some((host, port)) => (
-                        host,
-                        port.bytes()
-                            .all(|byte| byte.is_ascii_digit())
-                            .then(|| port.parse::<u16>().ok())
-                            .flatten(),
-                    ),
-                    None => (node.as_str(), Some(DEFAULT_SENTINEL_PORT)),
+                let invalid = "invalid redis sentinel node; expected host[:port] or [IPv6][:port] with port between 1 and 65535";
+                let node = node.trim();
+                let (host, port) = if let Some(address) = node.strip_prefix('[') {
+                    let (host, suffix) = address.split_once(']').context(invalid)?;
+                    ensure!(host.parse::<Ipv6Addr>().is_ok(), "{invalid}");
+                    let port = if suffix.is_empty() {
+                        None
+                    } else {
+                        Some(suffix.strip_prefix(':').context(invalid)?)
+                    };
+                    (host, port)
+                } else {
+                    ensure!(
+                        !node.contains(['[', ']']) && node.matches(':').count() <= 1,
+                        "{invalid}"
+                    );
+                    match node.split_once(':') {
+                        Some((host, port)) => (host, Some(port)),
+                        None => (node, None),
+                    }
                 };
                 ensure!(
-                    !host.is_empty() && port.is_some_and(|value| value > 0),
-                    "invalid redis sentinel node; expected host or host:port with port between 1 and 65535"
+                    !host.is_empty() && !host.chars().any(char::is_whitespace),
+                    "{invalid}"
                 );
-                Ok((host.to_owned(), port.unwrap_or(DEFAULT_SENTINEL_PORT)))
+                let port = match port {
+                    Some(port) => {
+                        ensure!(
+                            !port.is_empty() && port.bytes().all(|byte| byte.is_ascii_digit()),
+                            "{invalid}"
+                        );
+                        let port = port.parse::<u16>().context(invalid)?;
+                        ensure!(port > 0, "{invalid}");
+                        port
+                    }
+                    None => DEFAULT_SENTINEL_PORT,
+                };
+                Ok((host.to_owned(), port))
             })
             .collect()
     }
@@ -362,9 +388,90 @@ mod tests {
     }
 
     #[test]
+    fn legacy_cluster_mode_is_rejected_instead_of_using_standalone() {
+        let redis: RedisConfig = serde_json::from_value(json!({ "cluster": true })).unwrap();
+        assert!(
+            redis
+                .validate()
+                .unwrap_err()
+                .to_string()
+                .contains("redis.cluster is not supported")
+        );
+        RedisConfig {
+            db: 2,
+            ..Default::default()
+        }
+        .validate()
+        .unwrap();
+    }
+
+    #[test]
+    fn sentinel_addresses_support_bracketed_ipv6_with_optional_ports() {
+        let redis: RedisConfig = serde_json::from_value(json!({
+            "sentinel": true,
+            "sentinel_nodes": "[::1], [2001:db8::1]:26380, redis-a:26381",
+        }))
+        .unwrap();
+        redis.validate().unwrap();
+        assert_eq!(
+            redis.sentinel_addresses().unwrap(),
+            [
+                ("::1".into(), 26379),
+                ("2001:db8::1".into(), 26380),
+                ("redis-a".into(), 26381),
+            ]
+        );
+        for node in [
+            "::1",
+            "::1:26379",
+            "[::1",
+            "[::1]26379",
+            "[::1]:",
+            "[::1]:0",
+            "[::1]:65536",
+            "[redis-a]",
+            "redis a",
+        ] {
+            let redis = RedisConfig {
+                sentinel: true,
+                sentinel_nodes: vec![node.into()],
+                ..Default::default()
+            };
+            assert!(redis.validate().is_err(), "accepted {node}");
+        }
+    }
+
+    #[test]
+    fn timeouts_reject_nonfinite_or_unrepresentable_durations() {
+        for timeout in [f64::INFINITY, f64::NEG_INFINITY, f64::NAN, f64::MAX] {
+            for redis in [
+                RedisConfig {
+                    socket_timeout: Some(timeout),
+                    ..Default::default()
+                },
+                RedisConfig {
+                    socket_connect_timeout: Some(timeout),
+                    ..Default::default()
+                },
+            ] {
+                assert!(redis.validate().is_err());
+            }
+        }
+        RedisConfig {
+            socket_timeout: Some(0.0),
+            socket_connect_timeout: Some(0.25),
+            ..Default::default()
+        }
+        .validate()
+        .unwrap();
+    }
+
+    #[test]
     fn rejects_invalid_sentinel_cookie_and_numeric_configuration() {
         for invalid in [
+            json!({"cluster": true, "db": 1}),
             json!({"sentinel": true}),
+            json!({"sentinel": true, "sentinel_nodes": ["redis"], "sentinel_master_name": " "}),
             json!({"sentinel": true, "sentinel_nodes": ["redis"], "cluster": true}),
             json!({"sentinel": true, "sentinel_nodes": ["redis"], "url": ""}),
             json!({"sentinel": true, "sentinel_nodes": ["redis:0"]}),

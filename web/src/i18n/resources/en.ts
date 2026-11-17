@@ -15,6 +15,7 @@ export const en = {
   navigation: {
     primaryLabel: 'Primary navigation',
     home: 'Home',
+    agent: 'Agent',
     about: 'About',
     account: 'Account & security',
     admin: 'Admin',
@@ -27,6 +28,7 @@ export const en = {
     overview: 'Overview',
     radix: 'Radix',
     radixTheme: 'Theme components',
+    userMessageNavigationRail: 'User message navigation rail',
   },
   auth: {
     title: 'Sign in',

@@ -15,6 +15,7 @@ import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedAboutRouteImport } from './routes/_authenticated/about'
 import { Route as AuthenticatedAccountRouteImport } from './routes/_authenticated/account'
 import { Route as AuthenticatedAdminRouteRouteImport } from './routes/_authenticated/admin/route'
+import { Route as AuthenticatedAgentRouteImport } from './routes/_authenticated/agent'
 import { Route as AuthenticatedAssetsRouteRouteImport } from './routes/_authenticated/assets/route'
 import { Route as AuthenticatedExamplesRouteRouteImport } from './routes/_authenticated/examples/route'
 import { Route as AuthenticatedSkillsRouteImport } from './routes/_authenticated/skills'
@@ -22,6 +23,8 @@ import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authentic
 import { Route as AuthenticatedAdminDashboardRouteImport } from './routes/_authenticated/admin/dashboard'
 import { Route as AuthenticatedAssetsIndexRouteImport } from './routes/_authenticated/assets/index'
 import { Route as AuthenticatedExamplesIndexRouteImport } from './routes/_authenticated/examples/index'
+import { Route as AuthenticatedExamplesConversationNavigatorRouteImport } from './routes/_authenticated/examples/conversation-navigator'
+import { Route as AuthenticatedExamplesUserMessageNavigationRailRouteImport } from './routes/_authenticated/examples/user-message-navigation-rail'
 import { Route as AuthenticatedExamplesRadixIndexRouteImport } from './routes/_authenticated/examples/radix/index'
 import { Route as AuthenticatedExamplesRadixThemeRouteImport } from './routes/_authenticated/examples/radix/theme'
 
@@ -52,6 +55,11 @@ const AuthenticatedAccountRoute = AuthenticatedAccountRouteImport.update({
 const AuthenticatedAdminRouteRoute = AuthenticatedAdminRouteRouteImport.update({
   id: '/admin',
   path: '/admin',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedAgentRoute = AuthenticatedAgentRouteImport.update({
+  id: '/agent',
+  path: '/agent',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedAssetsRouteRoute =
@@ -94,6 +102,18 @@ const AuthenticatedExamplesIndexRoute =
     path: '/',
     getParentRoute: () => AuthenticatedExamplesRouteRoute,
   } as any)
+const AuthenticatedExamplesConversationNavigatorRoute =
+  AuthenticatedExamplesConversationNavigatorRouteImport.update({
+    id: '/conversation-navigator',
+    path: '/conversation-navigator',
+    getParentRoute: () => AuthenticatedExamplesRouteRoute,
+  } as any)
+const AuthenticatedExamplesUserMessageNavigationRailRoute =
+  AuthenticatedExamplesUserMessageNavigationRailRouteImport.update({
+    id: '/user-message-navigation-rail',
+    path: '/user-message-navigation-rail',
+    getParentRoute: () => AuthenticatedExamplesRouteRoute,
+  } as any)
 const AuthenticatedExamplesRadixIndexRoute =
   AuthenticatedExamplesRadixIndexRouteImport.update({
     id: '/radix/',
@@ -115,8 +135,11 @@ export interface FileRoutesByFullPath {
   '/examples': typeof AuthenticatedExamplesRouteRouteWithChildren
   '/about': typeof AuthenticatedAboutRoute
   '/account': typeof AuthenticatedAccountRoute
+  '/agent': typeof AuthenticatedAgentRoute
   '/skills': typeof AuthenticatedSkillsRoute
   '/admin/dashboard': typeof AuthenticatedAdminDashboardRoute
+  '/examples/conversation-navigator': typeof AuthenticatedExamplesConversationNavigatorRoute
+  '/examples/user-message-navigation-rail': typeof AuthenticatedExamplesUserMessageNavigationRailRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/assets/': typeof AuthenticatedAssetsIndexRoute
   '/examples/': typeof AuthenticatedExamplesIndexRoute
@@ -127,9 +150,12 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/about': typeof AuthenticatedAboutRoute
   '/account': typeof AuthenticatedAccountRoute
+  '/agent': typeof AuthenticatedAgentRoute
   '/skills': typeof AuthenticatedSkillsRoute
   '/': typeof AuthenticatedIndexRoute
   '/admin/dashboard': typeof AuthenticatedAdminDashboardRoute
+  '/examples/conversation-navigator': typeof AuthenticatedExamplesConversationNavigatorRoute
+  '/examples/user-message-navigation-rail': typeof AuthenticatedExamplesUserMessageNavigationRailRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/assets': typeof AuthenticatedAssetsIndexRoute
   '/examples': typeof AuthenticatedExamplesIndexRoute
@@ -145,9 +171,12 @@ export interface FileRoutesById {
   '/_authenticated/examples': typeof AuthenticatedExamplesRouteRouteWithChildren
   '/_authenticated/about': typeof AuthenticatedAboutRoute
   '/_authenticated/account': typeof AuthenticatedAccountRoute
+  '/_authenticated/agent': typeof AuthenticatedAgentRoute
   '/_authenticated/skills': typeof AuthenticatedSkillsRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/admin/dashboard': typeof AuthenticatedAdminDashboardRoute
+  '/_authenticated/examples/conversation-navigator': typeof AuthenticatedExamplesConversationNavigatorRoute
+  '/_authenticated/examples/user-message-navigation-rail': typeof AuthenticatedExamplesUserMessageNavigationRailRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/assets/': typeof AuthenticatedAssetsIndexRoute
   '/_authenticated/examples/': typeof AuthenticatedExamplesIndexRoute
@@ -164,8 +193,11 @@ export interface FileRouteTypes {
     | '/examples'
     | '/about'
     | '/account'
+    | '/agent'
     | '/skills'
     | '/admin/dashboard'
+    | '/examples/conversation-navigator'
+    | '/examples/user-message-navigation-rail'
     | '/admin/'
     | '/assets/'
     | '/examples/'
@@ -176,9 +208,12 @@ export interface FileRouteTypes {
     | '/login'
     | '/about'
     | '/account'
+    | '/agent'
     | '/skills'
     | '/'
     | '/admin/dashboard'
+    | '/examples/conversation-navigator'
+    | '/examples/user-message-navigation-rail'
     | '/admin'
     | '/assets'
     | '/examples'
@@ -193,9 +228,12 @@ export interface FileRouteTypes {
     | '/_authenticated/examples'
     | '/_authenticated/about'
     | '/_authenticated/account'
+    | '/_authenticated/agent'
     | '/_authenticated/skills'
     | '/_authenticated/'
     | '/_authenticated/admin/dashboard'
+    | '/_authenticated/examples/conversation-navigator'
+    | '/_authenticated/examples/user-message-navigation-rail'
     | '/_authenticated/admin/'
     | '/_authenticated/assets/'
     | '/_authenticated/examples/'
@@ -252,6 +290,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminRouteRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/agent': {
+      id: '/_authenticated/agent'
+      path: '/agent'
+      fullPath: '/agent'
+      preLoaderRoute: typeof AuthenticatedAgentRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/assets': {
       id: '/_authenticated/assets'
       path: '/assets'
@@ -299,6 +344,20 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/examples/'
       preLoaderRoute: typeof AuthenticatedExamplesIndexRouteImport
+      parentRoute: typeof AuthenticatedExamplesRouteRoute
+    }
+    '/_authenticated/examples/conversation-navigator': {
+      id: '/_authenticated/examples/conversation-navigator'
+      path: '/conversation-navigator'
+      fullPath: '/examples/conversation-navigator'
+      preLoaderRoute: typeof AuthenticatedExamplesConversationNavigatorRouteImport
+      parentRoute: typeof AuthenticatedExamplesRouteRoute
+    }
+    '/_authenticated/examples/user-message-navigation-rail': {
+      id: '/_authenticated/examples/user-message-navigation-rail'
+      path: '/user-message-navigation-rail'
+      fullPath: '/examples/user-message-navigation-rail'
+      preLoaderRoute: typeof AuthenticatedExamplesUserMessageNavigationRailRouteImport
       parentRoute: typeof AuthenticatedExamplesRouteRoute
     }
     '/_authenticated/examples/radix/': {
@@ -349,6 +408,8 @@ const AuthenticatedAssetsRouteRouteWithChildren =
   )
 
 interface AuthenticatedExamplesRouteRouteChildren {
+  AuthenticatedExamplesConversationNavigatorRoute: typeof AuthenticatedExamplesConversationNavigatorRoute
+  AuthenticatedExamplesUserMessageNavigationRailRoute: typeof AuthenticatedExamplesUserMessageNavigationRailRoute
   AuthenticatedExamplesIndexRoute: typeof AuthenticatedExamplesIndexRoute
   AuthenticatedExamplesRadixThemeRoute: typeof AuthenticatedExamplesRadixThemeRoute
   AuthenticatedExamplesRadixIndexRoute: typeof AuthenticatedExamplesRadixIndexRoute
@@ -356,6 +417,10 @@ interface AuthenticatedExamplesRouteRouteChildren {
 
 const AuthenticatedExamplesRouteRouteChildren: AuthenticatedExamplesRouteRouteChildren =
   {
+    AuthenticatedExamplesConversationNavigatorRoute:
+      AuthenticatedExamplesConversationNavigatorRoute,
+    AuthenticatedExamplesUserMessageNavigationRailRoute:
+      AuthenticatedExamplesUserMessageNavigationRailRoute,
     AuthenticatedExamplesIndexRoute: AuthenticatedExamplesIndexRoute,
     AuthenticatedExamplesRadixThemeRoute: AuthenticatedExamplesRadixThemeRoute,
     AuthenticatedExamplesRadixIndexRoute: AuthenticatedExamplesRadixIndexRoute,
@@ -372,6 +437,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedExamplesRouteRoute: typeof AuthenticatedExamplesRouteRouteWithChildren
   AuthenticatedAboutRoute: typeof AuthenticatedAboutRoute
   AuthenticatedAccountRoute: typeof AuthenticatedAccountRoute
+  AuthenticatedAgentRoute: typeof AuthenticatedAgentRoute
   AuthenticatedSkillsRoute: typeof AuthenticatedSkillsRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
 }
@@ -382,6 +448,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedExamplesRouteRoute: AuthenticatedExamplesRouteRouteWithChildren,
   AuthenticatedAboutRoute: AuthenticatedAboutRoute,
   AuthenticatedAccountRoute: AuthenticatedAccountRoute,
+  AuthenticatedAgentRoute: AuthenticatedAgentRoute,
   AuthenticatedSkillsRoute: AuthenticatedSkillsRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
 }

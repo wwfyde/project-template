@@ -24,12 +24,40 @@ password = "postgres"
 db = "postgres"
 pool_size = 30
 
-# 省略整个 redis 表时也使用 Redis 默认配置；REDIS=null 可显式禁用。
+# 默认单机用于开发；不使用 Redis 时设置环境变量 REDIS=null。
+# 启用后连接失败会阻止启动。省略整个 redis 表时连接 localhost:6379。
 [redis]
 host = "127.0.0.1"
 port = 6379
-password = ""
 db = 0
+# username = "default"
+password = ""
+# 单机可改用完整 URL；非空 URL 优先于 host/port/username/password/db/ssl。
+# url = "redis://default:replace-with-password@127.0.0.1:6379/0"
+
+# 生产：1 主 2 从 + 3 哨兵。只将 sentinel 改为 true 并填写下列地址即可，业务代码不变。
+# 三个 Sentinel 服务端分别设置：sentinel monitor mymaster <初始主节点地址> 6379 2
+# 客户端不配置副本地址，不执行读写分离；哨兵模式不能同时配置 url。
+sentinel = false
+sentinel_master_name = "mymaster"
+sentinel_nodes = ["sentinel-a:26379", "sentinel-b:26379", "sentinel-c:26379"]
+# sentinel_username = "default"
+# sentinel_password = "replace-with-sentinel-password"
+# 上面的 username/password/db 用于 Redis 数据节点，与哨兵认证分开。
+
+# 秒，支持小数；省略时默认 5 秒。TCP keepalive 默认启用。
+socket_connect_timeout = 5.0
+socket_timeout = 5.0
+
+# TLS：单机完整 URL 使用 rediss://；host/port 和哨兵使用 ssl=true。
+# 哨兵与数据节点共用 TLS 设置；证书和私钥必须成对配置。
+ssl = false
+ssl_check_hostname = true
+# ssl_ca_certs = "certs/redis-ca.pem"
+# ssl_certfile = "certs/redis-client.pem"
+# ssl_keyfile = "certs/redis-client-key.pem"
+
+# 以下为业务默认值，连接层不会自动维护会话或设置 key 前缀、TTL。
 session_cookie_name = "project_template_session"
 session_fail_closed = true
 

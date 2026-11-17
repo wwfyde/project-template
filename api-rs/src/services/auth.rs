@@ -7,6 +7,7 @@ use chrono::{Duration, Utc};
 use jsonwebtoken::{EncodingKey, Header, encode};
 use sea_orm::{DatabaseConnection, EntityTrait, QueryFilter};
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 #[derive(Clone)]
 pub struct AuthService {
@@ -66,6 +67,18 @@ impl AuthService {
         active_user(user)
     }
 
+    pub async fn active_user_by_id(
+        &self,
+        db: &DatabaseConnection,
+        user_id: Uuid,
+    ) -> Result<user::Model, AuthError> {
+        let user = User::find_by_id(user_id).one(db).await.map_err(|error| {
+            tracing::error!(%error, "failed to look up authenticated user");
+            AuthError::InternalServerError
+        })?;
+        active_user(user)
+    }
+
     pub async fn authenticate_user(
         &self,
         db: &DatabaseConnection,
@@ -99,7 +112,7 @@ impl AuthService {
             .ok_or(AuthError::InternalServerError)
     }
 
-    pub fn create_access_token(&self, username: &str) -> Result<String, AuthError> {
+    pub fn create_access_token(&self, user_id: Uuid) -> Result<String, AuthError> {
         let lifetime = self.access_token_lifetime_seconds()?;
         let expiration = Duration::try_seconds(lifetime)
             .and_then(|duration| Utc::now().checked_add_signed(duration))
@@ -107,7 +120,7 @@ impl AuthService {
             .ok_or(AuthError::InternalServerError)?;
 
         let claims = Claims {
-            sub: username.to_owned(),
+            sub: user_id.to_string(),
             exp: expiration,
         };
 
@@ -161,13 +174,14 @@ mod tests {
         let service = auth_service(2);
         assert_eq!(service.access_token_lifetime_seconds().ok(), Some(172_800));
         let before = Utc::now().timestamp() as usize;
+        let user_id = Uuid::now_v7();
         let token = service
-            .create_access_token("alice")
+            .create_access_token(user_id)
             .unwrap_or_else(|_| panic!("create token"));
         let claims = service
             .verify_access_token(&token)
             .unwrap_or_else(|_| panic!("verify token"));
-        assert_eq!(claims.sub, "alice");
+        assert_eq!(claims.sub, user_id.to_string());
         assert!(
             (before + 172_800..=Utc::now().timestamp() as usize + 172_800).contains(&claims.exp)
         );
@@ -176,7 +190,11 @@ mod tests {
     #[test]
     fn invalid_lifetimes_are_rejected_without_panicking() {
         for days in [0, -1, i64::MAX, i64::MAX / 86_400] {
-            assert!(auth_service(days).create_access_token("alice").is_err());
+            assert!(
+                auth_service(days)
+                    .create_access_token(Uuid::now_v7())
+                    .is_err()
+            );
         }
     }
 
@@ -187,7 +205,7 @@ mod tests {
         let expired = encode(
             &Header::default(),
             &Claims {
-                sub: "alice".to_string(),
+                sub: Uuid::now_v7().to_string(),
                 exp: (Utc::now().timestamp() - 120) as usize,
             },
             &EncodingKey::from_secret(service.jwt_secret.as_bytes()),
@@ -200,7 +218,7 @@ mod tests {
             1,
         );
         let token = service
-            .create_access_token("alice")
+            .create_access_token(Uuid::now_v7())
             .unwrap_or_else(|_| panic!("create token"));
         assert!(other_service.verify_access_token(&token).is_err());
     }

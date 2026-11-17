@@ -1,7 +1,9 @@
+pub mod account;
 pub mod student;
 pub mod todo;
 pub mod user;
 
+pub use account::SeaOrmAccountRepository;
 pub use student::SeaOrmStudentRepository;
 pub use todo::SeaOrmTodoRepository;
 pub use user::SeaOrmUserRepository;

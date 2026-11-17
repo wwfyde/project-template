@@ -12,7 +12,10 @@ function ExampleLayout() {
 
   return (
     <div className="space-y-6">
-      <nav aria-label={t('examplesLabel')} className="flex flex-wrap gap-2 border-b border-border pb-4">
+      <nav
+        aria-label={t('examplesLabel')}
+        className="flex flex-wrap gap-2 border-b border-border pb-4"
+      >
         <Link to="/examples" activeOptions={{ exact: true }} className={linkClassName}>
           {t('overview')}
         </Link>
@@ -21,6 +24,9 @@ function ExampleLayout() {
         </Link>
         <Link to="/examples/radix/theme" className={linkClassName}>
           {t('radixTheme')}
+        </Link>
+        <Link to="/examples/user-message-navigation-rail" className={linkClassName}>
+          {t('userMessageNavigationRail')}
         </Link>
       </nav>
       <Outlet />

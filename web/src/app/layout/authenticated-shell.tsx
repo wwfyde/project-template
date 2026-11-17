@@ -16,6 +16,7 @@ export function AuthenticatedShell() {
   const [logoutFailed, setLogoutFailed] = useState(false)
   const links = [
     { to: '/', label: 'home' },
+    { to: '/agent', label: 'agent' },
     { to: '/admin', label: 'admin' },
     { to: '/assets', label: 'assets' },
     { to: '/skills', label: 'skills' },
@@ -39,6 +40,11 @@ export function AuthenticatedShell() {
 
   if (auth.status !== 'authenticated') {
     return <Navigate to="/login" search={{ redirect: normalizeReturnTo(location.href) }} replace />
+  }
+
+  // The agent workspace owns its full-height navigation and transcript layout.
+  if (location.pathname === '/agent' || location.pathname === '/agent/') {
+    return <Outlet />
   }
 
   return (

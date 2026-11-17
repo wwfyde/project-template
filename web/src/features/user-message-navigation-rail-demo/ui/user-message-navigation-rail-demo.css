@@ -1,0 +1,57 @@
+.user-message-rail-demo {
+  min-width: 0;
+}
+.user-message-rail-demo-body {
+  position: relative;
+  height: 36rem;
+  max-height: 72vh;
+  min-height: 20rem;
+}
+.user-message-rail-demo-scroll {
+  height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  overflow-anchor: none;
+  padding-inline: 1.5rem;
+}
+.user-message-rail-demo-scroll:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: -2px;
+}
+.user-message-rail-demo-messages {
+  max-width: 42rem;
+  margin-inline: auto;
+  padding-block: 1.5rem;
+}
+.user-message-rail-demo-turn {
+  padding-block: 0.5rem 1.5rem;
+  overflow-wrap: anywhere;
+}
+.user-message-rail-demo-turn + .user-message-rail-demo-turn {
+  border-top: 1px solid var(--border);
+  padding-top: 2rem;
+}
+.user-message-rail-demo-question {
+  border-radius: var(--radius);
+  background: var(--muted);
+  padding: 1rem 1.25rem;
+}
+.user-message-rail-demo-question[data-navigation-highlight='true'] {
+  background: color-mix(in oklch, var(--primary) 16%, var(--muted));
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+.user-message-rail-demo-navigation {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+}
+@media (max-width: 480px) {
+  .user-message-rail-demo-scroll {
+    padding-inline: 0.75rem;
+  }
+  .user-message-rail-demo-question {
+    padding: 0.75rem;
+  }
+}

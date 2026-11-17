@@ -18,7 +18,7 @@ mod tests {
     use crate::services::auth::AuthService;
     use axum::body::{Body, to_bytes};
     use axum::http::{Method, Request, StatusCode, header};
-    use sea_orm::{ConnectOptions, ConnectionTrait, Database, EntityTrait};
+    use sea_orm::{ConnectOptions, Database, EntityTrait};
     use serde_json::{Value, json};
     use tower::ServiceExt;
     use uuid::Uuid;
@@ -31,6 +31,8 @@ mod tests {
             .expect("lazy database connection");
         user_routes().with_state(Arc::new(AppState {
             db: Arc::new(db),
+            http: reqwest::Client::new(),
+            cache: None,
             auth: Arc::new(AuthService::new(
                 "test-api-key".to_string(),
                 "test-jwt-secret-with-at-least-32-characters".to_string(),
@@ -40,19 +42,11 @@ mod tests {
     }
 
     async fn database_app() -> (Router, Arc<AppState>) {
-        let mut options = ConnectOptions::new("sqlite::memory:");
-        options.max_connections(1);
-        let db = Database::connect(options).await.unwrap();
-        db.execute_unprepared("ATTACH DATABASE ':memory:' AS public")
-            .await
-            .unwrap();
-        db.execute(&crate::repositories::orm::user::user_table_for_tests(
-            db.get_database_backend(),
-        ))
-        .await
-        .unwrap();
+        let db = crate::test_support::database().await;
         let state = Arc::new(AppState {
-            db: Arc::new(db),
+            db,
+            http: reqwest::Client::new(),
+            cache: None,
             auth: Arc::new(AuthService::new(
                 "test-api-key".to_string(),
                 "test-jwt-secret-with-at-least-32-characters".to_string(),
@@ -91,7 +85,7 @@ mod tests {
     #[tokio::test]
     async fn create_user_requires_a_valid_api_key_even_with_a_bearer_token() {
         let (app, state) = database_app().await;
-        let token = state.auth.create_access_token("alice").unwrap();
+        let token = state.auth.create_access_token(Uuid::now_v7()).unwrap();
         for api_key in [None, Some(""), Some("wrong-key")] {
             for bearer in [None, Some(token.as_str())] {
                 let mut request = Request::builder()

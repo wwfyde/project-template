@@ -15,6 +15,7 @@ export const zhCN = {
   navigation: {
     primaryLabel: '主导航',
     home: '首页',
+    agent: 'Agent',
     about: '关于',
     account: '账号与安全',
     admin: '管理',
@@ -27,6 +28,7 @@ export const zhCN = {
     overview: '概览',
     radix: 'Radix',
     radixTheme: '主题组件',
+    userMessageNavigationRail: '用户消息导航条',
   },
   auth: {
     title: '登录',

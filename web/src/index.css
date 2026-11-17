@@ -1,6 +1,7 @@
 @import 'tailwindcss';
 @import '@radix-ui/themes/styles.css';
 @import './theme/styles/theme.css';
+@import './theme/styles/agent.css';
 
 @layer base {
   * {

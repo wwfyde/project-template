@@ -281,6 +281,32 @@ fn environment_only_configuration_supports_python_names_and_json() {
 }
 
 #[test]
+fn redis_sentinel_nodes_environment_supports_arrays_and_csv() {
+    let directory = ConfigDirectory::new();
+    directory.write_database();
+    for nodes in [
+        r#"["[::1]", "[2001:db8::1]:26380", "sentinel-c:26379"]"#,
+        "[::1], [2001:db8::1]:26380, sentinel-c:26379",
+    ] {
+        let redis = directory
+            .load(&[("REDIS_SENTINEL", "true"), ("REDIS_SENTINEL_NODES", nodes)])
+            .unwrap()
+            .redis
+            .unwrap();
+        assert!(redis.sentinel);
+        assert_eq!(
+            redis.sentinel_addresses().unwrap(),
+            [
+                ("::1".into(), 26379),
+                ("2001:db8::1".into(), 26380),
+                ("sentinel-c".into(), 26379)
+            ]
+        );
+    }
+    assert!(directory.load(&[("REDIS_CLUSTER", "true")]).is_err());
+}
+
+#[test]
 fn loader_preserves_source_order_shallow_toml_tables_and_separate_extra() {
     let directory = ConfigDirectory::new();
     directory.write_database();

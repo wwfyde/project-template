@@ -21,8 +21,8 @@ impl UserService {
         self.repo.find_by_id(id).await.map_err(map_repo_error)
     }
 
-    pub async fn create(&self, new: UserWrite) -> Result<User, StatusCode> {
-        self.repo.insert(&new).await.map_err(map_repo_error)
+    pub async fn find_many(&self, ids: &[UserId]) -> Result<Vec<User>, StatusCode> {
+        self.repo.find_many(ids).await.map_err(map_repo_error)
     }
 
     pub async fn update(&self, id: UserId, update: UserWrite) -> Result<Option<User>, StatusCode> {
@@ -57,6 +57,7 @@ fn map_repo_error(error: anyhow::Error) -> StatusCode {
         Some(RepositoryError::NotFound) => StatusCode::NOT_FOUND,
         Some(RepositoryError::Conflict) => StatusCode::CONFLICT,
         Some(RepositoryError::InvalidInput(_)) => StatusCode::BAD_REQUEST,
+        Some(RepositoryError::Forbidden) => StatusCode::FORBIDDEN,
         None => {
             tracing::error!(?error, "user repository error");
             StatusCode::INTERNAL_SERVER_ERROR

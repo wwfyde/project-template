@@ -1,17 +1,23 @@
 ---
-description: Rust API 的文件、资产、文档和知识领域对象、关系、约束与持久化边界。
+description: Rust API 的用户、租户、账户、文件、资产、文档和知识模型、关系与持久化边界。
 ---
 
 # 数据模型
 
-`api-rs` 采用统一文件载体、独立业务对象和可追溯知识索引的模型。同一份文件可以支撑资产、文档和多个知识库来源，各对象保留自己的身份与生命周期。
+`api-rs` 以用户表示登录身份、租户表示组织与计费归属、账户表示资源管理与隔离边界。在账户内，统一文件载体支撑资产、文档和可追溯知识索引，各对象保留自己的身份与生命周期。
 
-本页描述领域模型及持久化映射。用户实体已有持久化实现；文件、资产、文档和知识领域尚未接入 SeaORM 实体、数据库迁移、文件存储、向量服务或 CRUD 路由，这些领域的拟议表名不代表数据库已经创建或执行相应约束。API schema 由 `utoipa` 从代码生成，通过服务现有的 `/docs` 与 `/api-docs/openapi.json` 查看，本页不重复维护 API 参数或响应参考。
+本页描述领域模型及持久化映射。用户、租户、账户和两层成员关系已有持久化及应用用例，`item` 已接入账户隔离；文件、资产、文档和知识领域尚未接入 SeaORM 实体、文件存储、向量服务或 CRUD 路由，这些领域的拟议表名不代表数据库已经创建或执行相应约束。API schema 由 `utoipa` 从代码生成，通过服务现有的 `/docs` 与 `/api-docs/openapi.json` 查看，本页不重复维护 API 参数或响应参考。
 
 ## 领域边界与代码组织
 
 | 位置 | 职责 |
 | --- | --- |
+| `api-rs/src/models/tenant.rs` | 个人／组织租户与租户成员快照 |
+| `api-rs/src/models/account.rs` | 个人／Workspace 账户、成员角色和已验证的账户上下文 |
+| `api-rs/src/models/account_repository.rs` | 注册、账户访问和成员变更的应用持久化端口 |
+| `api-rs/src/services/account.rs` | 账户应用用例及错误边界 |
+| `api-rs/src/repositories/orm/account.rs` 与 `account/` | SeaORM 事务、成员授权和并发变更约束 |
+| `api-rs/src/services/auth_extractor.rs` | 身份验证、请求账户选择与 `AccountContext` |
 | `api-rs/src/models/shared.rs` | 领域共用标识、校验与错误 |
 | `api-rs/src/models/file.rs` | 文件身份、内容分类、格式、大小、哈希及存储定位 |
 | `api-rs/src/models/asset.rs` | 资产业务身份及带作用的文件关联 |
@@ -50,6 +56,69 @@ description: Rust API 的文件、资产、文档和知识领域对象、关系�
 
 `nickname` 与 `locale` 已进入插入、更新、upsert 和读取链路。用户名唯一性与检索时的大小写转换是两种规则：唯一约束允许 `Alice` 和 `alice`，关键词搜索可以同时匹配它们。当前数据结构以重建后的表为准，不保留旧昵称字段兼容逻辑。
 
+## 租户、账户与两层成员
+
+`Tenant` 是计费归属单元，类别为 `personal` 或 `organization`；`Account` 是资源隔离单元，类别为 `personal` 或 `workspace`。Workspace 是 Account 的一种类别，不再建立与 Account 平行的身份或表。
+
+```text
+User ── tenant_member ── Tenant（计费归属）
+                           │
+                           └── Account（资源边界）── item / 文件 / 资产 / 文档 / 知识
+User ── account_member ─────────┘
+
+个人租户 → 本人的 personal account
+组织租户 → 一个或多个 workspace account
+```
+
+同一用户可以属于多个组织，并加入各组织中的不同账户。用户表不保存单一的 `tenant_id` 或 `account_id`，参与范围由两种成员关系表达。租户所有者或管理员不会仅凭组织角色自动获得所有 Workspace 的资源访问权。
+
+这个职责划分参考 OpenAI 公开文档中组织承接用量归属、项目用于隔离工作和访问范围的做法；这里定义的是本系统模型，不代表 OpenAI 内部数据库结构。[OpenAI 组织与项目说明](https://developers.openai.com/api/docs/guides/production-best-practices#setting-up-your-organization)
+
+### 默认注册与持久化表
+
+正常注册通过 `AccountService` 和 `AccountRepository::register_user`，在一个事务内创建用户、个人租户、个人账户及两条 `owner` 成员关系。任何一步失败都会整体回滚。`UserRepository` 仍是基础身份存储端口，单独向用户表插入记录不会自动补齐这些业务容器。
+
+| 表 | 核心字段 | 数据库保证 |
+| --- | --- | --- |
+| `tenant` | `id`、`name`、`kind`、`personal_user_id`、`is_active`、`created_at` | UUID 主键；名字非空白；类别与个人归属组合 CHECK；`personal_user_id` 可空且唯一、FK 到 user |
+| `account` | `id`、`tenant_id`、`name`、`kind`、`personal_user_id`、`is_active`、`created_at` | UUID 主键；非空 tenant FK；类别与个人归属组合 CHECK；`personal_user_id` 可空且唯一、FK 到 user |
+| `tenant_member` | `tenant_id`、`user_id`、`role`、`created_at` | `(tenant_id, user_id)` 复合主键；两条 FK；角色 CHECK |
+| `account_member` | `account_id`、`user_id`、`role`、`created_at` | `(account_id, user_id)` 复合主键；两条 FK；角色 CHECK |
+
+个人租户和个人账户必须填写 `personal_user_id`；组织租户和 Workspace 必须为空。两张表分别保证同一用户至多有一个个人租户和一个个人账户。租户与账户均默认启用。
+
+个人账户只能置于同一用户的个人租户内；Workspace 只能置于组织租户内。跨表类别和归属一致性由领域工厂、仓储变更逻辑及读取授权共同验证。数据库行内 CHECK 不会检查父租户类别，也不会保证每个账户成员都同时是租户成员。
+
+账户到租户、个人归属到用户的外键使用 `RESTRICT`，避免直接删除父身份后留下资源容器；成员关系到用户和所属容器的外键使用 `CASCADE`。这些物理删除行为与成员移除用例不同：移除成员不删除账户、租户或资源。
+
+实体同步创建表结构，不等于为既有用户补齐个人租户和账户。当前按可重建的数据库结构实现，没有旧用户归属回填；正常注册入口才保证默认个人空间存在。
+
+### 成员与权限
+
+两层成员均使用 `owner/admin/member`，但角色只对当前租户或账户有效：
+
+| 角色 | 成员管理规则 |
+| --- | --- |
+| `owner` | 可管理成员角色；移除或降级自身也必须满足至少保留另一位 owner |
+| `admin` | 可添加、修改或移除普通 member；不能操作 owner/admin 或将成员提升为管理角色 |
+| `member` | 不可管理成员；账户成员可使用该账户内的资源 |
+
+组织的 owner/admin 可以创建 Workspace，创建者成为新账户 owner。向 Workspace 添加用户前，目标用户必须已经属于同一组织。个人租户和个人账户不提供共享成员变更。
+
+删除或降级最后一个 owner 会被拒绝。删除组织成员前，还会检查其是否为任一 Workspace 的唯一 owner；必须先转移对应 Workspace 的所有权。租户 admin 只能级联撤销普通账户 member：如果目标在任一 Workspace 中担任 admin 或 owner，则需要租户 owner 处理，同时仍受最后 owner 规则约束。成功移除组织成员时，会一并清除该用户在组织内各账户的成员关系，不会删除账户内容。
+
+这些跨行规则通过事务与锁控制，而不是仅靠角色字段的 CHECK。租户成员关系、账户成员关系、用户启用状态以及租户／账户启用状态都参与访问判断。
+
+### 每次请求的账户上下文
+
+JWT 的 `sub` 使用稳定的用户 UUID，账户与角色不会作为长期可信权限固化到 JWT。`X-Account-Id` 在每次资源请求中选择账户；省略时明确选择当前用户的个人账户，不任意选择某条 Workspace 成员关系。重复或无效的账户选择头会被拒绝。
+
+`AccountContext` 根据当前持久化成员关系解析 `AccountAccess { user_id, account_id, tenant_id, role }`。`tenant_id` 从所选账户的归属解析，客户端不能为同一资源请求另行指定计费租户。即使同属一个组织，也仍需拥有具体账户的成员关系才能访问该账户。
+
+`item` 的列表、单条读取、更新和删除都包含 `account_id` 条件；跨账户 ID 不会绕过过滤。创建时的账户 ID 和 `owner_id` 从已验证上下文取得，后者只记录创建者。请求体不接受客户端指定账户或创建者，更新不改变这些归属字段。用户列表和按 ID 查询也限定为当前所选账户的成员；当前用户身份查询仍表示登录者自己。
+
+当前计费能力只建立归属关系：资源属于账户，账户映射到账单归属租户。用量采集、账单计算、扣费与支付渠道尚未实现。未来计量事件应使用服务端解析出的租户归属，不信任前端提交的付款方标识。
+
 ## 分类与归属
 
 | 维度 | 含义 | 示例 |
@@ -63,7 +132,7 @@ description: Rust API 的文件、资产、文档和知识领域对象、关系�
 
 一份《品牌规范.pdf》可以同时是文档类文件、品牌规范资产、某份文档的修订内容和知识库来源。文件不包含互斥的 `asset/document/knowledge` 库归属枚举。
 
-`AccountId` 表示归属边界。跨对象建立关系时必须满足账户一致；账户一致并不等于操作者已被授权。账户成员、角色、共享策略、撤权和检索前的授权过滤仍由后续应用服务与仓储共同落实。
+`AccountId` 表示资源归属边界。跨对象建立关系时必须满足账户一致；账户一致并不等于操作者已被授权。账户成员、角色与请求上下文已由账户应用链路落实；未来文件和知识检索用例接入时仍须复用这些授权判断，不能只比较两个来源的账户 ID。
 
 领域 ID 使用不同的 UUID 包装类型，区分文件、资产、文档、修订等身份；这些类型本身不查询数据库，也不保证所指对象存在。账户有效性、全局主键唯一性和引用存在性仍需持久化层保证。
 
@@ -197,6 +266,8 @@ OpenAI File Search 的文件引用包含文件标识与文件名，但引用标�
 
 ## 实现边界
 
-当前交付领域对象、领域规则及 API schema 定义。后续接入顺序建议为仓储与数据库约束、文件存储适配、应用用例、HTTP 路由、异步解析与索引、检索授权和引用展示。
+用户、租户、账户与两层成员已具备领域、持久化和应用访问链路，item 已接入真实账户隔离。账户持久化当前使用 SeaORM；它不因用户基础仓储还提供 memory/SQLx 实现而自动具备另外两种实现。
+
+文件、资产、文档和知识领域目前交付领域规则及 API schema。后续接入顺序建议为仓储与数据库约束、文件存储适配、应用用例、HTTP 路由、异步解析与索引、检索授权和引用展示。计费后续另行接入计量和支付流程。
 
 实现仓储时保留领域规则，同时通过事务与数据库约束处理跨实例并发；接入外部服务时维持本地稳定身份和供应商映射。数据模型文档继续解释这些关系与边界，API 参考继续由 `utoipa` 生成。

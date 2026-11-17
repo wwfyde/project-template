@@ -1,0 +1,88 @@
+.agent-workspace {
+  height: 100dvh;
+  overflow: hidden;
+  background: var(--agent-canvas);
+  color: var(--agent-text);
+}
+
+.agent-nav-item {
+  display: flex;
+  width: 100%;
+  min-height: 40px;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 9px;
+  color: var(--agent-text);
+  font-size: 13px;
+  transition: background 150ms;
+}
+
+.agent-nav-item:hover {
+  background: var(--agent-subtle);
+}
+
+.agent-workspace :is(button, a):focus-visible {
+  outline: 2px solid var(--agent-muted);
+  outline-offset: 3px;
+}
+
+.agent-welcome {
+  width: min(100%, 760px);
+  margin: auto;
+  padding: clamp(24px, 7vh, 80px) 0 36px;
+}
+
+.agent-transcript {
+  scrollbar-width: thin;
+  scrollbar-color: var(--agent-border) transparent;
+  overscroll-behavior: contain;
+}
+
+.agent-message {
+  scroll-margin: 28px;
+  overflow-wrap: anywhere;
+}
+
+.agent-message [data-user-message-bubble][data-navigation-highlight='true'] {
+  background: color-mix(in oklch, var(--agent-muted) 24%, var(--agent-subtle));
+  outline: 2px solid var(--agent-border);
+  outline-offset: 2px;
+}
+
+.agent-composer-dock {
+  max-height: calc(100dvh - 136px);
+  overflow-y: auto;
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
+  background: linear-gradient(to bottom, transparent, var(--agent-canvas) 14px);
+}
+
+/* Keep every action reachable in landscape or when the keyboard reduces height. */
+@media (max-height: 600px) {
+  .agent-composer-dock [data-slot='composer-input'] {
+    max-height: max(70px, calc(100dvh - 280px));
+    overflow-y: auto;
+  }
+
+  .agent-workspace [data-slot='auto-textarea'] {
+    max-height: 22dvh;
+  }
+}
+
+.agent-conversation-rail {
+  --foreground: var(--agent-text);
+  --muted-foreground: var(--agent-muted);
+  --background: var(--agent-canvas);
+  --popover: var(--agent-surface);
+  --popover-foreground: var(--agent-text);
+  --border: var(--agent-border);
+  --accent: var(--agent-subtle);
+  --accent-foreground: var(--agent-text);
+  --primary: var(--agent-strong);
+}
+
+@media (max-width: 639px) {
+  .agent-welcome {
+    padding-top: 32px;
+  }
+}

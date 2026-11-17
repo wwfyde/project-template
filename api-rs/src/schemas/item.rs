@@ -11,7 +11,6 @@ pub struct CreateItem {
     pub description: Option<String>,
     pub description2: Option<String>,
     pub config: Value,
-    pub owner_id: Uuid,
 }
 
 /// PUT replaces every editable field; omitted or null descriptions clear their values.
@@ -22,7 +21,6 @@ pub struct UpdateItem {
     pub description: Option<String>,
     pub description2: Option<String>,
     pub config: Value,
-    pub owner_id: Uuid,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, ToSchema)]
@@ -32,6 +30,9 @@ pub struct Item {
     pub description: Option<String>,
     pub description2: Option<String>,
     pub config: Value,
+    /// Resource boundary selected and authorized by the server.
+    pub account_id: Uuid,
+    /// Original creator; preserved when another account member edits the item.
     pub owner_id: Uuid,
     pub created_at: DateTime<Utc>,
     pub updated_at: Option<DateTime<Utc>>,
@@ -45,6 +46,7 @@ impl From<crate::entities::item::Model> for Item {
             description: item.description,
             description2: item.description2,
             config: item.config,
+            account_id: item.account_id,
             owner_id: item.owner_id,
             created_at: item.created_at.with_timezone(&Utc),
             updated_at: item.updated_at.map(|dt| dt.with_timezone(&Utc)),

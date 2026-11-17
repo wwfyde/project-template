@@ -5,6 +5,7 @@ use axum::Router;
 use std::sync::Arc;
 use utoipa::OpenApi;
 
+pub mod account;
 pub mod auth;
 pub mod item;
 pub mod misc;
@@ -22,6 +23,18 @@ pub mod user;
     handlers::item::update_item,
     handlers::item::delete_item,
     auth::login_for_access_token,
+    handlers::account::list_accounts,
+    handlers::account::current_account,
+    handlers::account::get_account,
+    handlers::account::create_workspace,
+    handlers::account::list_members,
+    handlers::account::put_member,
+    handlers::account::remove_member,
+    handlers::tenant::list_tenants,
+    handlers::tenant::create_tenant,
+    handlers::tenant::list_members,
+    handlers::tenant::put_member,
+    handlers::tenant::remove_member,
 ))]
 pub struct AllApi;
 
@@ -31,7 +44,8 @@ pub fn all_routes() -> Router<Arc<AppState>> {
         Router::new()
             .merge(user::user_routes())
             .merge(item::item_routes())
-            .merge(auth::auth_routes()),
+            .merge(auth::auth_routes())
+            .merge(account::account_routes()),
     )
 }
 

@@ -20,6 +20,8 @@ pub async fn connect(url: Url, pool_size: u32) -> Result<DatabaseConnection, DbE
 pub async fn sync_schema(db: &DatabaseConnection) -> Result<(), DbErr> {
     let transaction = db.begin().await?;
     db.get_schema_builder()
+        .register(entities::account::Entity)
+        .register(entities::account_member::Entity)
         .register(entities::author::Entity)
         .register(entities::book::Entity)
         .register(entities::book_author::Entity)
@@ -29,6 +31,8 @@ pub async fn sync_schema(db: &DatabaseConnection) -> Result<(), DbErr> {
         .register(entities::order::Entity)
         .register(entities::student::Entity)
         .register(entities::student_course::Entity)
+        .register(entities::tenant::Entity)
+        .register(entities::tenant_member::Entity)
         .register(entities::todo::Entity)
         .register(entities::user::Entity)
         .sync(&transaction)

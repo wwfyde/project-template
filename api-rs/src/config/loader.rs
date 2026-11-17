@@ -287,7 +287,12 @@ fn environment_value(path: &[String], value: &str) -> Result<Value> {
     if nullable && text == "null" {
         return Ok(Value::Null);
     }
-    if structured && (text.starts_with('{') || text.starts_with('[')) {
+    let ipv6_nodes = matches!(names.as_slice(), ["redis", "sentinel_nodes"])
+        && text
+            .strip_prefix('[')
+            .and_then(|value| value.split_once(']'))
+            .is_some_and(|(host, _)| host.parse::<std::net::Ipv6Addr>().is_ok());
+    if structured && (text.starts_with('{') || (text.starts_with('[') && !ipv6_nodes)) {
         return serde_json::from_str(text)
             .map_err(|_| anyhow!("invalid JSON configuration for key `{}`", path.join(".")));
     }
