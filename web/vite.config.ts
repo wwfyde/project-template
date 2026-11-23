@@ -21,7 +21,11 @@ export default defineConfig(({mode}) => ({
         locate: true,
       },
     }),
-    react(),
+    react(
+      {
+        compiler: true,
+      }
+    ),
   ],
   resolve: {
     tsconfigPaths: true,
