@@ -1,6 +1,6 @@
 # Web 项目
 
-React + TypeScript + Vite，使用 TanStack Router、Tailwind CSS 和 Radix Themes。主题及国际化模块从 `fs-agent/web/src/theme`、`fs-agent/web/src/i18n` 复用，再适配本项目的页面、组件和存储命名。
+React + TypeScript + Vite，使用 TanStack Router、Tailwind CSS 和 Base UI。主题及国际化模块从 `fs-agent/web/src/theme`、`fs-agent/web/src/i18n` 复用，再适配本项目的页面、组件和存储命名。
 
 ## 启动与检查
 
@@ -79,7 +79,7 @@ server {
 页面上的主题设置按钮打开配置面板，可切换系统 / 浅色 / 深色、8 种颜色预设、圆角、密度、内容宽度，以及简体中文 / 英文。外观与语言分别保存，重置外观不会重置语言。
 
 - `src/main.tsx` 在 React 挂载前执行 `initializeTheme()` 并等待 `initializeI18n()`。
-- `src/app/app-providers.tsx` 注册 `I18nProvider`、`ThemeProvider`、`AuthProvider` 和全局 Radix Theme。Radix 共享明暗模式、基础文字、背景、圆角与密度；按钮颜色通过下述适配类接入。
+- `src/app/app-providers.tsx` 注册 `I18nProvider`、`ThemeProvider` 和 `AuthProvider`。Base UI 提供交互行为，基础控件通过语义 Token 共享明暗模式、基础文字、背景、圆角与密度。
 - 主题类名、`data-theme-*` 属性和 `color-scheme` 都挂在 `<html>`，与基础和派生 CSS 变量保持在同一节点。默认预设、圆角、密度会移除对应属性，使默认样式恢复生效。
 - 语言按本地偏好、浏览器语言检测；中文地区变体统一为 `zh-CN`，其他语言回退为 `en`。切换时同步 `<html lang>`。
 
@@ -136,7 +136,7 @@ Chat / Task分别拥有文本、附件、引用、模型与工具草稿，草稿
 
 通过 `useTheme()` 读取 `preferences`、`resolvedMode`，使用 `setPreferences({ preset: 'ocean-breeze' })` 修改部分偏好，或调用 `resetPreferences()` 重置外观。
 
-Radix `Button` 添加 `className="theme-radix-button"` 使用语义颜色；描边按钮同时添加 `theme-radix-button-outline`。新增其他 Radix 组件时应按其视觉语义添加适配，不要假设所有组件的品牌色已自动映射。
+按钮使用 `src/components/ui/button.tsx` 的 `Button`，默认 `variant="solid"`，可选 `outline` 和 `ghost`。组件基于 Base UI，统一使用语义颜色、圆角和焦点样式；新增基础控件时，在 `src/components/ui/` 封装对应的 Base UI primitive 并接入主题 Token。登录后访问 `/examples/base-ui` 和 `/examples/base-ui/theme`，可查看导航与主题组件示例。
 
 ## 扩展预设与翻译
 

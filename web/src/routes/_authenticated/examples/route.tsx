@@ -19,11 +19,11 @@ function ExampleLayout() {
         <Link to="/examples" activeOptions={{ exact: true }} className={linkClassName}>
           {t('overview')}
         </Link>
-        <Link to="/examples/radix" activeOptions={{ exact: true }} className={linkClassName}>
-          {t('radix')}
+        <Link to="/examples/base-ui" activeOptions={{ exact: true }} className={linkClassName}>
+          {t('baseUi')}
         </Link>
-        <Link to="/examples/radix/theme" className={linkClassName}>
-          {t('radixTheme')}
+        <Link to="/examples/base-ui/theme" className={linkClassName}>
+          {t('baseUiTheme')}
         </Link>
         <Link to="/examples/user-message-navigation-rail" className={linkClassName}>
           {t('userMessageNavigationRail')}

@@ -1,5 +1,4 @@
 @import 'tailwindcss';
-@import '@radix-ui/themes/styles.css';
 @import './theme/styles/theme.css';
 @import './theme/styles/agent.css';
 
@@ -20,8 +19,13 @@
     background: var(--background);
     color: var(--foreground);
     font-family: var(--font-body);
+    font-size: var(--text-base);
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
+  }
+
+  #root {
+    isolation: isolate;
   }
 
   button,

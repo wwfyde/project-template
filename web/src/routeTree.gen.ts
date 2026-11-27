@@ -25,8 +25,8 @@ import { Route as AuthenticatedAssetsIndexRouteImport } from './routes/_authenti
 import { Route as AuthenticatedExamplesIndexRouteImport } from './routes/_authenticated/examples/index'
 import { Route as AuthenticatedExamplesConversationNavigatorRouteImport } from './routes/_authenticated/examples/conversation-navigator'
 import { Route as AuthenticatedExamplesUserMessageNavigationRailRouteImport } from './routes/_authenticated/examples/user-message-navigation-rail'
-import { Route as AuthenticatedExamplesRadixIndexRouteImport } from './routes/_authenticated/examples/radix/index'
-import { Route as AuthenticatedExamplesRadixThemeRouteImport } from './routes/_authenticated/examples/radix/theme'
+import { Route as AuthenticatedExamplesBaseUiIndexRouteImport } from './routes/_authenticated/examples/base-ui/index'
+import { Route as AuthenticatedExamplesBaseUiThemeRouteImport } from './routes/_authenticated/examples/base-ui/theme'
 
 const AuthenticatedRoute = AuthenticatedRouteImport.update({
   id: '/_authenticated',
@@ -114,16 +114,16 @@ const AuthenticatedExamplesUserMessageNavigationRailRoute =
     path: '/user-message-navigation-rail',
     getParentRoute: () => AuthenticatedExamplesRouteRoute,
   } as any)
-const AuthenticatedExamplesRadixIndexRoute =
-  AuthenticatedExamplesRadixIndexRouteImport.update({
-    id: '/radix/',
-    path: '/radix/',
+const AuthenticatedExamplesBaseUiIndexRoute =
+  AuthenticatedExamplesBaseUiIndexRouteImport.update({
+    id: '/base-ui/',
+    path: '/base-ui/',
     getParentRoute: () => AuthenticatedExamplesRouteRoute,
   } as any)
-const AuthenticatedExamplesRadixThemeRoute =
-  AuthenticatedExamplesRadixThemeRouteImport.update({
-    id: '/radix/theme',
-    path: '/radix/theme',
+const AuthenticatedExamplesBaseUiThemeRoute =
+  AuthenticatedExamplesBaseUiThemeRouteImport.update({
+    id: '/base-ui/theme',
+    path: '/base-ui/theme',
     getParentRoute: () => AuthenticatedExamplesRouteRoute,
   } as any)
 
@@ -143,8 +143,8 @@ export interface FileRoutesByFullPath {
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/assets/': typeof AuthenticatedAssetsIndexRoute
   '/examples/': typeof AuthenticatedExamplesIndexRoute
-  '/examples/radix/theme': typeof AuthenticatedExamplesRadixThemeRoute
-  '/examples/radix/': typeof AuthenticatedExamplesRadixIndexRoute
+  '/examples/base-ui/theme': typeof AuthenticatedExamplesBaseUiThemeRoute
+  '/examples/base-ui/': typeof AuthenticatedExamplesBaseUiIndexRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
@@ -159,8 +159,8 @@ export interface FileRoutesByTo {
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/assets': typeof AuthenticatedAssetsIndexRoute
   '/examples': typeof AuthenticatedExamplesIndexRoute
-  '/examples/radix/theme': typeof AuthenticatedExamplesRadixThemeRoute
-  '/examples/radix': typeof AuthenticatedExamplesRadixIndexRoute
+  '/examples/base-ui/theme': typeof AuthenticatedExamplesBaseUiThemeRoute
+  '/examples/base-ui': typeof AuthenticatedExamplesBaseUiIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -180,8 +180,8 @@ export interface FileRoutesById {
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/assets/': typeof AuthenticatedAssetsIndexRoute
   '/_authenticated/examples/': typeof AuthenticatedExamplesIndexRoute
-  '/_authenticated/examples/radix/theme': typeof AuthenticatedExamplesRadixThemeRoute
-  '/_authenticated/examples/radix/': typeof AuthenticatedExamplesRadixIndexRoute
+  '/_authenticated/examples/base-ui/theme': typeof AuthenticatedExamplesBaseUiThemeRoute
+  '/_authenticated/examples/base-ui/': typeof AuthenticatedExamplesBaseUiIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -201,8 +201,8 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/assets/'
     | '/examples/'
-    | '/examples/radix/theme'
-    | '/examples/radix/'
+    | '/examples/base-ui/theme'
+    | '/examples/base-ui/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
@@ -217,8 +217,8 @@ export interface FileRouteTypes {
     | '/admin'
     | '/assets'
     | '/examples'
-    | '/examples/radix/theme'
-    | '/examples/radix'
+    | '/examples/base-ui/theme'
+    | '/examples/base-ui'
   id:
     | '__root__'
     | '/_authenticated'
@@ -237,8 +237,8 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/'
     | '/_authenticated/assets/'
     | '/_authenticated/examples/'
-    | '/_authenticated/examples/radix/theme'
-    | '/_authenticated/examples/radix/'
+    | '/_authenticated/examples/base-ui/theme'
+    | '/_authenticated/examples/base-ui/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -360,18 +360,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedExamplesUserMessageNavigationRailRouteImport
       parentRoute: typeof AuthenticatedExamplesRouteRoute
     }
-    '/_authenticated/examples/radix/': {
-      id: '/_authenticated/examples/radix/'
-      path: '/radix'
-      fullPath: '/examples/radix/'
-      preLoaderRoute: typeof AuthenticatedExamplesRadixIndexRouteImport
+    '/_authenticated/examples/base-ui/': {
+      id: '/_authenticated/examples/base-ui/'
+      path: '/base-ui'
+      fullPath: '/examples/base-ui/'
+      preLoaderRoute: typeof AuthenticatedExamplesBaseUiIndexRouteImport
       parentRoute: typeof AuthenticatedExamplesRouteRoute
     }
-    '/_authenticated/examples/radix/theme': {
-      id: '/_authenticated/examples/radix/theme'
-      path: '/radix/theme'
-      fullPath: '/examples/radix/theme'
-      preLoaderRoute: typeof AuthenticatedExamplesRadixThemeRouteImport
+    '/_authenticated/examples/base-ui/theme': {
+      id: '/_authenticated/examples/base-ui/theme'
+      path: '/base-ui/theme'
+      fullPath: '/examples/base-ui/theme'
+      preLoaderRoute: typeof AuthenticatedExamplesBaseUiThemeRouteImport
       parentRoute: typeof AuthenticatedExamplesRouteRoute
     }
   }
@@ -411,8 +411,8 @@ interface AuthenticatedExamplesRouteRouteChildren {
   AuthenticatedExamplesConversationNavigatorRoute: typeof AuthenticatedExamplesConversationNavigatorRoute
   AuthenticatedExamplesUserMessageNavigationRailRoute: typeof AuthenticatedExamplesUserMessageNavigationRailRoute
   AuthenticatedExamplesIndexRoute: typeof AuthenticatedExamplesIndexRoute
-  AuthenticatedExamplesRadixThemeRoute: typeof AuthenticatedExamplesRadixThemeRoute
-  AuthenticatedExamplesRadixIndexRoute: typeof AuthenticatedExamplesRadixIndexRoute
+  AuthenticatedExamplesBaseUiThemeRoute: typeof AuthenticatedExamplesBaseUiThemeRoute
+  AuthenticatedExamplesBaseUiIndexRoute: typeof AuthenticatedExamplesBaseUiIndexRoute
 }
 
 const AuthenticatedExamplesRouteRouteChildren: AuthenticatedExamplesRouteRouteChildren =
@@ -422,8 +422,10 @@ const AuthenticatedExamplesRouteRouteChildren: AuthenticatedExamplesRouteRouteCh
     AuthenticatedExamplesUserMessageNavigationRailRoute:
       AuthenticatedExamplesUserMessageNavigationRailRoute,
     AuthenticatedExamplesIndexRoute: AuthenticatedExamplesIndexRoute,
-    AuthenticatedExamplesRadixThemeRoute: AuthenticatedExamplesRadixThemeRoute,
-    AuthenticatedExamplesRadixIndexRoute: AuthenticatedExamplesRadixIndexRoute,
+    AuthenticatedExamplesBaseUiThemeRoute:
+      AuthenticatedExamplesBaseUiThemeRoute,
+    AuthenticatedExamplesBaseUiIndexRoute:
+      AuthenticatedExamplesBaseUiIndexRoute,
   }
 
 const AuthenticatedExamplesRouteRouteWithChildren =

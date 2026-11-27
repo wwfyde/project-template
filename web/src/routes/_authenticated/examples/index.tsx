@@ -1,7 +1,7 @@
-import { Button, Flex, Text } from '@radix-ui/themes'
 import { createFileRoute } from '@tanstack/react-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Button } from '../../../components/ui/button'
 
 export const Route = createFileRoute('/_authenticated/examples/')({
   component: RouteComponent,
@@ -18,15 +18,13 @@ function RouteComponent() {
         <p className="text-muted-foreground">{t('examplesDescription')}</p>
       </header>
       <p>{t('exampleGreeting', { resource: t('asset') })}</p>
-      <Flex direction="column" gap="4" align="start">
-        <Text>{t('radixGreeting')}</Text>
-        <Button className="theme-radix-button" onClick={() => setCount((value) => value + 1)}>
-          {t('radixAction')}
-        </Button>
-        <Text size="2" className="text-muted-foreground" aria-live="polite">
+      <div className="flex flex-col items-start gap-4">
+        <p>{t('baseUiGreeting')}</p>
+        <Button onClick={() => setCount((value) => value + 1)}>{t('baseUiAction')}</Button>
+        <p className="text-sm text-muted-foreground" aria-live="polite">
           {t('clickCount', { count })}
-        </Text>
-      </Flex>
+        </p>
+      </div>
     </section>
   )
 }

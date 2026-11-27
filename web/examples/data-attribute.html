@@ -1,0 +1,204 @@
+<html lang="zh-CN" data-theme="system">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>data attribute</title>
+    <style>
+        /* 1. 定义主题：标准 CSS 属性选择器 + 自定义属性 */
+        :root, [data-theme="light"], [data-theme="system"] {
+            color-scheme: light;
+            --bg: #f1f5f9;
+            --surface: #ffffff;
+            --text: #172033;
+            --primary: #2563eb;
+            --on-primary: #ffffff;
+            --border: #cbd5e1;
+            --radius: 12px;
+        }
+
+        [data-theme="dark"] {
+            color-scheme: dark;
+            --bg: #101827;
+            --surface: #1e293b;
+            --text: #f1f5f9;
+            --primary: #93c5fd;
+            --on-primary: #172033;
+            --border: #475569;
+            --radius: 12px;
+        }
+
+        [data-theme="forest"] {
+            color-scheme: light;
+            --bg: #e8f1e5;
+            --surface: #f8fbf4;
+            --text: #21442c;
+            --primary: #316b42;
+            --on-primary: #ffffff;
+            --border: #a9c4a8;
+            --radius: 24px;
+        }
+
+        [data-theme="cyberpunk"] {
+            color-scheme: dark;
+            --bg: #17152c;
+            --surface: #25203d;
+            --text: #f7f1ff;
+            --primary: #f3ed38;
+            --on-primary: #17152c;
+            --border: #dd56bb;
+            --radius: 0px;
+        }
+
+        /* System 默认使用 Light；系统偏好 Dark 时覆盖整套变量。 */
+        @media (prefers-color-scheme: dark) {
+            [data-theme="system"] {
+                color-scheme: dark;
+                --bg: #101827;
+                --surface: #1e293b;
+                --text: #f1f5f9;
+                --primary: #93c5fd;
+                --on-primary: #172033;
+                --border: #475569;
+                --radius: 12px;
+            }
+        }
+
+        /* 2. 组件只引用语义变量，不关心具体主题 */
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 32px 16px;
+            background: var(--bg);
+            color: var(--text);
+            font: 16px/1.6 system-ui, sans-serif;
+        }
+
+        main {
+            max-width: 720px;
+            margin: auto;
+        }
+
+        .card {
+            background: var(--surface);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 24px;
+            margin: 16px 0;
+        }
+
+        .toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        button, select {
+            font: inherit;
+            padding: 8px 14px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            background: var(--surface);
+            color: var(--text);
+        }
+
+        button {
+            cursor: pointer;
+        }
+
+        .primary, button[aria-pressed="true"] {
+            background: var(--primary);
+            color: var(--on-primary);
+            border-color: var(--primary);
+        }
+
+        :focus-visible {
+            outline: 3px solid var(--primary);
+            outline-offset: 3px;
+        }
+
+        code {
+            overflow-wrap: anywhere;
+        }
+
+        h1, h2 {
+            line-height: 1.3;
+        }
+
+        .sample {
+            display: inline-block;
+            margin-top: 10px;
+            padding: 8px 14px;
+            border-radius: var(--radius);
+        }
+    </style>
+</head>
+<body>
+<main><h1>HTML data-theme 主题切换</h1>
+    <p>原生 HTML + CSS + JavaScript，无第三方依赖。</p>
+    <section class="card">
+        <h2>全站主题</h2>
+        <div class="toolbar" id="themes">
+            <button type="button" data-preset="system" aria-pressed="true">System</button>
+            <button type="button" data-preset="light" aria-pressed="false">Light</button>
+            <button type="button" data-preset="dark" aria-pressed="false">Dark</button>
+            <button type="button" data-preset="forest" aria-pressed="false">Forest</button>
+            <button type="button" data-preset="cyberpunk" aria-pressed="false">Cyberpunk</button>
+        </div>
+        <span class="primary sample">主色示例</span>
+    </section>
+    <section class="card">
+        <h2>局部主题</h2>
+        <label for="local-select">卡片主题：</label>
+        <select id="local-select">
+            <option value="inherit">继承全站</option>
+            <option value="system">System</option>
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+            <option value="forest" selected>Forest</option>
+            <option value="cyberpunk">Cyberpunk</option>
+        </select>
+        <div id="local-card" class="card" data-theme="forest">
+            <p>局部 CSS 变量覆盖父节点的变量，其他区域不受影响。</p>
+            <span class="primary sample">主色示例</span>
+        </div>
+    </section>
+    <p>打开开发者工具（F12），观察 html 和局部卡片上的 data-theme 属性变化。</p></main>
+<script>
+  const root = document.documentElement;
+  const localCard = document.querySelector('#local-card');
+  const buttons = document.querySelectorAll('[data-preset]');
+
+  function showState() {
+    buttons.forEach(button => {
+      button.setAttribute('aria-pressed', String(button.dataset.preset === root.dataset.theme));
+    });
+  }
+
+  // 3. 全站切换：只修改 html 元素的 data-theme 属性
+  buttons.forEach(button => {
+    button.addEventListener('click', () => {
+      root.dataset.theme = button.dataset.preset;
+      showState();
+    });
+  });
+
+  // 4. 局部切换：修改卡片属性；删除属性则恢复继承
+  document.querySelector('#local-select').addEventListener('change', event => {
+    if (event.target.value === 'inherit') {
+      delete localCard.dataset.theme;
+    } else {
+      localCard.dataset.theme = event.target.value;
+    }
+    showState();
+  });
+  showState();
+</script>
+</body>
+
+</html>
