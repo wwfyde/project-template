@@ -1,0 +1,41 @@
+/* Douyin's expressive pink/cyan character, adapted to both color modes. */
+@layer base {
+  :root[data-theme-preset='douyin-design'] {
+    --background: #faf8fc;
+    --foreground: #201b2b;
+    --card: #fff;
+    --popover: #fff;
+    --sidebar: #f1eef5;
+    --primary: #d5164b;
+    --primary-foreground: #fff;
+    --muted: #eeeaf2;
+    --muted-foreground: #6d6379;
+    --border: #d9d2e1;
+    --secondary: #d7f6f6;
+    --secondary-foreground: #07565c;
+    --radius: 0.75rem;
+    --control-height: 2.5rem;
+    --spacing: 0.25rem;
+    --shadow-control: 2px 2px 0 #25c8cf33;
+    --shadow-panel: 0 8px 28px #39133b12;
+    --blur-surface: 0px;
+    --motion-duration: 130ms;
+  }
+
+  :root.dark[data-theme-preset='douyin-design'] {
+    --background: #101014;
+    --foreground: #f8f5fa;
+    --card: #1c1b23;
+    --popover: #26232e;
+    --sidebar: #15141b;
+    --primary: #ff7397;
+    --primary-foreground: #390515;
+    --muted: #2c2735;
+    --muted-foreground: #b7adc4;
+    --border: #4b4059;
+    --secondary: #14474b;
+    --secondary-foreground: #77f0ed;
+    --shadow-control: 2px 2px 0 #25f4ee40;
+    --shadow-panel: 0 8px 28px #0006;
+  }
+}

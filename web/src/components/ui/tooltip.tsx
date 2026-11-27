@@ -31,7 +31,7 @@ export function TooltipContent({
           role="tooltip"
           {...props}
           data-slot="tooltip-content"
-          className={`max-w-[min(22rem,var(--available-width),calc(100vw-1rem))] rounded-lg border border-border bg-popover px-3 py-2 text-sm leading-relaxed text-popover-foreground shadow-lg outline-none [overflow-wrap:anywhere] transition-opacity duration-100 data-starting-style:opacity-0 data-ending-style:opacity-0 motion-reduce:transition-none ${className}`}
+          className={`max-w-[min(22rem,var(--available-width),calc(100vw-1rem))] rounded-control border border-border bg-popover px-3 py-2 text-sm leading-relaxed text-popover-foreground shadow-panel backdrop-blur-surface outline-none [overflow-wrap:anywhere] transition-opacity duration-(--motion-duration) ease-(--motion-easing) data-starting-style:opacity-0 data-ending-style:opacity-0 motion-reduce:transition-none ${className}`}
         />
       </TooltipPrimitive.Positioner>
     </TooltipPrimitive.Portal>

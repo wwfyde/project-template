@@ -1,24 +1,30 @@
 .skill-panel {
   border: 1px solid var(--border);
-  border-radius: 0.8rem;
+  border-radius: var(--radius-panel);
   background: var(--card);
   color: var(--card-foreground);
+  box-shadow: var(--shadow-panel);
 }
 .skill-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.45rem;
-  min-height: 2.25rem;
+  min-height: var(--control-height);
   padding: 0.45rem 0.75rem;
   border: 1px solid var(--border);
-  border-radius: 0.5rem;
+  border-radius: var(--radius-control);
   background: var(--background);
+  color: var(--foreground);
   font-size: 0.8rem;
   cursor: pointer;
+  transition:
+    background var(--motion-duration) var(--motion-easing),
+    color var(--motion-duration) var(--motion-easing);
 }
 .skill-button:hover {
   background: var(--accent);
+  color: var(--accent-foreground);
 }
 .skill-button:disabled,
 .skill-list-item:disabled {
@@ -36,11 +42,11 @@
   outline-offset: 2px;
 }
 .skill-field {
-  min-height: 2.25rem;
+  min-height: var(--control-height);
   max-width: 100%;
   padding: 0.4rem 0.6rem;
   border: 1px solid var(--border);
-  border-radius: 0.5rem;
+  border-radius: var(--radius-control);
   background: var(--background);
   color: var(--foreground);
   font-size: 0.85rem;
@@ -48,10 +54,13 @@
 .skill-list-item {
   width: 100%;
   padding: 0.8rem;
-  border-radius: 0.5rem;
+  border-radius: var(--radius-control);
   text-align: left;
   font-size: 0.875rem;
   cursor: pointer;
+  transition:
+    background var(--motion-duration) var(--motion-easing),
+    color var(--motion-duration) var(--motion-easing);
 }
 .skill-list-item:hover,
 .skill-list-item[aria-current='true'],
@@ -64,7 +73,7 @@
 }
 .skill-error {
   border: 1px solid color-mix(in srgb, var(--destructive) 30%, transparent);
-  border-radius: 0.5rem;
+  border-radius: var(--radius-control);
   padding: 0.8rem 1rem;
   background: color-mix(in srgb, var(--destructive) 6%, transparent);
   color: var(--destructive);
@@ -93,7 +102,7 @@
 .skill-tree summary {
   padding: 0.45rem 0.2rem;
   cursor: pointer;
-  border-radius: 0.35rem;
+  border-radius: var(--radius-control);
   white-space: nowrap;
 }
 .skill-tree summary > span {
@@ -101,7 +110,8 @@
 }
 .skill-tree summary:hover,
 .skill-tree button:hover {
-  background: var(--muted);
+  background: var(--accent);
+  color: var(--accent-foreground);
 }
 .skill-tree button {
   display: flex;
@@ -109,9 +119,15 @@
   gap: 0.5rem;
   width: 100%;
   padding: 0.5rem;
-  border-radius: 0.35rem;
+  border-radius: var(--radius-control);
   text-align: left;
   cursor: pointer;
+}
+.skill-tree summary,
+.skill-tree button {
+  transition:
+    background var(--motion-duration) var(--motion-easing),
+    color var(--motion-duration) var(--motion-easing);
 }
 .skill-file-preview {
   min-width: 0;

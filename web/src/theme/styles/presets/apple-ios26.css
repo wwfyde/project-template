@@ -1,0 +1,39 @@
+/* Web interpretation: translucent navigation and overlays, solid content. */
+@layer base {
+  :root[data-theme-preset='apple-ios26'] {
+    --background: #f2f2f7;
+    --foreground: #1c1c1e;
+    --card: #fff;
+    --popover: #fffffff0;
+    --sidebar: #ffffffd9;
+    --primary: #0065d9;
+    --primary-foreground: #fff;
+    --muted: #e8e8ee;
+    --muted-foreground: #62626b;
+    --border: #c6c6cf;
+    --font-body: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+    --radius: 1.25rem;
+    --control-height: 2.75rem;
+    --spacing: 0.2625rem;
+    --shadow-control: 0 1px 3px #13224512, inset 0 1px 0 #ffffff66;
+    --shadow-panel: 0 16px 48px #2635561a, inset 0 1px 0 #ffffffe6;
+    --blur-surface: 24px;
+    --motion-duration: 240ms;
+    --motion-easing: cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  :root.dark[data-theme-preset='apple-ios26'] {
+    --background: #000;
+    --foreground: #f5f5f7;
+    --card: #1c1c1e;
+    --popover: #252528f2;
+    --sidebar: #1c1c1ee6;
+    --primary: #6aafff;
+    --primary-foreground: #071b35;
+    --muted: #2c2c2e;
+    --muted-foreground: #b0b0ba;
+    --border: #49494d;
+    --shadow-control: 0 1px 4px #0004, inset 0 1px 0 #ffffff14;
+    --shadow-panel: 0 16px 48px #0006, inset 0 1px 0 #ffffff24;
+  }
+}

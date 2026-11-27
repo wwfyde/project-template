@@ -24,7 +24,7 @@ export function MenuContent({
       <MenuPrimitive.Positioner side={side} align={align} sideOffset={8} collisionPadding={12} className="z-50">
         <MenuPrimitive.Popup
           {...props}
-          className={`${size === 'composer' ? 'max-h-[min(480px,var(--available-height))] w-[min(480px,calc(100vw-24px))] max-w-[var(--available-width)]' : 'max-h-[min(360px,var(--available-height))] min-w-52 max-w-[min(320px,calc(100vw-24px))]'} overflow-y-auto rounded-[14px] border border-agent-border bg-agent-surface p-1.5 text-agent-text shadow-lg outline-none transition-opacity data-ending-style:opacity-0 data-starting-style:opacity-0 motion-reduce:transition-none ${className}`}
+          className={`${size === 'composer' ? 'max-h-[min(480px,var(--available-height))] w-[min(480px,calc(100vw-24px))] max-w-[var(--available-width)]' : 'max-h-[min(360px,var(--available-height))] min-w-52 max-w-[min(320px,calc(100vw-24px))]'} overflow-y-auto rounded-panel border border-border bg-popover p-1.5 text-popover-foreground shadow-panel backdrop-blur-surface outline-none transition-opacity duration-(--motion-duration) ease-(--motion-easing) data-ending-style:opacity-0 data-starting-style:opacity-0 motion-reduce:transition-none ${className}`}
         />
       </MenuPrimitive.Positioner>
     </MenuPrimitive.Portal>
@@ -32,7 +32,7 @@ export function MenuContent({
 }
 
 const itemClassName =
-  'flex min-h-11 cursor-default items-center gap-3 rounded-[9px] px-3 py-2 text-sm outline-none data-highlighted:bg-agent-subtle data-disabled:opacity-40'
+  'flex min-h-control cursor-default items-center gap-3 rounded-control px-3 py-2 text-sm outline-none data-highlighted:bg-accent data-highlighted:text-accent-foreground data-disabled:opacity-40'
 
 export function MenuItem({
   className = '',
@@ -42,12 +42,12 @@ export function MenuItem({
 }
 
 export function MenuSeparator() {
-  return <MenuPrimitive.Separator className="mx-2 my-1.5 h-px bg-agent-border" />
+  return <MenuPrimitive.Separator className="mx-2 my-1.5 h-px bg-border" />
 }
 
 export function MenuGroupLabel({ children }: { children: React.ReactNode }) {
   return (
-    <MenuPrimitive.GroupLabel className="px-3 pb-1 pt-2 text-[10px] font-medium tracking-wide text-agent-muted">
+    <MenuPrimitive.GroupLabel className="px-3 pb-1 pt-2 text-[10px] font-medium tracking-wide text-muted-foreground">
       {children}
     </MenuPrimitive.GroupLabel>
   )

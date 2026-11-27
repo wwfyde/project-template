@@ -1,6 +1,7 @@
 import { Check, CircleDashed, LoaderCircle, Search } from 'lucide-react'
 import { useEffect, useId, useRef, useState, type RefObject } from 'react'
 
+import { Button } from '../../../components/ui/button'
 import { Dialog } from '../../../components/ui/dialog'
 import type { Skill, SkillClient } from '../../skills'
 import type { AgentActionsCopy } from '../model/action-translations'
@@ -26,11 +27,7 @@ type AgentContextDialogProps = {
 }
 
 const inputClass =
-  'w-full rounded-xl border border-agent-border bg-agent-canvas px-3 py-2.5 text-base text-agent-text outline-none placeholder:text-agent-muted focus:border-agent-muted focus:ring-1 focus:ring-agent-muted sm:text-sm'
-const primaryClass =
-  'inline-flex min-h-10 items-center justify-center rounded-full bg-agent-strong px-5 text-sm font-medium text-agent-on-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-agent-muted disabled:opacity-40'
-const secondaryClass =
-  'inline-flex min-h-10 items-center justify-center rounded-full px-4 text-sm text-agent-muted hover:bg-agent-subtle focus-visible:outline-2 focus-visible:outline-agent-muted'
+  'w-full min-h-control rounded-control border border-input bg-background px-3 py-2.5 text-base text-foreground shadow-control outline-none transition-colors duration-(--motion-duration) ease-(--motion-easing) placeholder:text-muted-foreground focus:border-ring focus:ring-1 focus:ring-ring aria-invalid:border-destructive motion-reduce:transition-none sm:text-sm'
 
 function SkillContextPicker({
   copy,
@@ -91,7 +88,7 @@ function SkillContextPicker({
     <div className="space-y-4">
       <label className="relative block">
         <span className="sr-only">{copy.searchSkills}</span>
-        <Search size={16} className="pointer-events-none absolute left-3 top-3.5 text-agent-muted" aria-hidden="true" />
+        <Search size={16} className="pointer-events-none absolute left-3 top-3.5 text-muted-foreground" aria-hidden="true" />
         <input
           ref={inputRef}
           value={query}
@@ -101,27 +98,27 @@ function SkillContextPicker({
         />
       </label>
       {catalog.phase === 'loading' ? (
-        <p role="status" className="flex items-center gap-2 text-sm text-agent-muted">
+        <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground">
           <LoaderCircle size={16} className="animate-spin" aria-hidden="true" />
           {copy.skillLoading}
         </p>
       ) : null}
       {catalog.phase === 'error' ? (
-        <div className="rounded-xl border border-agent-border bg-agent-subtle p-4">
+        <div className="rounded-panel border border-border bg-muted p-4">
           <p role="alert" className="text-sm leading-6">
             {copy.skillError}
           </p>
-          <button
-            type="button"
-            className={`${secondaryClass} mt-2 border border-agent-border`}
+          <Button
+            variant="outline"
+            className="mt-2"
             onClick={() => load(request.after)}
           >
             {copy.skillRetry}
-          </button>
+          </Button>
         </div>
       ) : null}
       {catalog.phase === 'ready' && matches.length === 0 ? (
-        <p role="status" className="py-8 text-center text-sm text-agent-muted">
+        <p role="status" className="py-8 text-center text-sm text-muted-foreground">
           {catalog.items.length ? copy.skillNoMatch : copy.skillEmpty}
         </p>
       ) : null}
@@ -146,20 +143,20 @@ function SkillContextPicker({
                 setError(result)
                 if (!result) onClose()
               }}
-              className="flex w-full items-start gap-3 rounded-xl p-3 text-left hover:bg-agent-subtle focus-visible:outline-2 focus-visible:outline-agent-muted disabled:cursor-default disabled:opacity-50"
+              className="flex w-full items-start gap-3 rounded-panel p-3 text-left hover:bg-accent hover:text-accent-foreground focus-visible:outline-2 focus-visible:outline-ring disabled:cursor-default disabled:opacity-50"
             >
-              <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg border border-agent-border">
+              <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-control border border-border">
                 <CircleDashed size={17} aria-hidden="true" />
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-medium">{skill.name}</span>
-                <span className="mt-1 block line-clamp-2 text-xs leading-5 text-agent-muted">{skill.description}</span>
-                <span className="mt-1 block text-[11px] text-agent-muted">
+                <span className="mt-1 block line-clamp-2 text-xs leading-5 text-muted-foreground">{skill.description}</span>
+                <span className="mt-1 block text-[11px] text-muted-foreground">
                   {skill.default_version ? `v${skill.default_version}` : copy.skillUnavailable}
                 </span>
               </span>
               {added ? (
-                <span className="flex shrink-0 items-center gap-1 text-xs text-agent-muted">
+                <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
                   <Check size={13} aria-hidden="true" />
                   {copy.skillSelected}
                 </span>
@@ -169,13 +166,13 @@ function SkillContextPicker({
         })}
       </div>
       {catalog.next && catalog.phase === 'ready' ? (
-        <button
-          type="button"
-          className={`${secondaryClass} w-full border border-agent-border`}
+        <Button
+          variant="outline"
+          className="w-full"
           onClick={() => load(catalog.next)}
         >
           {copy.skillMore}
-        </button>
+        </Button>
       ) : null}
       {error ? (
         <p role="alert" className="text-xs text-destructive">
@@ -301,7 +298,7 @@ export function AgentContextDialog({
               />
             )}
             {kind === 'text' ? (
-              <p id={`${id}-count`} className="text-right text-xs text-agent-muted">
+              <p id={`${id}-count`} className="text-right text-xs text-muted-foreground">
                 {value.length.toLocaleString()} / 12,000
               </p>
             ) : null}
@@ -312,16 +309,15 @@ export function AgentContextDialog({
             </p>
           ) : null}
           <div className="flex justify-end gap-2 pt-1">
-            <button type="button" onClick={onClose} className={secondaryClass}>
+            <Button variant="ghost" onClick={onClose}>
               {copy.cancel}
-            </button>
-            <button
+            </Button>
+            <Button
               type="submit"
               disabled={!value.trim() || (kind === 'text' && !title.trim())}
-              className={primaryClass}
             >
               {copy.add}
-            </button>
+            </Button>
           </div>
         </form>
       )}

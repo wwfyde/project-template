@@ -3,20 +3,22 @@
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  min-height: 2.25rem;
+  min-height: var(--control-height);
   padding: 0.45rem 0.8rem;
   border: 1px solid var(--border);
-  border-radius: 0.55rem;
+  border-radius: var(--radius-control);
   background: var(--background);
   color: var(--foreground);
   font-size: 0.85rem;
   cursor: pointer;
   transition:
-    background 120ms,
-    opacity 120ms;
+    background var(--motion-duration) var(--motion-easing),
+    color var(--motion-duration) var(--motion-easing),
+    opacity var(--motion-duration) var(--motion-easing);
 }
 .image-button:hover {
   background: var(--accent);
+  color: var(--accent-foreground);
 }
 .image-button:focus-visible,
 .image-field:focus-visible,
@@ -32,21 +34,24 @@
   color: var(--primary-foreground);
   background: var(--primary);
   border-color: var(--primary);
+  box-shadow: var(--shadow-control);
 }
 .image-button-primary:hover {
-  background: var(--primary);
-  opacity: 0.88;
+  background: var(--primary-hover);
+  color: var(--primary-foreground);
+  border-color: var(--primary-hover);
 }
 .image-asset-card {
   border: 1px solid var(--border);
-  border-radius: 0.8rem;
+  border-radius: var(--radius-panel);
   background: var(--card);
+  color: var(--card-foreground);
   overflow: hidden;
-  transition: box-shadow 150ms;
+  transition: box-shadow var(--motion-duration) var(--motion-easing);
   cursor: pointer;
 }
 .image-asset-card:hover {
-  box-shadow: 0 7px 22px #00000012;
+  box-shadow: var(--shadow-panel);
 }
 .image-checkerboard {
   background-color: #f0f0f0;
@@ -63,11 +68,12 @@
   padding: 1rem 1.3rem;
   max-width: 1440px;
   margin: auto;
-  border-radius: 1rem;
+  border-radius: var(--radius-panel);
   border: 1px solid var(--border);
-  background: var(--background);
-  color: var(--foreground);
-  box-shadow: 0 24px 80px #0005;
+  background: var(--popover);
+  color: var(--popover-foreground);
+  box-shadow: var(--shadow-panel);
+  backdrop-filter: blur(var(--blur-surface));
   overflow-y: auto;
   outline: none;
 }
@@ -79,7 +85,7 @@
   min-height: 180px;
   width: 100%;
   padding: 1rem;
-  border-radius: 0.8rem;
+  border-radius: var(--radius-panel);
   background: var(--muted);
   overflow: hidden;
 }
@@ -114,10 +120,12 @@
   max-width: 100%;
   margin: 0 auto;
   padding: 0.45rem 0.65rem;
-  border-radius: 1rem;
-  background: #2c2c2c;
-  color: #bababa;
-  box-shadow: 0 8px 25px #0002;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-panel);
+  background: var(--popover);
+  color: var(--muted-foreground);
+  box-shadow: var(--shadow-panel);
+  backdrop-filter: blur(var(--blur-surface));
   overflow-x: auto;
   flex-shrink: 0;
 }
@@ -127,21 +135,22 @@
   justify-content: center;
   gap: 0.5rem;
   padding: 0.7rem 0.8rem;
-  border-radius: 0.7rem;
+  min-height: var(--control-height);
+  border-radius: var(--radius-control);
   white-space: nowrap;
   font-size: 0.92rem;
   cursor: pointer;
   transition:
-    color 120ms,
-    background 120ms;
+    color var(--motion-duration) var(--motion-easing),
+    background var(--motion-duration) var(--motion-easing);
 }
 .image-toolbar button:hover,
 .image-toolbar button[aria-pressed='true'] {
-  background: #424242;
-  color: #fff;
+  background: var(--accent);
+  color: var(--accent-foreground);
 }
 .image-toolbar button:focus-visible {
-  outline: 2px solid #fff;
+  outline: 2px solid var(--ring);
   outline-offset: -2px;
 }
 .image-toolbar button:disabled {
@@ -151,16 +160,17 @@
 .image-editor-panel {
   padding: 1rem;
   border: 1px solid var(--border);
-  border-radius: 0.8rem;
+  border-radius: var(--radius-panel);
   background: var(--card);
+  color: var(--card-foreground);
   font-size: 0.875rem;
 }
 .image-field {
   width: 100%;
-  min-height: 2.25rem;
+  min-height: var(--control-height);
   padding: 0.4rem 0.6rem;
   border: 1px solid var(--border);
-  border-radius: 0.45rem;
+  border-radius: var(--radius-control);
   background: var(--background);
   color: var(--foreground);
 }
@@ -173,7 +183,7 @@
 .image-error {
   padding: 0.7rem 1rem;
   border: 1px solid color-mix(in srgb, var(--destructive) 30%, transparent);
-  border-radius: 0.5rem;
+  border-radius: var(--radius-control);
   color: var(--destructive);
   background: color-mix(in srgb, var(--destructive) 6%, transparent);
   font-size: 0.85rem;

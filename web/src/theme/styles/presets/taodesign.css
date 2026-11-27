@@ -1,0 +1,37 @@
+/* Taobao / Tao commerce inspired; not Tencent TDesign. */
+@layer base {
+  :root[data-theme-preset='taodesign'] {
+    --background: #fff8f3;
+    --foreground: #35251d;
+    --card: #fff;
+    --popover: #fff;
+    --sidebar: #fff0e5;
+    --primary: #c84400;
+    --primary-foreground: #fff;
+    --muted: #ffeddf;
+    --muted-foreground: #795c4d;
+    --border: #edcfba;
+    --radius: 1rem;
+    --control-height: 2.625rem;
+    --spacing: 0.25rem;
+    --shadow-control: 0 3px 8px #e45c001a;
+    --shadow-panel: 0 8px 28px #b94d0012;
+    --blur-surface: 0px;
+    --motion-duration: 180ms;
+  }
+
+  :root.dark[data-theme-preset='taodesign'] {
+    --background: #1b1511;
+    --foreground: #fff0e6;
+    --card: #2b211a;
+    --popover: #34271e;
+    --sidebar: #211811;
+    --primary: #ff9b55;
+    --primary-foreground: #371500;
+    --muted: #3c2a1e;
+    --muted-foreground: #c6a993;
+    --border: #60422e;
+    --shadow-control: 0 3px 8px #0003;
+    --shadow-panel: 0 8px 28px #0004;
+  }
+}

@@ -1,21 +1,31 @@
-import { Button as ButtonPrimitive } from '@base-ui/react/button'
-import type { ComponentPropsWithRef } from 'react'
+import { Button, type ButtonProps } from './button'
 
-export type IconButtonProps = Omit<ComponentPropsWithRef<typeof ButtonPrimitive>, 'className'> & {
+const sizes = { default: 'icon', sm: 'icon-sm', xs: 'icon-xs' } as const
+
+export type IconButtonProps = Omit<ButtonProps, 'variant' | 'size'> & {
   label: string
   tone?: 'ghost' | 'solid'
+  size?: keyof typeof sizes
   className?: string
 }
 
-export function IconButton({ label, tone = 'ghost', className = '', type = 'button', ...props }: IconButtonProps) {
+export function IconButton({
+  label,
+  tone = 'ghost',
+  size = 'default',
+  className = '',
+  type = 'button',
+  ...props
+}: IconButtonProps) {
   return (
-    <ButtonPrimitive
+    <Button
       {...props}
       type={type}
       aria-label={label}
       title={label}
-      data-slot="icon-button"
-      className={`inline-flex size-10 shrink-0 items-center justify-center rounded-full transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-agent-muted data-disabled:cursor-not-allowed data-disabled:opacity-35 motion-reduce:transition-none ${tone === 'solid' ? 'bg-agent-strong text-agent-on-strong hover:opacity-85' : 'text-agent-text hover:bg-agent-subtle'} ${className}`}
+      variant={tone}
+      size={sizes[size]}
+      className={className}
     />
   )
 }

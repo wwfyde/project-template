@@ -1,0 +1,35 @@
+@layer base {
+  :root[data-theme-preset='arco-design'] {
+    --background: #f2f3f5;
+    --foreground: #1d2129;
+    --card: #fff;
+    --popover: #fff;
+    --sidebar: #f7f8fa;
+    --primary: #165dff;
+    --primary-foreground: #fff;
+    --muted: #e5e6eb;
+    --muted-foreground: #606775;
+    --border: #c9cdd4;
+    --radius: 0.25rem;
+    --control-height: 2rem;
+    --spacing: 0.2375rem;
+    --shadow-control: none;
+    --shadow-panel: 0 4px 10px #0000001a;
+    --blur-surface: 0px;
+    --motion-duration: 160ms;
+  }
+
+  :root.dark[data-theme-preset='arco-design'] {
+    --background: #17171a;
+    --foreground: #f6f6f6;
+    --card: #232324;
+    --popover: #2a2a2b;
+    --sidebar: #1d1d20;
+    --primary: #81aaff;
+    --primary-foreground: #10234a;
+    --muted: #333335;
+    --muted-foreground: #b5b5ba;
+    --border: #484849;
+    --shadow-panel: 0 4px 10px #0005;
+  }
+}

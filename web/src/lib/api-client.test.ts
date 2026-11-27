@@ -30,7 +30,10 @@ describe('requestJson', () => {
     const traceparent = '00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01'
 
     await expect(
-      requestJson('/api/auth/logout', { method: 'POST', headers: { 'X-CSRF-Token': 'token', traceparent } }),
+      requestJson('/api/auth/logout', {
+        method: 'POST',
+        headers: { 'X-CSRF-Token': 'token', traceparent },
+      }),
     ).resolves.toBeUndefined()
     const headers = new Headers(fetch.mock.calls[0][1].headers)
     expect(headers.get('X-CSRF-Token')).toBe('token')
@@ -43,7 +46,10 @@ describe('requestJson', () => {
       vi
         .fn()
         .mockResolvedValue(
-          Response.json({ detail: 'Forbidden' }, { status: 403, headers: { 'Request-ID': 'server-id' } }),
+          Response.json(
+            { detail: 'Forbidden' },
+            { status: 403, headers: { 'Request-ID': 'server-id' } },
+          ),
         ),
     )
     const error = await requestJson('/api/auth/logout').catch((reason: unknown) => reason)
@@ -51,15 +57,17 @@ describe('requestJson', () => {
     expect(error).toMatchObject({ status: 403, requestId: 'server-id', message: 'Forbidden' })
   })
 
-  it.each(['https://attacker.example/api/session', '//attacker.example/api/session', '/api\\attacker', '/other'])(
-    'rejects destinations outside the local API: %s',
-    async (path) => {
-      const fetch = vi.fn()
-      vi.stubGlobal('fetch', fetch)
-      await expect(requestJson(path)).rejects.toThrow('local /api path')
-      expect(fetch).not.toHaveBeenCalled()
-    },
-  )
+  it.each([
+    'https://attacker.example/api/session',
+    '//attacker.example/api/session',
+    '/api\\attacker',
+    '/other',
+  ])('rejects destinations outside the local API: %s', async (path) => {
+    const fetch = vi.fn()
+    vi.stubGlobal('fetch', fetch)
+    await expect(requestJson(path)).rejects.toThrow('local /api path')
+    expect(fetch).not.toHaveBeenCalled()
+  })
 
   it('preserves structured account error codes and messages', async () => {
     vi.stubGlobal(

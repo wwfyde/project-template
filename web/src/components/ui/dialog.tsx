@@ -26,26 +26,26 @@ export function Dialog({
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <DialogPrimitive.Portal>
-        <DialogPrimitive.Backdrop className="fixed inset-0 z-50 bg-black/30 transition-opacity data-ending-style:opacity-0 data-starting-style:opacity-0" />
+        <DialogPrimitive.Backdrop className="fixed inset-0 z-50 bg-overlay transition-opacity duration-(--motion-duration) ease-(--motion-easing) data-ending-style:opacity-0 data-starting-style:opacity-0" />
         <DialogPrimitive.Popup
           aria-labelledby={titleId}
           aria-describedby={description ? descriptionId : undefined}
           finalFocus={returnFocusRef}
           initialFocus={initialFocusRef}
-          className="fixed left-1/2 top-1/2 z-50 flex max-h-[calc(100dvh-32px)] w-[min(560px,calc(100vw-32px))] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-[22px] border border-agent-border bg-agent-surface text-agent-text shadow-xl outline-none"
+          className="fixed left-1/2 top-1/2 z-50 flex max-h-[calc(100dvh-32px)] w-[min(560px,calc(100vw-32px))] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-panel border border-border bg-popover text-popover-foreground shadow-panel backdrop-blur-surface outline-none"
         >
-          <div className="shrink-0 border-b border-agent-border px-5 py-5 pr-16 sm:px-6 sm:pr-16">
+          <div className="shrink-0 border-b border-border px-5 py-5 pr-16 sm:px-6 sm:pr-16">
             <DialogPrimitive.Title id={titleId} className="text-lg font-semibold tracking-tight">
               {title}
             </DialogPrimitive.Title>
             {description ? (
-              <DialogPrimitive.Description id={descriptionId} className="mt-2 text-xs leading-5 text-agent-muted">
+              <DialogPrimitive.Description id={descriptionId} className="mt-2 text-xs leading-5 text-muted-foreground">
                 {description}
               </DialogPrimitive.Description>
             ) : null}
             <DialogPrimitive.Close
               aria-label={closeLabel}
-              className="absolute right-3 top-3 flex size-10 items-center justify-center rounded-full text-agent-muted hover:bg-agent-subtle focus-visible:outline-2 focus-visible:outline-agent-muted"
+              className="absolute right-3 top-3 flex size-control items-center justify-center rounded-control text-muted-foreground hover:bg-accent hover:text-accent-foreground focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2"
             >
               <X size={18} aria-hidden="true" />
             </DialogPrimitive.Close>

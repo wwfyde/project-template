@@ -20,7 +20,7 @@ export function AutoTextarea({ ref, value, className = '', ...props }: AutoTexta
       value={value}
       rows={2}
       data-slot="auto-textarea"
-      className={`block max-h-[200px] min-h-16 w-full resize-none border-0 bg-transparent text-base leading-7 text-agent-text outline-none placeholder:text-agent-muted ${className}`}
+      className={`block max-h-[var(--textarea-max-height,200px)] min-h-16 w-full resize-none border-0 bg-transparent text-base leading-7 text-foreground outline-none placeholder:text-muted-foreground ${className}`}
     />
   )
 }

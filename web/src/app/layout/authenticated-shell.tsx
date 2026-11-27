@@ -49,7 +49,7 @@ export function AuthenticatedShell() {
 
   return (
     <div className="min-h-dvh bg-background text-foreground">
-      <header className="border-b border-border bg-card text-card-foreground">
+      <header className="border-b border-border bg-sidebar text-sidebar-foreground backdrop-blur-surface">
         <div className="app-content flex flex-wrap items-center gap-3 px-4 py-3 md:px-8">
           <Link to="/" className="mr-auto font-semibold tracking-tight">
             {t('appName', { ns: 'common' })}

@@ -85,7 +85,7 @@ export function LoginPage() {
         <LanguageSwitcher compact />
         <ThemeConfigurator />
       </div>
-      <section className="w-full max-w-md rounded-lg border border-border bg-card p-6 text-card-foreground md:p-8">
+      <section className="w-full max-w-md rounded-panel border border-border bg-card p-6 text-card-foreground shadow-panel md:p-8">
         <div className="mb-6 inline-flex size-12 items-center justify-center rounded-lg bg-primary text-primary-foreground">
           <ShieldCheck className="size-6" aria-hidden="true" />
         </div>

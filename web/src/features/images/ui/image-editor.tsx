@@ -396,7 +396,7 @@ export function ImageEditor({ initialAsset, providers, client, onSave, onClose }
       }}
     >
       <Dialog.Portal>
-        <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" />
+        <Dialog.Backdrop className="fixed inset-0 z-50 bg-overlay" />
         <Dialog.Popup className="image-preview-dialog" aria-busy={busy}>
           <header className="flex items-start justify-between gap-3">
             <div className="min-w-0">

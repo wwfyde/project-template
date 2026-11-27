@@ -56,7 +56,7 @@ function SelectionMark() {
 
 function OptionFrame({ children }: { children: ReactNode }) {
   return (
-    <div className="relative rounded-xl border border-border bg-card transition group-data-checked:border-primary group-data-checked:ring-2 group-data-checked:ring-primary/25 group-focus-visible:ring-2 group-focus-visible:ring-ring group-hover:border-primary/50">
+    <div className="relative rounded-control border border-border bg-card transition group-data-checked:border-primary group-data-checked:ring-2 group-data-checked:ring-primary/25 group-focus-visible:ring-2 group-focus-visible:ring-ring group-hover:border-primary/50">
       <SelectionMark />
       {children}
     </div>
@@ -73,15 +73,15 @@ export function ThemeConfigurator() {
   return (
     <Dialog.Root open={open} onOpenChange={setOpen}>
       <Dialog.Trigger
-        className="inline-flex size-11 shrink-0 items-center justify-center rounded-xl border border-border bg-card text-foreground shadow-sm transition hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:size-9"
+        className="inline-flex size-11 shrink-0 items-center justify-center rounded-control border border-border bg-card text-foreground shadow-control transition hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:size-9"
         aria-label={t('open')}
       >
         <Palette className="size-4.5" aria-hidden="true" />
       </Dialog.Trigger>
 
       <Dialog.Portal>
-        <Dialog.Backdrop className="fixed inset-0 z-40 bg-black/30 backdrop-blur-[2px] transition-opacity data-ending-style:opacity-0 data-starting-style:opacity-0" />
-        <Dialog.Popup className="fixed inset-0 z-50 flex h-dvh w-full flex-col border-border bg-popover text-popover-foreground shadow-2xl outline-none transition duration-200 data-ending-style:translate-x-8 data-ending-style:opacity-0 data-starting-style:translate-x-8 data-starting-style:opacity-0 md:inset-y-0 md:left-auto md:right-0 md:max-w-md md:border-l">
+        <Dialog.Backdrop className="fixed inset-0 z-40 bg-overlay transition-opacity data-ending-style:opacity-0 data-starting-style:opacity-0" />
+        <Dialog.Popup className="fixed inset-0 z-50 flex h-dvh w-full flex-col border-border bg-popover text-popover-foreground shadow-panel backdrop-blur-surface outline-none transition data-ending-style:translate-x-8 data-ending-style:opacity-0 data-starting-style:translate-x-8 data-starting-style:opacity-0 md:inset-y-0 md:left-auto md:right-0 md:max-w-md md:border-l">
           <header className="border-b border-border px-4 pb-4 pt-[max(1rem,env(safe-area-inset-top))] md:px-5 md:py-4">
             <div className="flex items-start justify-between gap-4">
               <div>
@@ -91,7 +91,7 @@ export function ThemeConfigurator() {
                 </Dialog.Description>
               </div>
               <Dialog.Close
-                className="inline-flex size-11 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:size-8"
+                className="inline-flex size-11 shrink-0 items-center justify-center rounded-control text-muted-foreground transition hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:size-8"
                 aria-label={t('close')}
               >
                 <X className="size-4" aria-hidden="true" />
@@ -120,7 +120,7 @@ export function ThemeConfigurator() {
                       aria-label={t(option.labelKey)}
                     >
                       <OptionFrame>
-                        <Icon className="block w-full rounded-xl" aria-hidden="true" />
+                        <Icon className="block w-full rounded-control" aria-hidden="true" />
                       </OptionFrame>
                       <div className="mt-2 text-center text-xs font-medium">{t(option.labelKey)}</div>
                     </RadioPrimitive.Root>
@@ -130,10 +130,11 @@ export function ThemeConfigurator() {
             </Section>
 
             <Section title={t('sections.preset')}>
+              <p className="text-xs leading-relaxed text-muted-foreground">{t('presetHint')}</p>
               <RadioGroup
                 value={preferences.preset}
                 onValueChange={(preset) => setPreferences({ preset: preset as ThemePreset })}
-                className="grid grid-cols-2 gap-x-3 gap-y-4 md:grid-cols-4"
+                className="grid grid-cols-2 gap-x-3 gap-y-4"
                 aria-label={t('groups.preset')}
               >
                 {THEME_PRESETS.map((preset) => (
@@ -144,12 +145,24 @@ export function ThemeConfigurator() {
                     aria-label={t(preset.labelKey)}
                   >
                     <OptionFrame>
-                      <div
-                        className="h-12 rounded-xl"
-                        style={{ background: `linear-gradient(135deg, ${preset.swatches.join(', ')})` }}
-                      />
+                      <div className="rounded-control p-3" style={{ background: preset.preview.surface }} aria-hidden="true">
+                        <div
+                          className="flex h-16 flex-col justify-between border border-black/5 bg-white/90 p-2.5"
+                          style={{ borderRadius: preset.preview.radius, boxShadow: preset.preview.shadow }}
+                        >
+                          <span className="h-1 w-1/2 rounded-full bg-black/65" />
+                          <span className="h-1 w-3/4 rounded-full bg-black/15" />
+                          <span
+                            className="h-3 w-2/5"
+                            style={{ background: preset.preview.primary, borderRadius: preset.preview.radius }}
+                          />
+                        </div>
+                      </div>
                     </OptionFrame>
-                    <div className="mt-1.5 truncate text-center text-xs">{t(preset.labelKey)}</div>
+                    <div className="mt-2 text-center text-xs font-medium">{t(preset.labelKey)}</div>
+                    <div className="mt-1 text-center text-[11px] leading-relaxed text-muted-foreground">
+                      {t(preset.descriptionKey)}
+                    </div>
                   </RadioPrimitive.Root>
                 ))}
               </RadioGroup>
@@ -249,7 +262,7 @@ export function ThemeConfigurator() {
           <footer className="border-t border-border px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 md:p-4">
             <button
               type="button"
-              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-destructive/12 px-4 py-2.5 text-sm font-medium text-destructive transition hover:bg-destructive/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive/50"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-control bg-secondary px-4 py-2.5 text-sm font-medium text-secondary-foreground transition hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               onClick={resetPreferences}
             >
               <RotateCcw className="size-4" aria-hidden="true" />

@@ -12,12 +12,10 @@ import {
   Link2,
   ListChecks,
   MessageCircle,
-  Moon,
   PanelLeft,
   Search,
   Sparkles,
   SquarePen,
-  Sun,
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -26,7 +24,7 @@ import { ChatComposer } from '../../../blocks/chat-composer'
 import { IconButton } from '../../../components/ui/icon-button'
 import { SegmentedTabs } from '../../../components/ui/segmented-tabs'
 import { Sheet } from '../../../components/ui/sheet'
-import { useTheme } from '../../../theme'
+import { ThemeConfigurator } from '../../../theme'
 import { useAuth } from '../../auth'
 import { createSkillClient } from '../../skills'
 import { startPreviewRun } from '../infrastructure/preview-transport'
@@ -63,7 +61,6 @@ export function AgentPage() {
   const actionCopy = language === 'zh-CN' ? agentActionsZhCN : agentActionsEn
   const { user, authenticatedRequest } = useAuth()
   const skillClient = useMemo(() => createSkillClient({ authenticatedRequest }), [authenticatedRequest])
-  const { resolvedMode, setPreferences } = useTheme()
   const [state, dispatch] = useReducer(workspaceReducer, language, createInitialWorkspace)
   const [sidebarVisible, setSidebarVisible] = useState(true)
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
@@ -279,7 +276,7 @@ export function AgentPage() {
       error={errors[mode]}
       context={
         mode === 'task' ? (
-          <span className="inline-flex items-center gap-2 rounded-lg bg-agent-subtle px-2.5 py-1.5 text-[11px] text-agent-muted">
+          <span className="inline-flex items-center gap-2 rounded-control bg-muted px-2.5 py-1.5 text-[11px] text-muted-foreground">
             <ListChecks size={13} />
             {copy.taskContext}
           </span>
@@ -289,7 +286,7 @@ export function AgentPage() {
   )
 
   return (
-    <div className="agent-workspace flex">
+    <div data-agent-scope="" className="agent-workspace flex">
       {contextDialog ? (
         <AgentContextDialog
           key={`${contextDialog.mode}-${contextDialog.kind}`}
@@ -337,7 +334,7 @@ export function AgentPage() {
               </IconButton>
             ) : null}
             <span className="text-[18px] font-semibold tracking-tight">Agent</span>
-            <span className="ml-1 hidden rounded-md border border-agent-border px-2 py-0.5 text-[10px] text-agent-muted sm:block">
+            <span className="ml-1 hidden rounded-control border border-border px-2 py-0.5 text-[10px] text-muted-foreground sm:block">
               {copy.preview}
             </span>
           </div>
@@ -353,12 +350,7 @@ export function AgentPage() {
             >
               <Languages size={18} strokeWidth={1.6} />
             </IconButton>
-            <IconButton
-              label={resolvedMode === 'dark' ? copy.light : copy.dark}
-              onClick={() => setPreferences({ mode: resolvedMode === 'dark' ? 'light' : 'dark' })}
-            >
-              {resolvedMode === 'dark' ? <Sun size={18} strokeWidth={1.6} /> : <Moon size={18} strokeWidth={1.6} />}
-            </IconButton>
+            <ThemeConfigurator />
           </div>
         </header>
 
@@ -387,7 +379,7 @@ export function AgentPage() {
               <div className="agent-composer-dock shrink-0 px-4 pt-4 sm:px-10">
                 <div className="mx-auto max-w-[760px]">
                   {composer}
-                  <p className="mt-3 text-center text-[10px] text-agent-muted sm:text-[11px]">{copy.localHint}</p>
+                  <p className="mt-3 text-center text-[10px] text-muted-foreground sm:text-[11px]">{copy.localHint}</p>
                 </div>
               </div>
             </>
@@ -395,14 +387,14 @@ export function AgentPage() {
             <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-5 sm:px-10">
               <div className="agent-welcome">
                 <div className="mb-8 text-center sm:mb-9">
-                  <span className="mb-5 inline-flex size-12 items-center justify-center rounded-2xl border border-agent-border bg-agent-surface shadow-[0_2px_12px_#00000003]">
+                  <span className="mb-5 inline-flex size-12 items-center justify-center rounded-panel border border-border bg-card shadow-control">
                     <Sparkles size={24} strokeWidth={1.45} />
                   </span>
-                  <p className="mb-3 text-[11px] tracking-wider text-agent-muted">{copy.eyebrow}</p>
+                  <p className="mb-3 text-[11px] tracking-wider text-muted-foreground">{copy.eyebrow}</p>
                   <h1 className="text-[clamp(26px,3vw,36px)] font-medium leading-[1.35] tracking-[-0.035em]">
                     {mode === 'chat' ? copy.greeting : copy.taskGreeting}
                   </h1>
-                  <p className="mt-3 text-[13px] leading-6 text-agent-muted">
+                  <p className="mt-3 text-[13px] leading-6 text-muted-foreground">
                     {mode === 'chat' ? copy.chatDescription : copy.taskDescription}
                   </p>
                 </div>
@@ -416,28 +408,28 @@ export function AgentPage() {
                           type="button"
                           key={suggestion.title}
                           aria-label={suggestion.title}
-                          className="group flex min-w-0 flex-col items-start rounded-2xl border border-agent-border bg-agent-canvas p-4 text-left transition-colors hover:bg-agent-sidebar"
+                          className="group flex min-w-0 flex-col items-start rounded-panel border border-border bg-card p-4 text-left text-card-foreground shadow-control backdrop-blur-surface transition-colors duration-(--motion-duration) ease-(--motion-easing) hover:bg-accent hover:text-accent-foreground"
                           onClick={() => {
                             dispatch({ type: 'draft', patch: { text: suggestion.prompt } })
                             requestAnimationFrame(() => composerInputRef.current?.focus())
                           }}
                         >
                           <div className="mb-4 flex w-full items-center justify-between">
-                            <SuggestionIcon size={18} strokeWidth={1.6} className="text-agent-muted" />
+                            <SuggestionIcon size={18} strokeWidth={1.6} className="text-muted-foreground" />
                             <ArrowUpRight
                               size={13}
-                              className="text-agent-muted opacity-0 transition-opacity group-hover:opacity-100"
+                              className="text-muted-foreground opacity-0 transition-opacity duration-(--motion-duration) ease-(--motion-easing) group-hover:opacity-100"
                             />
                           </div>
                           <p className="text-[13px] font-medium">{suggestion.title}</p>
-                          <p className="mt-1.5 text-[11px] leading-5 text-agent-muted">{suggestion.description}</p>
+                          <p className="mt-1.5 text-[11px] leading-5 text-muted-foreground">{suggestion.description}</p>
                         </button>
                       )
                     })}
                   </div>
                 </section>
               </div>
-              <p className="shrink-0 pb-5 text-center text-[10px] text-agent-muted sm:text-[11px]">{copy.localHint}</p>
+              <p className="shrink-0 pb-5 text-center text-[10px] text-muted-foreground sm:text-[11px]">{copy.localHint}</p>
             </div>
           )}
         </div>

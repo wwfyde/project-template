@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { DEFAULT_THEME_PREFERENCES } from './theme-config'
+import { DEFAULT_THEME_PREFERENCES, THEME_PRESETS } from './theme-config'
 import {
   isDefaultThemePreferences,
   mergeThemePreferences,
@@ -27,10 +27,10 @@ describe('theme preferences', () => {
     })
   })
 
-  it('round-trips the versioned storage format', () => {
+  it.each(THEME_PRESETS)('persists $value independently of mode and layout preferences', ({ value: preset }) => {
     const preferences = mergeThemePreferences(DEFAULT_THEME_PREFERENCES, {
       mode: 'dark',
-      preset: 'ocean-breeze',
+      preset,
       radius: 'sm',
     })
 

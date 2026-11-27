@@ -16,7 +16,8 @@ export default defineConfig(({mode}) => ({
     }), // 必须在react之前
     codeInspectorPlugin({
       bundler: "vite",
-      editor: "code", // pycharm, cursor
+      editor: "pycharm", // pycharm, cursor
+      showSwitch: true,
       behavior: {
         locate: true,
       },

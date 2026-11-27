@@ -36,7 +36,7 @@ export function SegmentedTabs<Value extends string>({
       <TabsPrimitive.List
         activateOnFocus
         aria-label={label}
-        className="inline-flex gap-1 rounded-full bg-agent-subtle p-1"
+        className="inline-flex gap-1 rounded-control bg-muted p-1"
       >
         {options.map((option) => (
           <TabsPrimitive.Tab
@@ -44,7 +44,7 @@ export function SegmentedTabs<Value extends string>({
             value={option.value}
             id={panelId ? `${panelId}-tab-${option.value}` : undefined}
             aria-controls={panelId}
-            className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full px-5 text-sm font-medium text-agent-muted transition-colors hover:text-agent-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-agent-muted data-active:bg-agent-surface data-active:text-agent-text data-active:shadow-sm motion-reduce:transition-none"
+            className="inline-flex min-h-control items-center justify-center gap-2 rounded-control px-5 text-sm font-medium text-muted-foreground transition-colors duration-(--motion-duration) ease-(--motion-easing) hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring data-active:bg-card data-active:text-foreground data-active:shadow-control motion-reduce:transition-none"
           >
             {option.icon}
             {option.label}

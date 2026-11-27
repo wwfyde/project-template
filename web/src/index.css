@@ -1,6 +1,5 @@
 @import 'tailwindcss';
 @import './theme/styles/theme.css';
-@import './theme/styles/agent.css';
 
 @layer base {
   * {
@@ -22,6 +21,9 @@
     font-size: var(--text-base);
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
+
+    /* for ios26+ */
+    position: relative;
   }
 
   #root {

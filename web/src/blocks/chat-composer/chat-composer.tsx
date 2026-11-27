@@ -8,7 +8,7 @@ import { ComposerActionMenu } from './composer-action-menu'
 import type { ChatComposerProps } from './types'
 
 const triggerClassName =
-  'inline-flex min-h-10 min-w-0 items-center justify-center gap-1.5 rounded-full px-3 text-[13px] text-agent-muted transition-colors hover:bg-agent-subtle hover:text-agent-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-agent-muted data-disabled:opacity-40'
+  'inline-flex min-h-control min-w-0 items-center justify-center gap-1.5 rounded-control px-3 text-[13px] text-muted-foreground transition-colors duration-(--motion-duration) ease-(--motion-easing) hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring data-disabled:opacity-40'
 
 function fileSize(bytes: number) {
   return bytes < 1024 * 1024
@@ -82,7 +82,7 @@ export function ChatComposer({
           setIsDragging(false)
           addFiles(Array.from(event.dataTransfer.files))
         }}
-        className="relative rounded-[26px] border border-agent-border bg-agent-surface p-3 shadow-[0_3px_16px_0_rgb(0_0_0/0.045)] transition-shadow focus-within:shadow-[0_3px_20px_0_rgb(0_0_0/0.075)]"
+        className="relative rounded-panel border border-border bg-card p-3 shadow-panel backdrop-blur-surface transition-shadow duration-(--motion-duration) ease-(--motion-easing) focus-within:ring-1 focus-within:ring-ring"
       >
         <div data-slot="composer-input" className="min-h-0">
           {context ? <div className="px-2 pb-2 pt-1">{context}</div> : null}
@@ -96,10 +96,10 @@ export function ChatComposer({
                 <span
                   key={selection.id}
                   title={selection.description ?? selection.label}
-                  className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-agent-border bg-agent-subtle py-1 pl-2.5 pr-1.5 text-xs text-agent-text"
+                  className="inline-flex max-w-full items-center gap-1.5 rounded-control border border-border bg-muted py-1 pl-2.5 pr-1.5 text-xs text-foreground"
                 >
                   {selection.icon ? (
-                    <span className="flex shrink-0 items-center text-agent-muted" aria-hidden="true">
+                    <span className="flex shrink-0 items-center text-muted-foreground" aria-hidden="true">
                       {selection.icon}
                     </span>
                   ) : null}
@@ -109,7 +109,7 @@ export function ChatComposer({
                       label={`${labels.removeSelection ?? labels.removeAttachment}: ${selection.label}`}
                       disabled={busy}
                       onClick={() => onRemoveSelection(selection.id)}
-                      className="size-7"
+                      size="xs"
                     >
                       <X size={12} aria-hidden="true" />
                     </IconButton>
@@ -124,22 +124,22 @@ export function ChatComposer({
               {attachments.map((attachment) => (
                 <div
                   key={attachment.id}
-                  className="flex max-w-full items-center gap-2 rounded-xl border border-agent-border px-2 py-1.5 text-agent-text"
+                  className="flex max-w-full items-center gap-2 rounded-control border border-border px-2 py-1.5 text-foreground"
                 >
-                  <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-agent-subtle">
+                  <span className="flex size-8 shrink-0 items-center justify-center rounded-control bg-muted">
                     <FileText size={17} strokeWidth={1.7} aria-hidden="true" />
                   </span>
                   <div className="min-w-0">
                     <p className="max-w-40 truncate text-xs font-medium" title={attachment.name}>
                       {attachment.name}
                     </p>
-                    <p className="text-[10px] text-agent-muted">{fileSize(attachment.size)}</p>
+                    <p className="text-[10px] text-muted-foreground">{fileSize(attachment.size)}</p>
                   </div>
                   <IconButton
                     label={`${labels.removeAttachment}: ${attachment.name}`}
                     disabled={busy}
                     onClick={() => onRemoveAttachment(attachment.id)}
-                    className="size-8"
+                    size="sm"
                   >
                     <X size={14} aria-hidden="true" />
                   </IconButton>
@@ -242,7 +242,7 @@ export function ChatComposer({
                       <span className="min-w-0 flex-1">
                         <span className="block font-medium">{model.label}</span>
                         {model.description ? (
-                          <span className="mt-0.5 block text-xs leading-5 text-agent-muted">{model.description}</span>
+                          <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">{model.description}</span>
                         ) : null}
                       </span>
                       <span className="flex size-4 shrink-0 items-center justify-center">
@@ -275,7 +275,7 @@ export function ChatComposer({
         </div>
 
         {isDragging ? (
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center gap-3 rounded-[26px] border-2 border-dashed border-agent-muted bg-agent-surface/95 text-sm text-agent-text">
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center gap-3 rounded-panel border-2 border-dashed border-muted-foreground bg-card/95 text-sm text-foreground">
             <Upload size={20} aria-hidden="true" />
             {labels.dropFiles}
           </div>

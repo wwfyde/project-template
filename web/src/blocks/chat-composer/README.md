@@ -84,7 +84,7 @@ import { ChatComposer } from '../../blocks/chat-composer'
 - 提交、停止、草稿清空、模型／工具能力校验和执行结果都由宿主决定。`error`只负责呈现，不包含网络请求或重试逻辑。
 - `context`可以扩展模式说明；Creative比例／时长等专用业务参数应在宿主组装，避免把模式分支塞进block。
 - selections与附件分别使用有高度上限的滚动区。`inputRef`只提供原生textarea目标，不自行触发聚焦；`actionTriggerRef`传给plus触发器。宿主负责选择与关闭对话框后的焦点安排。
-- 使用`agent-*`语义token，与当前Agent中性明暗主题一致；输入器不会修改主题或语言偏好。
+- 使用全局语义 token（`background`、`card`、`foreground`、`primary`、`border`），圆角、阴影、材质与动效跟随设计系统 preset；输入器不会修改主题或语言偏好。
 
 当前feature按Chat / Task两模式保留草稿，包含文本、附件、上下文、模型与工具。链接／文本校验、真实技能列表读取、引用快照、停止／切换／新建的异步归属都由feature处理，不由block识别会话。完整边界见[输入器动作与上下文](../../../../docs/agent-composer-actions.md)。
 

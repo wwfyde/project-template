@@ -23,7 +23,7 @@ describe('theme document', () => {
     applyThemeToDocument(
       {
         mode: 'system',
-        preset: 'ocean-breeze',
+        preset: 'apple-ios26',
         radius: 'sm',
         density: 'compact',
         contentWidth: 'centered',
@@ -35,7 +35,7 @@ describe('theme document', () => {
     expect(root.style.colorScheme).toBe('dark')
     expect(root.dataset).toEqual({
       themeMode: 'system',
-      themePreset: 'ocean-breeze',
+      themePreset: 'apple-ios26',
       themeRadius: 'sm',
       themeDensity: 'compact',
       themeContentWidth: 'centered',
@@ -48,6 +48,7 @@ describe('theme document', () => {
     expect(root.style.colorScheme).toBe('light')
     expect(root.dataset).toEqual({
       themeMode: 'system',
+      themePreset: 'chatgpt',
       themeContentWidth: 'full',
       themeReady: 'true',
     })

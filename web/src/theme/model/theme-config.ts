@@ -6,49 +6,51 @@ export const THEME_MODES = [
 
 export const THEME_PRESETS = [
   {
-    value: 'default',
-    labelKey: 'presets.default',
-    swatches: ['oklch(0.67 0.18 254)', 'oklch(0.72 0.16 302)'],
+    value: 'apple-ios26',
+    labelKey: 'presets.appleIos26',
+    descriptionKey: 'presetDescriptions.appleIos26',
+    preview: { surface: '#f2f2f7', primary: '#0065d9', radius: '1.25rem', shadow: '0 16px 48px #2635561a, inset 0 1px 0 #ffffffe6' },
   },
   {
-    value: 'midnight',
-    labelKey: 'presets.midnight',
-    swatches: ['oklch(0.53 0.07 156)', 'oklch(0.57 0.09 337)'],
+    value: 'chatgpt',
+    labelKey: 'presets.chatgpt',
+    descriptionKey: 'presetDescriptions.chatgpt',
+    preview: { surface: '#fff', primary: '#242424', radius: '1rem', shadow: '0 4px 24px #0000000a, 0 1px 5px #00000008' },
   },
   {
-    value: 'rose-garden',
-    labelKey: 'presets.roseGarden',
-    swatches: ['oklch(0.58 0.24 12)', 'oklch(0.81 0.11 6)'],
+    value: 'wechat',
+    labelKey: 'presets.wechat',
+    descriptionKey: 'presetDescriptions.wechat',
+    preview: { surface: '#ededed', primary: '#078445', radius: '0.5rem', shadow: '0 4px 16px #0000000d' },
   },
   {
-    value: 'lake-view',
-    labelKey: 'presets.lakeView',
-    swatches: ['oklch(0.77 0.18 163)', 'oklch(0.55 0.09 201)'],
+    value: 'taodesign',
+    labelKey: 'presets.taodesign',
+    descriptionKey: 'presetDescriptions.taodesign',
+    preview: { surface: '#fff8f3', primary: '#c84400', radius: '1rem', shadow: '0 8px 28px #b94d0012' },
   },
   {
-    value: 'sunset-glow',
-    labelKey: 'presets.sunsetGlow',
-    swatches: ['oklch(0.56 0.19 25)', 'oklch(0.79 0.12 42)'],
+    value: 'ant-design',
+    labelKey: 'presets.antDesign',
+    descriptionKey: 'presetDescriptions.antDesign',
+    preview: { surface: '#f5f5f5', primary: '#1668dc', radius: '0.375rem', shadow: '0 6px 16px #00000014, 0 3px 6px #0000000a' },
   },
   {
-    value: 'forest-whisper',
-    labelKey: 'presets.forestWhisper',
-    swatches: ['oklch(0.53 0.11 182)', 'oklch(0.52 0.05 250)'],
+    value: 'arco-design',
+    labelKey: 'presets.arcoDesign',
+    descriptionKey: 'presetDescriptions.arcoDesign',
+    preview: { surface: '#f2f3f5', primary: '#165dff', radius: '0.25rem', shadow: '0 4px 10px #0000001a' },
   },
   {
-    value: 'ocean-breeze',
-    labelKey: 'presets.oceanBreeze',
-    swatches: ['oklch(0.55 0.22 263)', 'oklch(0.59 0.2 277)'],
-  },
-  {
-    value: 'lavender-dream',
-    labelKey: 'presets.lavenderDream',
-    swatches: ['oklch(0.57 0.18 307)', 'oklch(0.81 0.06 201)'],
+    value: 'douyin-design',
+    labelKey: 'presets.douyinDesign',
+    descriptionKey: 'presetDescriptions.douyinDesign',
+    preview: { surface: '#faf8fc', primary: '#d5164b', radius: '0.75rem', shadow: '0 8px 28px #39133b12' },
   },
 ] as const
 
 export const THEME_RADII = [
-  { value: 'default', labelKey: 'radii.default', preview: '0.75rem' },
+  { value: 'default', labelKey: 'radii.default', preview: 'var(--radius)' },
   { value: 'none', labelKey: 'radii.none', preview: '0' },
   { value: 'sm', labelKey: 'radii.sm', preview: '0.3rem' },
   { value: 'md', labelKey: 'radii.md', preview: '0.5rem' },
@@ -84,7 +86,7 @@ export type ThemePreferences = {
 
 export const DEFAULT_THEME_PREFERENCES: Readonly<ThemePreferences> = Object.freeze({
   mode: 'system',
-  preset: 'default',
+  preset: 'chatgpt',
   radius: 'default',
   density: 'default',
   contentWidth: 'full',

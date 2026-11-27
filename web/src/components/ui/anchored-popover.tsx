@@ -41,7 +41,7 @@ export function AnchoredPopover({
             initialFocus={false}
             finalFocus={false}
             data-slot="anchored-popover"
-            className={`max-h-[var(--available-height)] max-w-[min(28rem,var(--available-width),calc(100vw-1rem))] overflow-y-auto rounded-xl border border-border bg-popover p-4 text-sm text-popover-foreground shadow-lg outline-none [overflow-wrap:anywhere] ${className}`}
+            className={`max-h-[var(--available-height)] max-w-[min(28rem,var(--available-width),calc(100vw-1rem))] overflow-y-auto rounded-panel border border-border bg-popover p-4 text-sm text-popover-foreground shadow-panel backdrop-blur-surface outline-none [overflow-wrap:anywhere] ${className}`}
           />
         </PopoverPrimitive.Positioner>
       </PopoverPrimitive.Portal>

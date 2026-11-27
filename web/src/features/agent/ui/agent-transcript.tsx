@@ -130,7 +130,7 @@ export function AgentTranscript({
                       {message.attachments?.map((file) => (
                         <span
                           key={file.id}
-                          className="inline-flex max-w-full items-center gap-2 rounded-xl border border-agent-border px-3 py-2 text-xs text-agent-muted"
+                          className="inline-flex max-w-full items-center gap-2 rounded-panel border border-border px-3 py-2 text-xs text-muted-foreground"
                         >
                           <FileText size={15} className="shrink-0" />
                           <span className="truncate">{file.name}</span>
@@ -142,7 +142,7 @@ export function AgentTranscript({
                     ref={(node) => registerMessage(message.id, node)}
                     data-user-message-bubble=""
                     data-navigation-highlight={message.id === highlightedId || undefined}
-                    className="w-fit rounded-[22px] bg-agent-subtle px-5 py-3 text-[15px] leading-7 whitespace-pre-wrap ml-auto"
+                    className="w-fit rounded-panel bg-muted px-5 py-3 text-[15px] leading-7 whitespace-pre-wrap ml-auto data-[navigation-highlight=true]:bg-accent data-[navigation-highlight=true]:text-accent-foreground data-[navigation-highlight=true]:outline-2 data-[navigation-highlight=true]:outline-offset-2 data-[navigation-highlight=true]:outline-ring"
                   >
                     {message.content}
                   </div>
@@ -150,11 +150,11 @@ export function AgentTranscript({
               ) : (
                 <div>
                   <div className="mb-4 flex items-center gap-2.5">
-                    <span className="flex size-7 items-center justify-center rounded-full border border-agent-border">
+                    <span className="flex size-7 items-center justify-center rounded-full border border-border">
                       <Sparkles size={15} strokeWidth={1.6} />
                     </span>
                     <span className="text-[13px] font-semibold">Agent</span>
-                    <span className="rounded-md border border-agent-border px-1.5 py-0.5 text-[10px] text-agent-muted">
+                    <span className="rounded-control border border-border px-1.5 py-0.5 text-[10px] text-muted-foreground">
                       {copy.example}
                     </span>
                     <span
@@ -162,7 +162,7 @@ export function AgentTranscript({
                       className={
                         message.status === 'completed'
                           ? 'sr-only'
-                          : 'ml-auto text-[11px] text-agent-muted'
+                          : 'ml-auto text-[11px] text-muted-foreground'
                       }
                     >
                       {message.status === 'running'
@@ -175,10 +175,10 @@ export function AgentTranscript({
                     </span>
                   </div>
                   {message.steps ? (
-                    <div className="mb-5 overflow-hidden rounded-2xl border border-agent-border">
-                      <div className="flex items-center justify-between border-b border-agent-border px-4 py-3 text-xs">
+                    <div className="mb-5 overflow-hidden rounded-panel border border-border">
+                      <div className="flex items-center justify-between border-b border-border px-4 py-3 text-xs">
                         <span className="font-medium">{copy.taskPlan}</span>
-                        <span className="text-agent-muted">
+                        <span className="text-muted-foreground">
                           {message.steps.filter((step) => step.status === 'completed').length} /{' '}
                           {message.steps.length}
                         </span>
@@ -199,10 +199,10 @@ export function AgentTranscript({
                             <li key={step.id} className="flex items-center gap-3 text-[13px]">
                               <StepIcon
                                 size={15}
-                                className={`${step.status === 'completed' ? 'text-agent-success' : 'text-agent-muted'} ${step.status === 'running' && !cancelled ? 'animate-spin' : ''}`}
+                                className={`${step.status === 'completed' ? 'text-success' : 'text-muted-foreground'} ${step.status === 'running' && !cancelled ? 'animate-spin' : ''}`}
                               />
                               <span className="flex-1">{step.label}</span>
-                              <span className="text-[11px] text-agent-muted">
+                              <span className="text-[11px] text-muted-foreground">
                                 {step.status === 'completed'
                                   ? copy.completed
                                   : cancelled
@@ -223,7 +223,7 @@ export function AgentTranscript({
                     {message.status === 'running' ? (
                       <span
                         aria-hidden="true"
-                        className="ml-1 inline-block size-2 animate-pulse rounded-full bg-agent-text"
+                        className="ml-1 inline-block size-2 animate-pulse rounded-full bg-foreground"
                       />
                     ) : null}
                   </div>
@@ -232,7 +232,8 @@ export function AgentTranscript({
                       <IconButton
                         label={copiedId === message.id ? copy.copied : copy.copy}
                         onClick={() => void copyMessage(message.id, message.content)}
-                        className="size-8 text-agent-muted"
+                        size="sm"
+                        className="text-muted-foreground"
                       >
                         {copiedId === message.id ? (
                           <CheckCheck size={15} />
@@ -241,7 +242,7 @@ export function AgentTranscript({
                         )}
                       </IconButton>
                       {copiedId === message.id ? (
-                        <span role="status" className="text-xs text-agent-muted">
+                        <span role="status" className="text-xs text-muted-foreground">
                           {copy.copied}
                         </span>
                       ) : null}
@@ -252,7 +253,7 @@ export function AgentTranscript({
             </article>
           ))}
           {copyError ? (
-            <p role="alert" className="text-xs text-agent-muted">
+            <p role="alert" className="text-xs text-muted-foreground">
               {copy.copyFailed}
             </p>
           ) : null}
@@ -260,7 +261,7 @@ export function AgentTranscript({
       </div>
       {availableSpace >= 48 ? (
         <div
-          className="agent-conversation-rail absolute top-1/2 -translate-y-1/2"
+          className="absolute top-1/2 -translate-y-1/2"
           style={{ left: railOffset }}
         >
           <UserMessageNavigationRail
@@ -282,7 +283,7 @@ export function AgentTranscript({
           <IconButton
             label={copy.latest}
             onClick={scrollToLatest}
-            className="border border-agent-border bg-agent-surface shadow-sm"
+            className="border border-border bg-card shadow-control"
           >
             <ArrowDown size={18} />
           </IconButton>

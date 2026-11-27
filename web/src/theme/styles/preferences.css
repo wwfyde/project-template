@@ -1,0 +1,77 @@
+/* Explicit user overrides follow presets; default means use the preset value. */
+@layer base {
+  :root[data-theme-radius='none'] {
+    --radius: 0;
+  }
+
+  :root[data-theme-radius='sm'] {
+    --radius: 0.3rem;
+  }
+
+  :root[data-theme-radius='md'] {
+    --radius: 0.5rem;
+  }
+
+  :root[data-theme-radius='lg'] {
+    --radius: 0.75rem;
+  }
+
+  :root[data-theme-radius='xl'] {
+    --radius: 1rem;
+  }
+
+  :root[data-theme-density='compact'] {
+    --text-xs: 0.7rem;
+    --text-sm: 0.8rem;
+    --text-base: 0.9rem;
+    --text-lg: 1.025rem;
+    --spacing: 0.225rem;
+    --control-height: 2rem;
+  }
+
+  :root[data-theme-density='comfortable'] {
+    --text-xs: 0.82rem;
+    --text-sm: 0.95rem;
+    --text-base: 1.075rem;
+    --text-lg: 1.22rem;
+    --spacing: 0.28rem;
+    --control-height: 2.875rem;
+  }
+
+  @media (prefers-reduced-transparency: reduce) {
+    :root[data-theme-preset],
+    :root.dark[data-theme-preset] {
+      --popover: var(--card);
+      --sidebar: var(--card);
+      --blur-surface: 0px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    :root[data-theme-preset] {
+      --motion-duration: 0ms;
+    }
+
+    *,
+    *::before,
+    *::after {
+      scroll-behavior: auto !important;
+      transition-duration: 0.01ms !important;
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+    }
+  }
+}
+
+@layer components {
+  .app-content {
+    width: 100%;
+    margin-inline: auto;
+  }
+
+  @media (min-width: 64rem) {
+    [data-theme-content-width='centered'] .app-content {
+      max-width: 80rem;
+    }
+  }
+}

@@ -1,3 +1,4 @@
+import { Button } from '@base-ui/react/button'
 import { Bookmark, FileText } from 'lucide-react'
 import {
   useEffect,
@@ -12,7 +13,6 @@ import {
 } from 'react'
 
 import { AnchoredPopover } from '../../components/ui/anchored-popover'
-import { Button } from '../../components/ui/button'
 import {
   keyboardIndex,
   markerProgress,
@@ -360,7 +360,7 @@ function UserMessageNavigationRailContent({
           return (
             <li key={item.id}>
               <Button
-                variant="ghost"
+                type="button"
                 ref={(element: HTMLElement | null) => {
                   if (element) buttons.current.set(item.id, element)
                   else buttons.current.delete(item.id)
@@ -460,8 +460,7 @@ function UserMessageNavigationRailContent({
               <p className="user-message-navigation-rail__label">{selected.getLabel()}</p>
               {onBookmarkChange ? (
                 <Button
-                  variant="ghost"
-                  size="icon"
+                  type="button"
                   className="user-message-navigation-rail__bookmark"
                   aria-label={
                     selected.isBookmarked

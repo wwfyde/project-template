@@ -29,7 +29,7 @@ export function applyThemeToDocument(preferences: ThemePreferences, resolvedMode
   root.dataset.themeMode = preferences.mode
 
   // Keep inputs and derived CSS variables on the same element so presets update every token.
-  setOptionalDataAttribute(root, 'themePreset', preferences.preset, 'default')
+  root.dataset.themePreset = preferences.preset
   setOptionalDataAttribute(root, 'themeRadius', preferences.radius, 'default')
   setOptionalDataAttribute(root, 'themeDensity', preferences.density, 'default')
   root.dataset.themeContentWidth = preferences.contentWidth
