@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "skills": {
+    "ui-sdk": {
+      "source": "vercel-labs/ui",
+      "commit": "a07c1cc8cc0ea576b7b55a37810a55a6c5d50f01",
+      "sourceType": "github",
+      "skillPath": "packages/core/skills/ui-sdk/SKILL.md",
+      "computedHash": "1af8b09475fd1c8784489c4c1099eb167e28297c344e1102fb017ca07ce74d00"
+    }
+  }
+}
